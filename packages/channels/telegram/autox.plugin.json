@@ -1,0 +1,19 @@
+{
+    "name": "@autox/channel-telegram",
+    "version": "0.1.0",
+    "description": "Telegram channel plugin for AutoX",
+    "author": "AutoX",
+    "type": "channel",
+    "entry": "dist/index.js",
+    "platforms": ["telegram"],
+    "config": [
+        {
+            "key": "botToken",
+            "label": "Bot Token",
+            "type": "secret",
+            "description": "Telegram Bot API token from @BotFather",
+            "required": true
+        }
+    ],
+    "permissions": ["network"]
+}

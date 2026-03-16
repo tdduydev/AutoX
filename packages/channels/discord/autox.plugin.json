@@ -1,0 +1,26 @@
+{
+    "name": "@autox/channel-discord",
+    "version": "0.1.0",
+    "description": "Discord channel plugin for AutoX",
+    "author": "AutoX",
+    "type": "channel",
+    "entry": "dist/index.js",
+    "platforms": ["discord"],
+    "config": [
+        {
+            "key": "botToken",
+            "label": "Bot Token",
+            "type": "secret",
+            "description": "Discord Bot token from Developer Portal",
+            "required": true
+        },
+        {
+            "key": "guildId",
+            "label": "Guild ID",
+            "type": "string",
+            "description": "Discord server (guild) ID to connect to",
+            "required": false
+        }
+    ],
+    "permissions": ["network"]
+}

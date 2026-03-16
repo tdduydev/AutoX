@@ -1,5 +1,5 @@
 // ============================================================
-// API Client
+// API Client - REST + Gateway WebSocket
 // ============================================================
 
 const BASE = '';
@@ -62,4 +62,136 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ query, limit }),
     }),
+
+  // Gateway info
+  getGatewaySessions: () => request<{ sessions: any[] }>('/api/gateway/sessions'),
+  getGatewayChannels: () => request<{ channels: any[] }>('/api/gateway/channels'),
 };
+
+// ─── Gateway WebSocket Client ───────────────────────────────
+
+type GatewayMessageHandler = (msg: any) => void;
+
+export class GatewayClient {
+  private ws: WebSocket | null = null;
+  private handlers: Map<string, Set<GatewayMessageHandler>> = new Map();
+  private pendingRequests: Map<string, { resolve: (v: any) => void; reject: (e: Error) => void }> = new Map();
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private _connected = false;
+
+  constructor(private url: string = `ws://${location.host}/ws`) {}
+
+  get connected(): boolean {
+    return this._connected;
+  }
+
+  connect(): void {
+    if (this.ws?.readyState === WebSocket.OPEN) return;
+
+    this.ws = new WebSocket(this.url);
+
+    this.ws.onopen = () => {
+      this._connected = true;
+      this.emit('connected', {});
+    };
+
+    this.ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+
+      // Handle ping/pong
+      if (msg.type === 'ping') {
+        this.send({ type: 'pong', id: msg.id, payload: {} });
+        return;
+      }
+
+      // Resolve pending request/response
+      const pending = this.pendingRequests.get(msg.id);
+      if (pending) {
+        this.pendingRequests.delete(msg.id);
+        if (msg.type === 'error') {
+          pending.reject(new Error(msg.payload.error));
+        } else {
+          pending.resolve(msg);
+        }
+      }
+
+      // Notify type-based handlers
+      this.emit(msg.type, msg);
+    };
+
+    this.ws.onclose = () => {
+      this._connected = false;
+      this.emit('disconnected', {});
+      // Auto-reconnect after 3s
+      this.reconnectTimer = setTimeout(() => this.connect(), 3000);
+    };
+
+    this.ws.onerror = () => {
+      this._connected = false;
+    };
+  }
+
+  disconnect(): void {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.ws?.close();
+    this.ws = null;
+    this._connected = false;
+  }
+
+  /** Subscribe to a message type */
+  on(type: string, handler: GatewayMessageHandler): () => void {
+    if (!this.handlers.has(type)) this.handlers.set(type, new Set());
+    this.handlers.get(type)!.add(handler);
+    return () => this.handlers.get(type)?.delete(handler);
+  }
+
+  /** Send a message through the Gateway WS */
+  send(msg: { type: string; id?: string; payload: any; sessionId?: string }): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    this.ws.send(JSON.stringify({
+      ...msg,
+      id: msg.id ?? crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+    }));
+  }
+
+  /** Send a request and wait for the response */
+  request(msg: { type: string; payload: any; sessionId?: string }): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const id = crypto.randomUUID();
+      this.pendingRequests.set(id, { resolve, reject });
+      this.send({ ...msg, id });
+      // Timeout after 60s
+      setTimeout(() => {
+        if (this.pendingRequests.has(id)) {
+          this.pendingRequests.delete(id);
+          reject(new Error('Gateway request timeout'));
+        }
+      }, 60_000);
+    });
+  }
+
+  /** Chat via Gateway WS */
+  async chat(sessionId: string, message: string): Promise<string> {
+    const response = await this.request({
+      type: 'chat',
+      payload: { message, chatSessionId: sessionId },
+    });
+    return response.payload.content;
+  }
+
+  private emit(type: string, data: any): void {
+    const handlers = this.handlers.get(type);
+    if (handlers) {
+      for (const h of handlers) h(data);
+    }
+    // Also notify wildcard listeners
+    const wildcards = this.handlers.get('*');
+    if (wildcards) {
+      for (const h of wildcards) h(data);
+    }
+  }
+}
+
+// Singleton gateway client
+export const gatewayClient = new GatewayClient();

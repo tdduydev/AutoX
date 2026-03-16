@@ -1,16 +1,26 @@
 {
     "name": "autox",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "private": true,
-    "description": "AutoX - AI Agent Platform with drag-and-drop workflow builder",
+    "description": "AutoX - AI Agent Platform with Gateway architecture, drag-and-drop workflow builder, and multi-channel support",
     "workspaces": [
-        "packages/*"
+        "packages/shared",
+        "packages/core",
+        "packages/skills",
+        "packages/gateway",
+        "packages/channels/*",
+        "packages/cli",
+        "packages/server",
+        "packages/web"
     ],
     "scripts": {
         "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
         "dev:server": "npm run dev -w packages/server",
         "dev:web": "npm run dev -w packages/web",
-        "build": "npm run build -w packages/shared && npm run build -w packages/core && npm run build -w packages/skills && npm run build -w packages/server && npm run build -w packages/web",
+        "dev:gateway": "npm run dev -w packages/gateway",
+        "build": "npm run build -w packages/shared && npm run build -w packages/core && npm run build -w packages/skills && npm run build -w packages/gateway && npm run build -w packages/server && npm run build -w packages/web",
+        "gateway": "npm run start -w packages/gateway",
+        "cli": "tsx packages/cli/src/index.ts",
         "test": "vitest",
         "lint": "eslint packages/*/src --ext .ts,.tsx"
     },
@@ -18,6 +28,7 @@
         "concurrently": "^9.1.0",
         "typescript": "^5.7.0",
         "vitest": "^3.0.0",
-        "eslint": "^9.0.0"
+        "eslint": "^9.0.0",
+        "tsx": "^4.19.0"
     }
 }

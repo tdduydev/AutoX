@@ -27,8 +27,17 @@
             "@autox/skills": [
                 "./packages/skills/src"
             ],
+            "@autox/gateway": [
+                "./packages/gateway/src"
+            ],
             "@autox/server": [
                 "./packages/server/src"
+            ],
+            "@autox/channel-telegram": [
+                "./packages/channels/telegram/src"
+            ],
+            "@autox/channel-discord": [
+                "./packages/channels/discord/src"
             ]
         }
     },

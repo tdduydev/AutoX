@@ -9,3 +9,5 @@ export type { LLMAdapter } from './llm/llm-router.js';
 export type { ToolExecutor } from './tools/tool-registry.js';
 export type { SkillPlugin, SkillContext } from './skills/skill-manager.js';
 export type { MemoryStore } from './memory/memory-manager.js';
+export { PluginLoader } from './plugins/plugin-loader.js';
+export type { LoadedPlugin } from './plugins/plugin-loader.js';

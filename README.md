@@ -7,63 +7,86 @@
   <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" />
 </p>
 
-> 🤖 Open-source AI Agent platform with a drag-and-drop Workflow Builder. Multi-industry support: Programming, Healthcare, and more.
+> Open-source AI Agent platform with Gateway architecture, multi-channel support (Telegram, Discord), drag-and-drop Workflow Builder, and CLI interface. Inspired by [OpenClaw](https://openclaw.ai/).
 
-## ✨ Features
+## Architecture
 
-- **🧠 Multi-LLM Support** — OpenAI, Anthropic Claude, Ollama (local)
-- **🔧 Plugin/Skill System** — Modular architecture, easily extensible per industry
-- **🎨 Drag & Drop Workflow Builder** — React Flow canvas with 16 node types
-- **💬 AI Chat Interface** — Smart chat with iterative tool-calling loop
-- **🏥 Healthcare Module** — Symptom analysis, medication management, appointments
-- **💻 Programming Module** — Shell, Git, file management, test runner
-- **🔌 Event-Driven Architecture** — Pub/sub decoupled communication
-- **📡 Real-time WebSocket** — Live workflow execution status updates
-- **🐳 Docker Ready** — One-command deployment with Docker Compose
+```
+                    ┌──────────────────────────────────────┐
+                    │           AutoX Gateway              │
+                    │     ws://127.0.0.1:18789/ws          │
+                    │   (WebSocket Control Plane)           │
+                    ├──────────────────────────────────────┤
+                    │  Session Manager │ Channel Manager    │
+                    │  REST API Layer  │ Event Broadcasting │
+                    └─────────┬────────────────┬───────────┘
+                              │                │
+              ┌───────────────┤                ├───────────────┐
+              │               │                │               │
+        ┌─────┴─────┐  ┌─────┴─────┐  ┌──────┴──────┐  ┌────┴────┐
+        │  Web UI   │  │ Telegram  │  │  Discord    │  │  CLI    │
+        │ :3000     │  │ grammY    │  │ discord.js  │  │ autox   │
+        └───────────┘  └───────────┘  └─────────────┘  └─────────┘
+```
 
-## 📖 Documentation
+## Features
 
-Detailed system design and architecture documents are available in the [`docs/`](docs/) directory:
+- **Gateway Architecture** — WebSocket control plane (like OpenClaw) with session management, heartbeat, and event broadcasting
+- **Multi-Channel** — Telegram (grammY), Discord (discord.js), Web UI, REST API — connect your agent everywhere
+- **CLI Interface** — `autox gateway`, `autox chat`, `autox skills`, `autox doctor`
+- **Plugin System** — npm-distributable plugins with `autox.plugin.json` manifests
+- **Multi-LLM Support** — OpenAI, Anthropic Claude, Ollama (local)
+- **Drag & Drop Workflow Builder** — React Flow canvas with 16 node types
+- **AI Chat Interface** — Tool-calling agent loop (max 10 iterations)
+- **Healthcare Module** — Symptom analysis, medication management, health metrics
+- **Programming Module** — Shell, Git, file management, test runner
+- **Event-Driven** — Pub/sub EventBus with wildcard support
+- **Docker Ready** — One-command deployment
+
+## Documentation
 
 | Document | Description |
 |---|---|
-| [System Architecture](docs/architecture.md) | High-level architecture, component diagram, data flow |
-| [API Reference](docs/api-reference.md) | REST API & WebSocket endpoints |
-| [Skill Development Guide](docs/skill-development.md) | How to create custom skill packs |
-| [Workflow Engine Design](docs/workflow-engine.md) | Workflow execution model, node types, BFS algorithm |
+| [System Architecture](docs/architecture.md) | Component diagram, data flow |
+| [API Reference](docs/api-reference.md) | REST & WebSocket endpoints |
+| [Skill Development](docs/skill-development.md) | How to create skill packs |
+| [Workflow Engine](docs/workflow-engine.md) | BFS execution, node types |
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 autox/
 ├── packages/
-│   ├── shared/          # Type definitions & constants
-│   ├── core/            # Agent engine, LLM router, memory, workflow
-│   │   ├── agent/       # Agent core + EventBus
-│   │   ├── llm/         # Multi-provider LLM adapter
-│   │   ├── memory/      # Vector memory with cosine similarity
-│   │   ├── tools/       # Tool registry with approval system
-│   │   ├── skills/      # Skill manager (plugin loader)
-│   │   └── workflow/    # Workflow engine (BFS execution)
-│   ├── skills/          # Skill packs
-│   │   ├── programming/ # 11 tools: shell, git, files, tests...
-│   │   └── healthcare/  # 11 tools: symptoms, medications, metrics...
-│   ├── server/          # Express + WebSocket API
-│   └── web/             # React + Vite + React Flow + Tailwind
-│       ├── components/
-│       │   ├── workflow/ # Canvas, NodePalette, Properties panel
-│       │   ├── chat/    # Chat interface
-│       │   ├── dashboard/ # Health monitoring
-│       │   ├── skills/  # Skill management
-│       │   └── settings/ # Agent configuration
-│       └── stores/      # Zustand state management
-├── docs/                # System design documentation
+│   ├── shared/              # Type definitions (Gateway, Channel, Plugin types)
+│   ├── core/                # Agent engine, LLM router, memory, workflow, plugins
+│   │   ├── agent/           # Agent core + EventBus
+│   │   ├── llm/             # Multi-provider LLM adapter
+│   │   ├── memory/          # Vector memory with cosine similarity
+│   │   ├── tools/           # Tool registry with approval system
+│   │   ├── skills/          # Skill manager
+│   │   ├── plugins/         # Plugin loader (autox.plugin.json)
+│   │   └── workflow/        # Workflow engine (BFS execution)
+│   ├── gateway/             # WebSocket control plane
+│   │   ├── gateway.ts       # Gateway server (WS + REST)
+│   │   ├── session-manager.ts
+│   │   └── channel-manager.ts
+│   ├── cli/                 # CLI interface (autox command)
+│   │   └── commands/        # gateway, chat, skills, doctor
+│   ├── channels/
+│   │   ├── telegram/        # Telegram bot (grammY)
+│   │   └── discord/         # Discord bot (discord.js)
+│   ├── skills/              # Built-in skill packs
+│   │   ├── programming/     # 11 tools: shell, git, files, tests
+│   │   └── healthcare/      # 11 tools: symptoms, medications, metrics
+│   ├── server/              # Server entry point (launches Gateway)
+│   └── web/                 # React + Vite + React Flow + Tailwind
+├── docs/                    # System design documentation
 ├── Dockerfile
 ├── docker-compose.yml
 └── .env.example
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -73,27 +96,47 @@ autox/
 ### Installation
 
 ```bash
-# Clone the repo
 git clone https://github.com/tdduydev/AutoX.git
 cd AutoX
-
-# Install dependencies
 npm install
-
-# Configure environment
 cp .env.example .env
-# Edit .env and add your API keys
+# Edit .env with your LLM API key
 ```
 
-### Development
+### Start the Gateway
 
 ```bash
-# Run both server + frontend
-npm run dev
+# Start Gateway (WebSocket control plane on ws://127.0.0.1:18789)
+npm run dev:server
 
-# Or run individually
-npm run dev:server   # Backend API: http://localhost:3001
-npm run dev:web      # Frontend UI: http://localhost:3000
+# In another terminal, start the Web UI
+npm run dev:web
+# Open http://localhost:3000
+```
+
+### CLI Usage
+
+```bash
+# Start the gateway
+npx tsx packages/cli/src/index.ts gateway
+
+# Chat with the agent
+npx tsx packages/cli/src/index.ts chat "Hello, what can you do?"
+
+# List skills
+npx tsx packages/cli/src/index.ts skills list
+
+# System health check
+npx tsx packages/cli/src/index.ts doctor
+```
+
+### Channel Plugins
+
+Add bot tokens to `.env` to auto-enable channels:
+
+```env
+TELEGRAM_BOT_TOKEN=your-telegram-token
+DISCORD_BOT_TOKEN=your-discord-token
 ```
 
 ### Docker
@@ -102,52 +145,46 @@ npm run dev:web      # Frontend UI: http://localhost:3000
 docker compose up -d
 ```
 
-## 🔧 LLM Configuration
+## Plugin System
 
-Supports 3 providers:
+Create plugins distributed as npm packages with `autox.plugin.json`:
+
+```json
+{
+  "name": "@autox/channel-telegram",
+  "version": "0.1.0",
+  "description": "Telegram channel plugin",
+  "type": "channel",
+  "entry": "dist/index.js",
+  "platforms": ["telegram"],
+  "config": [
+    { "key": "botToken", "type": "secret", "required": true }
+  ],
+  "permissions": ["network"]
+}
+```
+
+Plugin types: `skill`, `channel`, `integration`, `theme`.
+
+## LLM Configuration
 
 | Provider | Models | Notes |
 |---|---|---|
-| **OpenAI** | gpt-4o-mini, gpt-4o | Requires `OPENAI_API_KEY` |
-| **Anthropic** | claude-3-haiku, claude-3-sonnet | Requires `ANTHROPIC_API_KEY` |
+| **OpenAI** | gpt-4o-mini, gpt-4o | Requires `LLM_API_KEY` |
+| **Anthropic** | claude-3-haiku, claude-3-sonnet | Requires `LLM_API_KEY` |
 | **Ollama** | llama3, mistral, phi3 | Local, free |
 
-## 📦 Skill Packs
+## Skill Packs
 
 ### Programming (11 tools)
-`shell_exec` · `file_read` · `file_write` · `file_list` · `git_status` · `git_diff` · `git_commit` · `git_log` · `run_tests` · `code_search` · `project_analyze`
+`shell_exec` `file_read` `file_write` `file_list` `git_status` `git_diff` `git_commit` `git_log` `run_tests` `code_search` `project_analyze`
 
 ### Healthcare (11 tools)
-`symptom_analyze` · `medication_check_interaction` · `medication_schedule` · `health_metrics_log` · `health_metrics_query` · `appointment_manage` · `medical_record` · `health_report` · `clinical_note` · `icd_lookup`
+`symptom_analyze` `medication_check_interaction` `medication_schedule` `health_metrics_log` `health_metrics_query` `appointment_manage` `medical_record` `health_report` `clinical_note` `icd_lookup`
 
-### Creating a New Skill Pack
+## Workflow Builder
 
-```typescript
-import { defineSkill } from '@autox/core';
-
-export const mySkill = defineSkill({
-  id: 'my-skill',
-  name: 'My Custom Skill',
-  version: '1.0.0',
-  category: 'custom',
-  tools: [
-    {
-      name: 'my_tool',
-      description: 'Does something useful',
-      parameters: { /* JSON Schema */ },
-      execute: async (args) => {
-        return { result: 'done' };
-      },
-    },
-  ],
-});
-```
-
-See the [Skill Development Guide](docs/skill-development.md) for full documentation.
-
-## 🎨 Workflow Builder
-
-Drag-and-drop visual builder with 16 node types:
+16 node types in a drag-and-drop visual canvas:
 
 | Category | Nodes |
 |---|---|
@@ -158,25 +195,24 @@ Drag-and-drop visual builder with 16 node types:
 | **Data** | Transform, Memory Read/Write, Sub-Workflow |
 | **Output** | Output |
 
-See the [Workflow Engine Design](docs/workflow-engine.md) for execution details.
-
-## 🗺️ Roadmap
+## Roadmap
 
 - [ ] Database persistence (PostgreSQL/MongoDB)
 - [ ] Authentication & multi-user
+- [x] Gateway WebSocket control plane
+- [x] CLI interface
+- [x] Telegram channel plugin
+- [x] Discord channel plugin
+- [x] Plugin manifest system (autox.plugin.json)
 - [ ] Skill marketplace
-- [ ] Marketing & Sales skill packs
-- [ ] Finance & Legal skill packs
-- [ ] Smart Home integration
+- [ ] WhatsApp / Slack / Signal channels
+- [ ] Streaming chat responses
 - [ ] Mobile app (React Native)
-- [ ] Webhook triggers & Cron scheduler
-- [ ] Workflow versioning & rollback
-- [ ] AI model fine-tuning interface
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome! Please open an Issue or Pull Request.
+Contributions are welcome! Open an Issue or Pull Request.
 
-## 📄 License
+## License
 
 MIT © [Tran Duc Duy](https://github.com/tdduydev)

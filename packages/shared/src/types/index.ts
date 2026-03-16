@@ -311,3 +311,96 @@ export interface AgentEvent {
 }
 
 export type EventHandler = (event: AgentEvent) => Promise<void>;
+
+// ─── Gateway Types (WS Control Plane) ───────────────────────
+
+export interface GatewayConfig {
+  port: number;
+  host: string;
+  heartbeatInterval: number;    // ms
+  sessionTimeout: number;       // ms
+  maxSessionsPerUser: number;
+  corsOrigins: string[];
+}
+
+export interface GatewaySession {
+  id: string;
+  userId: string;
+  platform: ChatPlatform;
+  channelId: string;
+  connectedAt: string;
+  lastActiveAt: string;
+  metadata: Record<string, unknown>;
+}
+
+export type GatewayMessageType =
+  | 'auth'           // Client authenticates
+  | 'chat'           // Chat message
+  | 'chat:stream'    // Streaming chat chunk
+  | 'chat:response'  // Full chat response
+  | 'tool:call'      // Tool execution request
+  | 'tool:result'    // Tool execution result
+  | 'tool:approval'  // Tool approval request/response
+  | 'workflow:execute' // Start a workflow
+  | 'workflow:status'  // Workflow status update
+  | 'workflow:result'  // Workflow completion
+  | 'skill:list'     // List skills
+  | 'skill:toggle'   // Activate/deactivate skill
+  | 'event'          // Generic event forwarding
+  | 'ping'           // Heartbeat ping
+  | 'pong'           // Heartbeat pong
+  | 'error';         // Error message
+
+export interface GatewayMessage {
+  type: GatewayMessageType;
+  id: string;           // Message ID for request/response correlation
+  sessionId?: string;
+  payload: Record<string, unknown>;
+  timestamp: string;
+}
+
+// ─── Channel Plugin Types ───────────────────────────────────
+
+export interface ChannelPlugin {
+  id: string;
+  platform: ChatPlatform;
+  name: string;
+  version: string;
+  description: string;
+
+  initialize(config: Record<string, unknown>): Promise<void>;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+
+  /** Send a message through this channel */
+  send(message: OutgoingMessage): Promise<void>;
+
+  /** Register handler for incoming messages */
+  onMessage(handler: (message: IncomingMessage) => Promise<void>): void;
+}
+
+// ─── Plugin Manifest (npm distribution) ─────────────────────
+
+export interface PluginManifest {
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  type: PluginType;
+  category?: SkillCategory;
+  entry: string;          // Main entry file
+  config?: SkillConfigField[];
+  dependencies?: string[];
+  platforms?: ChatPlatform[];     // For channel plugins
+  permissions?: PluginPermission[];
+}
+
+export type PluginType = 'skill' | 'channel' | 'integration' | 'theme';
+
+export type PluginPermission =
+  | 'network'        // HTTP requests
+  | 'filesystem'     // File read/write
+  | 'shell'          // Shell command execution
+  | 'memory'         // Memory access
+  | 'llm'            // LLM API calls
+  | 'secrets';       // Access to secrets/API keys
