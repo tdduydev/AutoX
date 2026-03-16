@@ -7,21 +7,32 @@
   <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" />
 </p>
 
-> 🤖 Nền tảng AI Agent mã nguồn mở với giao diện kéo-thả Workflow Builder, hỗ trợ đa ngành: Lập trình, Y tế, và nhiều hơn nữa.
+> 🤖 Open-source AI Agent platform with a drag-and-drop Workflow Builder. Multi-industry support: Programming, Healthcare, and more.
 
-## ✨ Tính năng chính
+## ✨ Features
 
 - **🧠 Multi-LLM Support** — OpenAI, Anthropic Claude, Ollama (local)
-- **🔧 Plugin/Skill System** — Kiến trúc module hóa, dễ mở rộng theo ngành
-- **🎨 Drag & Drop Workflow Builder** — React Flow canvas với 16 loại node
-- **💬 AI Chat Interface** — Giao diện chat thông minh với tool-calling
-- **🏥 Healthcare Module** — Phân tích triệu chứng, quản lý thuốc, lịch hẹn
+- **🔧 Plugin/Skill System** — Modular architecture, easily extensible per industry
+- **🎨 Drag & Drop Workflow Builder** — React Flow canvas with 16 node types
+- **💬 AI Chat Interface** — Smart chat with iterative tool-calling loop
+- **🏥 Healthcare Module** — Symptom analysis, medication management, appointments
 - **💻 Programming Module** — Shell, Git, file management, test runner
 - **🔌 Event-Driven Architecture** — Pub/sub decoupled communication
-- **📡 Real-time WebSocket** — Cập nhật trạng thái workflow theo thời gian thực
-- **🐳 Docker Ready** — Deploy nhanh với Docker Compose
+- **📡 Real-time WebSocket** — Live workflow execution status updates
+- **🐳 Docker Ready** — One-command deployment with Docker Compose
 
-## 🏗️ Kiến trúc
+## 📖 Documentation
+
+Detailed system design and architecture documents are available in the [`docs/`](docs/) directory:
+
+| Document | Description |
+|---|---|
+| [System Architecture](docs/architecture.md) | High-level architecture, component diagram, data flow |
+| [API Reference](docs/api-reference.md) | REST API & WebSocket endpoints |
+| [Skill Development Guide](docs/skill-development.md) | How to create custom skill packs |
+| [Workflow Engine Design](docs/workflow-engine.md) | Workflow execution model, node types, BFS algorithm |
+
+## 🏗️ Project Structure
 
 ```
 autox/
@@ -46,40 +57,41 @@ autox/
 │       │   ├── skills/  # Skill management
 │       │   └── settings/ # Agent configuration
 │       └── stores/      # Zustand state management
+├── docs/                # System design documentation
 ├── Dockerfile
 ├── docker-compose.yml
 └── .env.example
 ```
 
-## 🚀 Bắt đầu
+## 🚀 Getting Started
 
-### Yêu cầu
+### Prerequisites
 
 - Node.js >= 20
 - npm >= 10
 
-### Cài đặt
+### Installation
 
 ```bash
-# Clone repo
+# Clone the repo
 git clone https://github.com/tdduydev/AutoX.git
 cd AutoX
 
-# Cài dependencies
+# Install dependencies
 npm install
 
-# Cấu hình environment
+# Configure environment
 cp .env.example .env
-# Sửa .env và thêm API key của bạn
+# Edit .env and add your API keys
 ```
 
-### Chạy Development
+### Development
 
 ```bash
-# Chạy cả server + frontend
+# Run both server + frontend
 npm run dev
 
-# Hoặc chạy riêng
+# Or run individually
 npm run dev:server   # Backend API: http://localhost:3001
 npm run dev:web      # Frontend UI: http://localhost:3000
 ```
@@ -90,15 +102,15 @@ npm run dev:web      # Frontend UI: http://localhost:3000
 docker compose up -d
 ```
 
-## 🔧 Cấu hình LLM
+## 🔧 LLM Configuration
 
-Hỗ trợ 3 provider:
+Supports 3 providers:
 
-| Provider | Model | Ghi chú |
+| Provider | Models | Notes |
 |---|---|---|
-| **OpenAI** | gpt-4o-mini, gpt-4o | Cần `OPENAI_API_KEY` |
-| **Anthropic** | claude-3-haiku, claude-3-sonnet | Cần `ANTHROPIC_API_KEY` |
-| **Ollama** | llama3, mistral, phi3 | Local, miễn phí |
+| **OpenAI** | gpt-4o-mini, gpt-4o | Requires `OPENAI_API_KEY` |
+| **Anthropic** | claude-3-haiku, claude-3-sonnet | Requires `ANTHROPIC_API_KEY` |
+| **Ollama** | llama3, mistral, phi3 | Local, free |
 
 ## 📦 Skill Packs
 
@@ -108,7 +120,7 @@ Hỗ trợ 3 provider:
 ### Healthcare (11 tools)
 `symptom_analyze` · `medication_check_interaction` · `medication_schedule` · `health_metrics_log` · `health_metrics_query` · `appointment_manage` · `medical_record` · `health_report` · `clinical_note` · `icd_lookup`
 
-### Tạo Skill Pack mới
+### Creating a New Skill Pack
 
 ```typescript
 import { defineSkill } from '@autox/core';
@@ -131,9 +143,11 @@ export const mySkill = defineSkill({
 });
 ```
 
+See the [Skill Development Guide](docs/skill-development.md) for full documentation.
+
 ## 🎨 Workflow Builder
 
-Giao diện kéo-thả với 16 loại node:
+Drag-and-drop visual builder with 16 node types:
 
 | Category | Nodes |
 |---|---|
@@ -143,6 +157,8 @@ Giao diện kéo-thả với 16 loại node:
 | **Control** | If/Else, Loop, Switch, Wait, Merge |
 | **Data** | Transform, Memory Read/Write, Sub-Workflow |
 | **Output** | Output |
+
+See the [Workflow Engine Design](docs/workflow-engine.md) for execution details.
 
 ## 🗺️ Roadmap
 
@@ -157,10 +173,10 @@ Giao diện kéo-thả với 16 loại node:
 - [ ] Workflow versioning & rollback
 - [ ] AI model fine-tuning interface
 
-## 🤝 Đóng góp
+## 🤝 Contributing
 
-Contributions welcome! Vui lòng tạo Issue hoặc Pull Request.
+Contributions are welcome! Please open an Issue or Pull Request.
 
 ## 📄 License
 
-MIT © [Trần Đức Duy](https://github.com/tdduydev)
+MIT © [Tran Duc Duy](https://github.com/tdduydev)
