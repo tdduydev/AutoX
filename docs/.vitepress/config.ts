@@ -4,11 +4,12 @@ export default defineConfig({
     title: 'xClaw',
     description: 'Open-source AI Agent Platform — Pluggable skills, visual workflows, multi-LLM support',
     lang: 'en-US',
+    appearance: 'dark',
     ignoreDeadLinks: [/localhost/],
 
     head: [
         ['link', { rel: 'icon', type: 'image/png', href: '/logo.png' }],
-        ['meta', { name: 'theme-color', content: '#6366f1' }],
+        ['meta', { name: 'theme-color', content: '#06b6d4' }],
         // Open Graph
         ['meta', { property: 'og:type', content: 'website' }],
         ['meta', { property: 'og:title', content: 'xClaw — AI Agent Platform' }],
@@ -42,7 +43,8 @@ export default defineConfig({
             {
                 text: 'v0.2.0',
                 items: [
-                    { text: 'Changelog', link: 'https://github.com/tdduydev/xClaw/releases' },
+                    { text: 'Changelog', link: '/changelog' },
+                    { text: 'GitHub Releases', link: 'https://github.com/tdduydev/xClaw/releases' },
                     { text: 'npm', link: 'https://www.npmjs.com/org/xclaw' },
                 ],
             },
