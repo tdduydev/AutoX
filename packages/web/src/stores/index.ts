@@ -30,6 +30,14 @@ export interface WFEdge {
   style?: Record<string, unknown>;
 }
 
+// Undo/Redo history snapshot
+interface HistorySnapshot {
+  nodes: WFNode[];
+  edges: WFEdge[];
+}
+
+const MAX_HISTORY = 50;
+
 interface WorkflowState {
   // Current workflow
   nodes: WFNode[];
@@ -40,6 +48,12 @@ interface WorkflowState {
 
   // Selection
   selectedNodeId: string | null;
+
+  // Undo/Redo
+  undoStack: HistorySnapshot[];
+  redoStack: HistorySnapshot[];
+  canUndo: boolean;
+  canRedo: boolean;
 
   // Actions
   setNodes: (nodes: WFNode[]) => void;
@@ -53,35 +67,63 @@ interface WorkflowState {
   setWorkflowMeta: (id: string | null, name: string) => void;
   clearWorkflow: () => void;
   markClean: () => void;
+  undo: () => void;
+  redo: () => void;
 }
 
-export const useWorkflowStore = create<WorkflowState>((set) => ({
+/** Push current state onto undo stack before mutating */
+function pushUndo(s: WorkflowState): Pick<WorkflowState, 'undoStack' | 'redoStack' | 'canUndo' | 'canRedo'> {
+  const snapshot: HistorySnapshot = { nodes: s.nodes, edges: s.edges };
+  const undoStack = [...s.undoStack, snapshot].slice(-MAX_HISTORY);
+  return { undoStack, redoStack: [], canUndo: true, canRedo: false };
+}
+
+export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   nodes: [],
   edges: [],
   workflowId: null,
   workflowName: 'Untitled Workflow',
   isDirty: false,
   selectedNodeId: null,
+  undoStack: [],
+  redoStack: [],
+  canUndo: false,
+  canRedo: false,
 
-  setNodes: (nodes) => set({ nodes, isDirty: true }),
-  setEdges: (edges) => set({ edges, isDirty: true }),
+  setNodes: (nodes) => set((s) => ({ ...pushUndo(s), nodes, isDirty: true })),
+  setEdges: (edges) => set((s) => ({ ...pushUndo(s), edges, isDirty: true })),
 
-  addNode: (node) => set((s) => ({ nodes: [...s.nodes, node], isDirty: true })),
+  addNode: (node) => set((s) => ({
+    ...pushUndo(s),
+    nodes: [...s.nodes, node],
+    isDirty: true,
+  })),
 
   updateNode: (id, data) => set((s) => ({
+    ...pushUndo(s),
     nodes: s.nodes.map(n => n.id === id ? { ...n, data: { ...n.data, ...data } } : n),
     isDirty: true,
   })),
 
   removeNode: (id) => set((s) => ({
+    ...pushUndo(s),
     nodes: s.nodes.filter(n => n.id !== id),
     edges: s.edges.filter(e => e.source !== id && e.target !== id),
     selectedNodeId: s.selectedNodeId === id ? null : s.selectedNodeId,
     isDirty: true,
   })),
 
-  addEdge: (edge) => set((s) => ({ edges: [...s.edges, edge], isDirty: true })),
-  removeEdge: (id) => set((s) => ({ edges: s.edges.filter(e => e.id !== id), isDirty: true })),
+  addEdge: (edge) => set((s) => ({
+    ...pushUndo(s),
+    edges: [...s.edges, edge],
+    isDirty: true,
+  })),
+
+  removeEdge: (id) => set((s) => ({
+    ...pushUndo(s),
+    edges: s.edges.filter(e => e.id !== id),
+    isDirty: true,
+  })),
 
   selectNode: (id) => set({ selectedNodeId: id }),
 
@@ -89,8 +131,41 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
   clearWorkflow: () => set({
     nodes: [], edges: [], workflowId: null, workflowName: 'Untitled Workflow',
     isDirty: false, selectedNodeId: null,
+    undoStack: [], redoStack: [], canUndo: false, canRedo: false,
   }),
   markClean: () => set({ isDirty: false }),
+
+  undo: () => set((s) => {
+    if (s.undoStack.length === 0) return s;
+    const undoStack = [...s.undoStack];
+    const snapshot = undoStack.pop()!;
+    const redoStack = [...s.redoStack, { nodes: s.nodes, edges: s.edges }];
+    return {
+      nodes: snapshot.nodes,
+      edges: snapshot.edges,
+      undoStack,
+      redoStack,
+      canUndo: undoStack.length > 0,
+      canRedo: true,
+      isDirty: true,
+    };
+  }),
+
+  redo: () => set((s) => {
+    if (s.redoStack.length === 0) return s;
+    const redoStack = [...s.redoStack];
+    const snapshot = redoStack.pop()!;
+    const undoStack = [...s.undoStack, { nodes: s.nodes, edges: s.edges }];
+    return {
+      nodes: snapshot.nodes,
+      edges: snapshot.edges,
+      undoStack,
+      redoStack,
+      canUndo: true,
+      canRedo: redoStack.length > 0,
+      isDirty: true,
+    };
+  }),
 }));
 
 // ─── Chat Store ─────────────────────────────────────────────

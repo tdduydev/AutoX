@@ -247,6 +247,145 @@ export function NodePropertiesPanel() {
                         />
                     </Field>
                 )}
+
+                {node.data.nodeType === 'loop' && (
+                    <>
+                        <Field label="Loop Mode">
+                            <select
+                                value={(config.loopMode as string) || 'condition'}
+                                onChange={e => updateConfig('loopMode', e.target.value)}
+                                className="input-field"
+                            >
+                                <option value="condition">While Condition</option>
+                                <option value="items">Iterate Items</option>
+                            </select>
+                        </Field>
+                        {(config.loopMode || 'condition') === 'condition' ? (
+                            <Field label="Condition">
+                                <input
+                                    type="text"
+                                    value={(config.condition as string) || ''}
+                                    onChange={e => updateConfig('condition', e.target.value)}
+                                    className="input-field"
+                                    placeholder="e.g. index < 10"
+                                />
+                            </Field>
+                        ) : (
+                            <Field label="Items (variable name or JSON array)">
+                                <input
+                                    type="text"
+                                    value={(config.items as string) || ''}
+                                    onChange={e => updateConfig('items', e.target.value)}
+                                    className="input-field"
+                                    placeholder="e.g. {{results}} or [1,2,3]"
+                                />
+                            </Field>
+                        )}
+                        <Field label="Loop Variable Name">
+                            <input
+                                type="text"
+                                value={(config.loopVariable as string) || 'item'}
+                                onChange={e => updateConfig('loopVariable', e.target.value)}
+                                className="input-field"
+                                placeholder="item"
+                            />
+                        </Field>
+                        <Field label="Max Iterations">
+                            <input
+                                type="number"
+                                min={1}
+                                max={1000}
+                                value={(config.maxIterations as number) || 100}
+                                onChange={e => updateConfig('maxIterations', parseInt(e.target.value) || 100)}
+                                className="input-field"
+                            />
+                        </Field>
+                    </>
+                )}
+
+                {node.data.nodeType === 'switch' && (
+                    <>
+                        <Field label="Expression">
+                            <input
+                                type="text"
+                                value={(config.expression as string) || ''}
+                                onChange={e => updateConfig('expression', e.target.value)}
+                                className="input-field"
+                                placeholder="e.g. inputs.status or {{category}}"
+                            />
+                        </Field>
+                        <Field label="Cases">
+                            <div className="space-y-2">
+                                {((config.cases as { value: string; label: string }[]) || []).map((c, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            value={c.value}
+                                            onChange={e => {
+                                                const cases = [...(config.cases as { value: string; label: string }[])];
+                                                cases[i] = { ...cases[i], value: e.target.value };
+                                                updateConfig('cases', cases);
+                                            }}
+                                            className="input-field flex-1"
+                                            placeholder="Value"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={c.label}
+                                            onChange={e => {
+                                                const cases = [...(config.cases as { value: string; label: string }[])];
+                                                cases[i] = { ...cases[i], label: e.target.value };
+                                                updateConfig('cases', cases);
+                                            }}
+                                            className="input-field flex-1"
+                                            placeholder="Label"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const cases = [...(config.cases as { value: string; label: string }[])];
+                                                cases.splice(i, 1);
+                                                updateConfig('cases', cases);
+                                            }}
+                                            className="text-red-400 hover:text-red-300 text-xs p-1"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => {
+                                        const cases = [...(config.cases as { value: string; label: string }[] || [])];
+                                        cases.push({ value: '', label: `Case ${cases.length + 1}` });
+                                        updateConfig('cases', cases);
+                                    }}
+                                    className="text-xs text-primary-400 hover:text-primary-300"
+                                >
+                                    + Add Case
+                                </button>
+                            </div>
+                        </Field>
+                    </>
+                )}
+
+                {node.data.nodeType === 'merge' && (
+                    <div className="text-xs text-slate-500 italic">
+                        Merge node waits for all incoming branches to complete,
+                        then combines their outputs and passes them downstream.
+                        Connect multiple branches to this node.
+                    </div>
+                )}
+
+                {node.data.nodeType === 'sub-workflow' && (
+                    <Field label="Sub-Workflow ID">
+                        <input
+                            type="text"
+                            value={(config.subWorkflowId as string) || ''}
+                            onChange={e => updateConfig('subWorkflowId', e.target.value)}
+                            className="input-field"
+                            placeholder="ID of the sub-workflow to execute"
+                        />
+                    </Field>
+                )}
             </div>
         </div>
     );
