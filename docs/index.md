@@ -47,8 +47,8 @@ features:
 <style>
 :root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #10b981 100%);
-  --vp-home-hero-image-background-image: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, rgba(6, 182, 212, 0.3) 40%, rgba(16, 185, 129, 0.2) 70%, transparent 100%);
+  --vp-home-hero-name-background: linear-gradient(135deg, #06b6d4 0%, #4f46e5 100%);
+  --vp-home-hero-image-background-image: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, rgba(79, 70, 229, 0.3) 50%, transparent 100%);
   --vp-home-hero-image-filter: blur(56px);
 }
 </style>

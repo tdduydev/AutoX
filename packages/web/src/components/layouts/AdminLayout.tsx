@@ -124,59 +124,61 @@ export function AdminLayout() {
     const viewInfo = VIEW_TITLES[currentView] ?? { title: 'xClaw', subtitle: '' };
 
     return (
-        <div className="h-screen w-screen flex overflow-hidden bg-dark-900">
+        <div className="h-screen w-screen flex overflow-hidden bg-background">
             {/* ─── Sidebar ─── */}
             <aside
-                className={`flex flex-col bg-dark-950 border-r border-dark-700 transition-all duration-200 flex-shrink-0 ${collapsed ? 'w-[68px]' : 'w-60'
+                className={`flex flex-col bg-background-surface/95 backdrop-blur-xl border-r border-border transition-all duration-300 flex-shrink-0 z-20 ${collapsed ? 'w-[68px]' : 'w-64'
                     }`}
             >
                 {/* Brand */}
-                <div className="flex items-center gap-2.5 px-4 h-14 border-b border-dark-700 flex-shrink-0">
-                    <div className="w-8 h-8 rounded-lg bg-primary-600/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        <img src="/logo.svg" alt="xClaw" className="w-6 h-6" />
+                <div className="flex items-center gap-3 px-5 h-16 border-b border-border flex-shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-secondary p-0.5 flex items-center justify-center flex-shrink-0 shadow-glow shadow-primary/20">
+                        <div className="w-full h-full bg-background rounded-[10px] flex items-center justify-center overflow-hidden">
+                            <img src="/logo.png" alt="xClaw" className="w-6 h-6 object-contain" />
+                        </div>
                     </div>
                     {!collapsed && (
-                        <div className="flex flex-col min-w-0">
-                            <span className="font-bold text-sm text-white leading-tight">xClaw</span>
-                            <span className="text-[10px] text-slate-500 leading-tight">Admin Console</span>
+                        <div className="flex flex-col min-w-0 animate-fade-in">
+                            <span className="font-bold text-sm text-foreground tracking-tight leading-tight">xClaw</span>
+                            <span className="text-[10px] text-primary-light font-medium tracking-wide leading-tight uppercase">Admin Console</span>
                         </div>
                     )}
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 py-3 overflow-y-auto">
+                <nav className="flex-1 py-4 overflow-y-auto px-3">
                     {NAV_SECTIONS.map(section => (
-                        <div key={section.title} className="mb-4">
+                        <div key={section.title} className="mb-6">
                             {!collapsed && (
-                                <div className="px-4 mb-1.5 text-[10px] font-bold tracking-[0.15em] text-slate-600">
+                                <div className="px-3 mb-2 text-[10px] font-bold tracking-widest text-foreground-muted uppercase">
                                     {section.title}
                                 </div>
                             )}
-                            {collapsed && <div className="mx-3 mb-1.5 border-t border-dark-800" />}
-                            <div className="px-2 space-y-0.5">
+                            {collapsed && <div className="mx-3 mb-2 border-t border-border" />}
+                            <div className="space-y-1">
                                 {section.items.map(item => {
                                     const active = currentView === item.id;
                                     return (
                                         <button
                                             key={item.id}
                                             onClick={() => setView(item.id as any)}
-                                            className={`group w-full flex items-center gap-2.5 rounded-lg text-[13px] transition-all duration-150 ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2'
+                                            className={`group w-full flex items-center gap-3 rounded-lg text-[13px] font-medium transition-all duration-200 ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2'
                                                 } ${active
-                                                    ? 'bg-primary-600/15 text-primary-400 shadow-sm shadow-primary-600/5'
-                                                    : 'text-slate-400 hover:bg-dark-800/70 hover:text-slate-200'
+                                                    ? 'bg-primary/10 text-primary-light shadow-sm shadow-primary/5 ring-1 ring-primary/20'
+                                                    : 'text-foreground-muted hover:bg-background-hover/50 hover:text-foreground'
                                                 }`}
                                             title={collapsed ? item.label : undefined}
                                         >
                                             <item.icon
-                                                size={collapsed ? 20 : 16}
-                                                className={`flex-shrink-0 transition-colors ${active ? 'text-primary-400' : 'text-slate-500 group-hover:text-slate-300'
+                                                size={collapsed ? 20 : 18}
+                                                className={`flex-shrink-0 transition-all duration-200 ${active ? 'text-primary-light drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' : 'text-foreground-muted group-hover:text-foreground group-hover:scale-110'
                                                     }`}
                                             />
                                             {!collapsed && (
-                                                <span className="font-medium truncate">{item.label}</span>
+                                                <span className="truncate">{item.label}</span>
                                             )}
                                             {!collapsed && item.badge && (
-                                                <span className="ml-auto text-[10px] bg-primary-600/20 text-primary-400 px-1.5 py-0.5 rounded-full">
+                                                <span className="ml-auto text-[10px] bg-accent/20 border border-accent/20 text-accent px-1.5 py-0.5 rounded-md font-bold">
                                                     {item.badge}
                                                 </span>
                                             )}
@@ -189,50 +191,50 @@ export function AdminLayout() {
                 </nav>
 
                 {/* Sidebar footer - Collapse + User */}
-                <div className="border-t border-dark-700 flex-shrink-0">
+                <div className="border-t border-border flex-shrink-0 p-3">
                     {/* Collapse toggle */}
                     <button
                         onClick={() => setCollapsed(!collapsed)}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-slate-500 hover:text-slate-300 hover:bg-dark-800/50 transition text-xs"
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-foreground-muted hover:text-foreground hover:bg-background-hover/50 transition duration-200 text-xs font-medium mb-3"
                     >
-                        {collapsed ? <ChevronRight size={14} /> : (
+                        {collapsed ? <ChevronRight size={16} /> : (
                             <>
-                                <ChevronLeft size={14} />
-                                <span>Collapse</span>
+                                <ChevronLeft size={16} />
+                                <span>Collapse Menu</span>
                             </>
                         )}
                     </button>
 
                     {/* User card */}
-                    <div className="px-3 py-3 border-t border-dark-800">
+                    <div className="p-3 bg-background-soft/50 rounded-xl border border-border">
                         {collapsed ? (
                             <button
                                 onClick={logout}
                                 className="w-full flex justify-center"
                                 title="Logout"
                             >
-                                <div className="w-8 h-8 rounded-full bg-amber-600/20 flex items-center justify-center text-amber-300 text-xs font-bold hover:bg-amber-600/30 transition">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-accent to-secondary flex items-center justify-center text-white text-xs font-bold shadow-sm shadow-accent/20 hover:scale-105 transition-transform">
                                     {user.displayName[0].toUpperCase()}
                                 </div>
                             </button>
                         ) : (
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-full bg-amber-600/20 flex items-center justify-center text-amber-300 text-xs font-bold flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-accent to-secondary flex items-center justify-center text-white text-xs font-bold shadow-sm shadow-accent/20 flex-shrink-0">
                                     {user.displayName[0].toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-medium text-slate-200 truncate">{user.displayName}</div>
-                                    <div className="flex items-center gap-1">
-                                        <Shield size={10} className="text-amber-400" />
-                                        <span className="text-[10px] text-amber-400 font-medium">Admin</span>
+                                    <div className="text-xs font-bold text-foreground truncate">{user.displayName}</div>
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                        <Shield size={10} className="text-accent" />
+                                        <span className="text-[10px] text-accent font-medium uppercase tracking-wide">Administrator</span>
                                     </div>
                                 </div>
                                 <button
                                     onClick={logout}
-                                    className="p-1.5 rounded text-slate-500 hover:text-red-400 hover:bg-dark-800 transition"
+                                    className="p-1.5 rounded-lg text-foreground-muted hover:text-white hover:bg-destructive/80 transition-colors"
                                     title="Logout"
                                 >
-                                    <LogOut size={14} />
+                                    <LogOut size={16} />
                                 </button>
                             </div>
                         )}
@@ -241,13 +243,16 @@ export function AdminLayout() {
             </aside>
 
             {/* ─── Main area ─── */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Top header bar */}
-                <header className="h-14 flex items-center justify-between px-5 bg-dark-950/60 backdrop-blur border-b border-dark-700 flex-shrink-0">
+            <div className="flex-1 flex flex-col overflow-hidden relative">
+                {/* Background decorative glow */}
+                <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
+                
+                {/* Top header bar - Glassmorphism */}
+                <header className="h-16 flex items-center justify-between px-6 bg-background/60 backdrop-blur-xl border-b border-white/5 z-10 flex-shrink-0 shadow-sm">
                     {/* Left: Page title */}
-                    <div>
-                        <h1 className="text-sm font-semibold text-white leading-tight">{viewInfo.title}</h1>
-                        <p className="text-[11px] text-slate-500 leading-tight">{viewInfo.subtitle}</p>
+                    <div className="animate-fade-in">
+                        <h1 className="text-base font-bold text-foreground leading-tight">{viewInfo.title}</h1>
+                        <p className="text-xs text-foreground-muted mt-0.5 font-medium leading-tight">{viewInfo.subtitle}</p>
                     </div>
 
                     {/* Right: Actions */}

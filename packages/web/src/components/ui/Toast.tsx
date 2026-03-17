@@ -32,17 +32,17 @@ export function useToast(): ToastCtx {
 // ── Config ──────────────────────────────────────────────────
 
 const ICONS: Record<ToastVariant, React.ReactNode> = {
-    info: <Info size={16} className="text-blue-400 shrink-0" />,
+    info: <Info size={16} className="text-cyan-400 shrink-0" />,
     success: <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />,
     warning: <AlertTriangle size={16} className="text-amber-400 shrink-0" />,
-    error: <XCircle size={16} className="text-red-400 shrink-0" />,
+    error: <XCircle size={16} className="text-destructive shrink-0" />,
 };
 
 const BG: Record<ToastVariant, string> = {
-    info: 'border-blue-500/20 bg-blue-950/60',
-    success: 'border-emerald-500/20 bg-emerald-950/60',
-    warning: 'border-amber-500/20 bg-amber-950/60',
-    error: 'border-red-500/20 bg-red-950/60',
+    info: 'border-cyan-500/30 bg-background-surface/95 shadow-[0_0_15px_rgba(6,182,212,0.1)]',
+    success: 'border-emerald-500/30 bg-background-surface/95 shadow-[0_0_15px_rgba(52,211,153,0.1)]',
+    warning: 'border-amber-500/30 bg-background-surface/95 shadow-[0_0_15px_rgba(251,191,36,0.1)]',
+    error: 'border-destructive/30 bg-background-surface/95 shadow-[0_0_15px_rgba(239,68,68,0.1)]',
 };
 
 const DURATION = 4000;
@@ -75,16 +75,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         <Ctx.Provider value={ctx}>
             {children}
             {/* Toast container */}
-            <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
+            <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-3 max-w-sm">
                 {toasts.map(t => (
                     <div
                         key={t.id}
-                        className={`flex items-start gap-2.5 px-4 py-3 rounded-lg border shadow-xl backdrop-blur text-sm text-slate-200 animate-slide-up ${BG[t.variant]}`}
+                        className={`flex items-start gap-3 px-4 py-3 rounded-xl border backdrop-blur-xl text-sm text-foreground animate-slide-up ${BG[t.variant]}`}
                     >
                         {ICONS[t.variant]}
-                        <span className="flex-1">{t.message}</span>
-                        <button onClick={() => dismiss(t.id)} className="text-slate-500 hover:text-slate-300 transition shrink-0">
-                            <X size={14} />
+                        <span className="flex-1 font-medium">{t.message}</span>
+                        <button onClick={() => dismiss(t.id)} className="text-foreground-muted hover:text-foreground transition-colors shrink-0">
+                            <X size={15} />
                         </button>
                     </div>
                 ))}

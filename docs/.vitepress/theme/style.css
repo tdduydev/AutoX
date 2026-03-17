@@ -14,8 +14,8 @@
     --xclaw-cyan: #06b6d4;
     --xclaw-emerald: #10b981;
     --xclaw-indigo: #6366f1;
-    --xclaw-gradient: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #10b981 100%);
-    --xclaw-gradient-soft: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(6, 182, 212, 0.15), rgba(16, 185, 129, 0.15));
+    --xclaw-gradient: linear-gradient(135deg, #06b6d4 0%, #4f46e5 100%);
+    --xclaw-gradient-soft: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(79, 70, 229, 0.15));
 
     /* Font */
     --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -23,13 +23,13 @@
 }
 
 .dark {
-    --vp-c-brand-1: #818cf8;
-    --vp-c-brand-2: #a5b4fc;
-    --vp-c-brand-3: #c7d2fe;
-    --vp-c-brand-soft: rgba(129, 140, 248, 0.14);
-    --vp-c-bg: #0f0f1a;
-    --vp-c-bg-alt: #14142a;
-    --vp-c-bg-soft: #1a1a35;
+    --vp-c-brand-1: #06b6d4;
+    --vp-c-brand-2: #22d3ee;
+    --vp-c-brand-3: #67e8f9;
+    --vp-c-brand-soft: rgba(6, 182, 212, 0.14);
+    --vp-c-bg: #09090b;
+    --vp-c-bg-alt: #000000;
+    --vp-c-bg-soft: #18181b;
 }
 
 /* ─── Global Smooth Scroll ─── */
@@ -125,10 +125,10 @@ html {
 }
 
 .dark .VPFeature {
-    background: rgba(20, 20, 42, 0.6);
+    background: rgba(24, 24, 27, 0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .VPFeature::before {
@@ -192,8 +192,8 @@ html {
 }
 
 .dark .VPNav {
-    background: rgba(15, 15, 26, 0.85) !important;
-    border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+    background: rgba(9, 9, 11, 0.75) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .VPNavBar .title {
@@ -253,8 +253,8 @@ html {
 }
 
 .dark .vp-doc div[class*='language-'] {
-    background: rgba(15, 15, 26, 0.9);
-    border: 1px solid rgba(99, 102, 241, 0.12);
+    background: #18181b;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .vp-code-group .tabs label {
@@ -315,7 +315,7 @@ html {
 }
 
 .dark .VPFooter {
-    background: rgba(15, 15, 26, 0.95);
+    background: rgba(9, 9, 11, 0.95);
 }
 
 .VPFooter .message,
@@ -359,7 +359,7 @@ html {
 
 /* ─── Search Modal ─── */
 .dark .DocSearch-Modal {
-    background: rgba(15, 15, 26, 0.95);
+    background: rgba(24, 24, 27, 0.95);
     backdrop-filter: blur(20px);
 }
 

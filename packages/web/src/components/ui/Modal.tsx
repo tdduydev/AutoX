@@ -31,25 +31,25 @@ export function Modal({ open, onClose, title, subtitle, size = 'md', children, f
     return (
         <div
             ref={overlayRef}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
             onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
         >
-            <div className={`w-full ${sizeMap[size]} bg-dark-800 border border-dark-700 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200`}>
+            <div className={`w-full ${sizeMap[size]} bg-background-surface/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden`}>
                 {/* Header */}
-                <div className="flex items-start justify-between p-5 border-b border-dark-700">
+                <div className="flex items-start justify-between p-6 border-b border-border/50">
                     <div>
-                        <h3 className="text-base font-semibold text-white">{title}</h3>
-                        {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+                        <h3 className="text-lg font-bold text-foreground tracking-tight">{title}</h3>
+                        {subtitle && <p className="text-sm font-medium text-foreground-muted mt-1">{subtitle}</p>}
                     </div>
-                    <button onClick={onClose} className="p-1 rounded-lg text-slate-500 hover:text-white hover:bg-dark-700 transition">
-                        <X size={16} />
+                    <button onClick={onClose} className="p-2 ml-4 rounded-lg text-foreground-muted hover:text-white hover:bg-background-hover/50 transition-colors">
+                        <X size={18} />
                     </button>
                 </div>
                 {/* Body */}
-                <div className="p-5 max-h-[60vh] overflow-y-auto">{children}</div>
+                <div className="p-6 max-h-[65vh] overflow-y-auto custom-scrollbar">{children}</div>
                 {/* Footer */}
                 {footer && (
-                    <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-dark-700">
+                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border/50 bg-background/50">
                         {footer}
                     </div>
                 )}
@@ -79,7 +79,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, description, co
                 <Button variant={variant} onClick={onConfirm} loading={loading}>{confirmLabel}</Button>
             </>
         }>
-            <p className="text-sm text-slate-400">{description}</p>
+            <p className="text-sm font-medium text-foreground-muted">{description}</p>
         </Modal>
     );
 }

@@ -11,7 +11,7 @@ interface CardProps {
 
 export function Card({ children, className = '', padding = true }: CardProps) {
     return (
-        <div className={`bg-dark-800 border border-dark-700 rounded-xl ${padding ? 'p-5' : ''} ${className}`}>
+        <div className={`glass-panel rounded-xl shadow-glass-sm ${padding ? 'p-5' : ''} ${className}`}>
             {children}
         </div>
     );
@@ -29,20 +29,20 @@ interface StatCardProps {
     className?: string;
 }
 
-export function StatCard({ label, value, icon: Icon, iconColor = 'text-primary-400', change, changeType = 'neutral', className = '' }: StatCardProps) {
-    const changeColors = { up: 'text-green-400', down: 'text-red-400', neutral: 'text-slate-500' };
+export function StatCard({ label, value, icon: Icon, iconColor = 'text-primary-light', change, changeType = 'neutral', className = '' }: StatCardProps) {
+    const changeColors = { up: 'text-emerald-400', down: 'text-destructive', neutral: 'text-foreground-muted' };
     return (
-        <div className={`bg-dark-800 border border-dark-700 rounded-xl p-4 ${className}`}>
+        <div className={`glass-panel rounded-xl p-5 shadow-glass-sm transition-transform duration-300 hover:-translate-y-1 hover:shadow-glow hover:shadow-primary/5 ${className}`}>
             <div className="flex items-start justify-between">
                 <div>
-                    <p className="text-xs text-slate-500 font-medium mb-1">{label}</p>
-                    <p className="text-2xl font-bold text-white">{value}</p>
+                    <p className="text-xs text-foreground-muted font-bold tracking-wide uppercase mb-1">{label}</p>
+                    <p className="text-3xl font-bold text-foreground tracking-tight">{value}</p>
                     {change && (
-                        <p className={`text-xs mt-1 ${changeColors[changeType]}`}>{change}</p>
+                        <p className={`text-xs mt-1.5 font-medium ${changeColors[changeType]}`}>{change}</p>
                     )}
                 </div>
                 {Icon && (
-                    <div className={`p-2 rounded-lg bg-dark-900/50 ${iconColor}`}>
+                    <div className={`p-2.5 rounded-xl bg-background/50 border border-border/50 shadow-inner ${iconColor}`}>
                         <Icon size={20} />
                     </div>
                 )}

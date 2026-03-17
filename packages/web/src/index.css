@@ -2,110 +2,118 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --error: #ef4444;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary-light;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    /* Soft ambient background glow */
+    background-image: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+                      radial-gradient(circle at 0% 50%, rgba(6, 182, 212, 0.08) 0%, transparent 40%);
+    background-attachment: fixed;
+  }
 }
 
-body {
-  margin: 0;
-  font-family:
-    "Inter",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+@layer components {
+  /* Premium Glassmorphism Panel */
+  .glass-panel {
+    @apply bg-background-surface/60 backdrop-blur-xl border border-white/5 rounded-xl shadow-glass;
+  }
+  
+  .glass-header {
+    @apply bg-background/80 backdrop-blur-md border-b border-border;
+  }
+
+  /* Input fields */
+  .input-field {
+    @apply w-full bg-background-soft/50 border border-border rounded-lg px-4 py-2.5 text-sm text-foreground 
+           placeholder-foreground-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 
+           transition-all duration-200 shadow-inner;
+  }
+
+  /* Gradient Text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent;
+  }
+  
+  /* Primary Button */
+  .btn-primary {
+    @apply relative overflow-hidden bg-primary hover:bg-primary-hover text-white font-medium rounded-lg px-4 py-2 
+           transition-all duration-300 shadow-glow hover:-translate-y-[1px] hover:shadow-glow-lg border border-white/10;
+  }
+  
+  /* Standard modern button */
+  .btn-secondary {
+    @apply bg-background-soft hover:bg-background-hover text-foreground font-medium rounded-lg px-4 py-2 
+           transition-all duration-200 border border-border;
+  }
 }
 
-/* React Flow custom styles */
-.react-flow__node {
-  font-size: 12px;
-}
-
-.react-flow__edge-path {
-  stroke: #475569;
-  stroke-width: 2;
-}
-
-.react-flow__handle {
-  width: 8px;
-  height: 8px;
-  background: #3b82f6;
-  border: 2px solid #1e293b;
-}
-
-.react-flow__minimap {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 8px;
-}
-
-.react-flow__controls {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.react-flow__controls-button {
-  background: #1e293b;
-  border-color: #334155;
-  fill: #f8fafc;
-}
-
-.react-flow__controls-button:hover {
-  background: #334155;
-}
-
-/* Scrollbar */
+/* Scrollbar Modernization */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 3px;
+  @apply bg-zinc-700/50 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-zinc-600;
 }
 
-/* Node drag animation */
+/* React Flow custom styles - Premium redesign */
+.react-flow__bg {
+  @apply bg-background;
+}
+
+.react-flow__node {
+  @apply text-xs font-medium;
+}
+
+.react-flow__edge-path {
+  stroke: #52525b; /* zinc-600 */
+  stroke-width: 2;
+  transition: stroke 0.3s ease;
+}
+
+.react-flow__edge:hover .react-flow__edge-path,
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #6366f1; /* primary */
+  stroke-width: 3;
+}
+
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  @apply bg-secondary border-2 border-background-surface shadow-glow-cyan;
+}
+
+.react-flow__minimap {
+  @apply bg-background-surface/80 backdrop-blur-md border border-border rounded-xl overflow-hidden shadow-glass;
+}
+
+.react-flow__controls {
+  @apply bg-background-surface/80 backdrop-blur-md border border-border rounded-lg overflow-hidden shadow-glass;
+}
+
+.react-flow__controls-button {
+  @apply bg-transparent border-b border-border fill-foreground-muted hover:fill-foreground hover:bg-background-hover transition-colors;
+}
+
+/* Node styling override */
 .workflow-node {
-  transition: box-shadow 0.2s ease;
+  @apply transition-all duration-300;
 }
 .workflow-node:hover {
-  box-shadow:
-    0 0 0 2px #3b82f6,
-    0 4px 12px rgba(59, 130, 246, 0.3);
+  @apply shadow-glow -translate-y-[2px];
+  border-color: rgba(99, 102, 241, 0.5);
 }
 .workflow-node.selected {
-  box-shadow: 0 0 0 2px #3b82f6;
-}
-
-/* Input field utility */
-.input-field {
-  @apply w-full bg-[#0f172a] border border-[#334155] rounded-md px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors;
-}
-
-/* Toast slide-up animation */
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.animate-slide-up {
-  animation: slide-up 0.2s ease-out;
+  @apply shadow-glow border-primary ring-1 ring-primary;
 }
