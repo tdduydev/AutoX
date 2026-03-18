@@ -1,33 +1,58 @@
-// ============================================================
-// EventBus - Internal pub/sub for decoupled communication
-// ============================================================
-
 import type { AgentEvent, EventHandler } from '@xclaw/shared';
 
-export class EventBus {
-  private handlers: Map<string, Set<EventHandler>> = new Map();
-  private wildcardHandlers: Set<EventHandler> = new Set();
+type WildcardPattern = string;
 
-  on(eventType: string, handler: EventHandler): () => void {
-    if (eventType === '*') {
-      this.wildcardHandlers.add(handler);
-      return () => this.wildcardHandlers.delete(handler);
+export class EventBus {
+  private handlers = new Map<WildcardPattern, Set<EventHandler>>();
+
+  on(pattern: string, handler: EventHandler): () => void {
+    if (!this.handlers.has(pattern)) {
+      this.handlers.set(pattern, new Set());
     }
-    if (!this.handlers.has(eventType)) {
-      this.handlers.set(eventType, new Set());
-    }
-    this.handlers.get(eventType)!.add(handler);
-    return () => this.handlers.get(eventType)?.delete(handler);
+    this.handlers.get(pattern)!.add(handler);
+
+    // Return unsubscribe function
+    return () => {
+      this.handlers.get(pattern)?.delete(handler);
+    };
   }
 
   async emit(event: AgentEvent): Promise<void> {
-    const handlers = this.handlers.get(event.type) ?? new Set();
-    const all = [...handlers, ...this.wildcardHandlers];
-    await Promise.allSettled(all.map(h => h(event)));
+    const promises: Promise<void>[] = [];
+
+    for (const [pattern, handlers] of this.handlers) {
+      if (this.matchesPattern(event.type, pattern)) {
+        for (const handler of handlers) {
+          promises.push(
+            handler(event).catch((err) => {
+              console.error(`[EventBus] Handler error for ${pattern}:`, err);
+            }),
+          );
+        }
+      }
+    }
+
+    await Promise.all(promises);
   }
 
-  removeAll(): void {
-    this.handlers.clear();
-    this.wildcardHandlers.clear();
+  removeAllListeners(pattern?: string): void {
+    if (pattern) {
+      this.handlers.delete(pattern);
+    } else {
+      this.handlers.clear();
+    }
+  }
+
+  private matchesPattern(eventType: string, pattern: string): boolean {
+    if (pattern === '*') return true;
+    if (pattern === eventType) return true;
+
+    // Wildcard: "tool:*" matches "tool:started", "tool:completed"
+    if (pattern.endsWith(':*')) {
+      const prefix = pattern.slice(0, -1);
+      return eventType.startsWith(prefix);
+    }
+
+    return false;
   }
 }

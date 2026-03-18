@@ -1,10 +1,10 @@
 // ============================================================
-// xClaw Shared Types - Foundation for the entire platform
+// xClaw Shared Types — Foundation for the entire platform
 // ============================================================
 
 // ─── LLM Provider Types ─────────────────────────────────────
 
-export type LLMProvider = 'openai' | 'anthropic' | 'ollama' | 'google' | 'custom';
+export type LLMProvider = 'openai' | 'anthropic' | 'ollama' | 'google' | 'groq' | 'mistral' | 'custom';
 
 export interface LLMConfig {
   provider: LLMProvider;
@@ -25,10 +25,28 @@ export interface LLMMessage {
 export interface LLMResponse {
   content: string;
   toolCalls?: ToolCall[];
-  usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+  usage: TokenUsage;
   model: string;
   finishReason: 'stop' | 'tool_calls' | 'length' | 'error';
 }
+
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+// ─── Streaming Types ────────────────────────────────────────
+
+export type StreamEvent =
+  | { type: 'text-delta'; delta: string }
+  | { type: 'tool-call-start'; toolCallId: string; toolName: string }
+  | { type: 'tool-call-args'; toolCallId: string; argsJson: string }
+  | { type: 'tool-call-end'; toolCallId: string }
+  | { type: 'tool-result'; toolCallId: string; result: ToolResult }
+  | { type: 'meta'; key: string; data: unknown }
+  | { type: 'finish'; usage: TokenUsage; finishReason: string }
+  | { type: 'error'; error: string };
 
 // ─── Tool System Types ──────────────────────────────────────
 
@@ -37,7 +55,7 @@ export interface ToolDefinition {
   description: string;
   category: string;
   parameters: ToolParameter[];
-  returns: ToolParameter;
+  returns?: ToolParameter;
   requiresApproval?: boolean;
   timeout?: number;
 }
@@ -88,7 +106,6 @@ export type SkillCategory =
   | 'marketing'
   | 'finance'
   | 'ecommerce'
-  | 'smart-home'
   | 'communication'
   | 'analytics'
   | 'devops'
@@ -120,15 +137,9 @@ export interface TriggerDefinition {
   config: Record<string, unknown>;
 }
 
-export type TriggerType =
-  | 'cron'       // Scheduled: "every day at 9am"
-  | 'webhook'    // HTTP webhook incoming
-  | 'event'      // Internal event bus
-  | 'message'    // Chat message pattern match
-  | 'file'       // File system change
-  | 'manual';    // User-triggered
+export type TriggerType = 'cron' | 'webhook' | 'event' | 'message' | 'file' | 'manual';
 
-// ─── Workflow Types (Drag & Drop) ───────────────────────────
+// ─── Workflow Types ─────────────────────────────────────────
 
 export interface Workflow {
   id: string;
@@ -154,28 +165,27 @@ export interface WorkflowNode {
 }
 
 export type WorkflowNodeType =
-  | 'trigger'       // Start node
-  | 'llm-call'      // Call LLM
-  | 'tool-call'     // Execute a tool
-  | 'condition'     // If/else branch
-  | 'loop'          // For/while loop
-  | 'transform'     // Data transformation (JS/template)
-  | 'http-request'  // HTTP call
-  | 'code'          // Custom code execution
-  | 'memory-read'   // Read from memory
-  | 'memory-write'  // Write to memory
-  | 'notification'  // Send notification
-  | 'wait'          // Delay/wait
-  | 'switch'        // Multi-branch switch
-  | 'merge'         // Merge branches
-  | 'sub-workflow'  // Call another workflow
-  | 'output';       // End node with output
+  | 'trigger'
+  | 'llm-call'
+  | 'tool-call'
+  | 'condition'
+  | 'loop'
+  | 'transform'
+  | 'http-request'
+  | 'code'
+  | 'memory-read'
+  | 'memory-write'
+  | 'notification'
+  | 'wait'
+  | 'switch'
+  | 'merge'
+  | 'sub-workflow'
+  | 'output';
 
 export interface WorkflowNodeData {
   label: string;
   description?: string;
   config: Record<string, unknown>;
-  // Visual customization
   color?: string;
   icon?: string;
 }
@@ -188,11 +198,11 @@ export interface NodePort {
 
 export interface WorkflowEdge {
   id: string;
-  source: string;      // node id
-  sourcePort: string;   // port id
-  target: string;       // node id
-  targetPort: string;   // port id
-  condition?: string;   // for conditional edges
+  source: string;
+  sourcePort: string;
+  target: string;
+  targetPort: string;
+  condition?: string;
 }
 
 export interface WorkflowVariable {
@@ -250,7 +260,7 @@ export interface ConversationMessage {
   metadata?: Record<string, unknown>;
 }
 
-// ─── Messaging / Chat Types ─────────────────────────────────
+// ─── Chat / Messaging Types ────────────────────────────────
 
 export type ChatPlatform = 'web' | 'telegram' | 'discord' | 'slack' | 'whatsapp' | 'api';
 
@@ -290,23 +300,17 @@ export interface AgentConfig {
   systemPrompt: string;
   llm: LLMConfig;
   enabledSkills: string[];
-  enabledWorkflows: string[];
   memory: {
     enabled: boolean;
     maxEntries: number;
-    embeddingModel?: string;
   };
   security: {
     requireApprovalForShell: boolean;
     requireApprovalForNetwork: boolean;
-    sandboxed: boolean;
-    allowedDomains?: string[];
     blockedCommands?: string[];
   };
-  messaging: {
-    platforms: ChatPlatform[];
-    maxConcurrentSessions: number;
-  };
+  maxToolIterations: number;
+  toolTimeout: number;
 }
 
 // ─── Event Bus ──────────────────────────────────────────────
@@ -320,250 +324,167 @@ export interface AgentEvent {
 
 export type EventHandler = (event: AgentEvent) => Promise<void>;
 
-// ─── Gateway Types (WS Control Plane) ───────────────────────
+// ─── Gateway Types ──────────────────────────────────────────
 
 export interface GatewayConfig {
   port: number;
   host: string;
-  heartbeatInterval: number;    // ms
-  sessionTimeout: number;       // ms
-  maxSessionsPerUser: number;
   corsOrigins: string[];
+  jwtSecret: string;
 }
 
 export interface GatewaySession {
   id: string;
   userId: string;
   platform: ChatPlatform;
-  channelId: string;
   connectedAt: string;
   lastActiveAt: string;
-  metadata: Record<string, unknown>;
 }
 
 export type GatewayMessageType =
-  | 'auth'           // Client authenticates
-  | 'chat'           // Chat message
-  | 'chat:stream'    // Streaming chat chunk
-  | 'chat:response'  // Full chat response
-  | 'tool:call'      // Tool execution request
-  | 'tool:result'    // Tool execution result
-  | 'tool:approval'  // Tool approval request/response
-  | 'workflow:execute' // Start a workflow
-  | 'workflow:status'  // Workflow status update
-  | 'workflow:result'  // Workflow completion
-  | 'skill:list'     // List skills
-  | 'skill:toggle'   // Activate/deactivate skill
-  | 'event'          // Generic event forwarding
-  | 'ping'           // Heartbeat ping
-  | 'pong'           // Heartbeat pong
-  | 'error';         // Error message
+  | 'auth'
+  | 'chat'
+  | 'chat:stream'
+  | 'chat:response'
+  | 'tool:call'
+  | 'tool:result'
+  | 'workflow:execute'
+  | 'workflow:status'
+  | 'skill:list'
+  | 'skill:toggle'
+  | 'event'
+  | 'ping'
+  | 'pong'
+  | 'error';
 
 export interface GatewayMessage {
   type: GatewayMessageType;
-  id: string;           // Message ID for request/response correlation
+  id: string;
   sessionId?: string;
   payload: Record<string, unknown>;
   timestamp: string;
 }
 
-// ─── Channel Plugin Types ───────────────────────────────────
+// ─── Channel Plugin ─────────────────────────────────────────
 
 export interface ChannelPlugin {
   id: string;
   platform: ChatPlatform;
   name: string;
   version: string;
-  description: string;
 
   initialize(config: Record<string, unknown>): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
-
-  /** Send a message through this channel */
   send(message: OutgoingMessage): Promise<void>;
-
-  /** Register handler for incoming messages */
   onMessage(handler: (message: IncomingMessage) => Promise<void>): void;
 }
 
-// ─── Plugin Manifest (npm distribution) ─────────────────────
+// ─── Plugin Manifest ────────────────────────────────────────
 
 export interface PluginManifest {
   name: string;
   version: string;
   description: string;
   author: string;
-  type: PluginType;
-  category?: SkillCategory;
-  entry: string;          // Main entry file
+  type: 'skill' | 'channel' | 'integration' | 'theme' | 'knowledge-pack';
+  entry: string;
   config?: SkillConfigField[];
-  dependencies?: string[];
-  platforms?: ChatPlatform[];     // For channel plugins
+  platforms?: ChatPlatform[];
   permissions?: PluginPermission[];
 }
 
-export type PluginType = 'skill' | 'channel' | 'integration' | 'theme' | 'knowledge-pack';
+export type PluginPermission = 'network' | 'filesystem' | 'shell' | 'memory' | 'llm' | 'secrets';
 
-// ─── Knowledge Pack (plugin-based data packs) ──────────────
+// ─── Tracing Types ──────────────────────────────────────────
 
-/** Descriptor for a data collection inside a knowledge pack */
-export interface KnowledgeDataSource {
-  /** Unique ID for this data source */
+export interface TraceSpan {
   id: string;
-  /** Human-readable label */
-  label: string;
-  /** Relative path to the JSON data file from the pack root */
-  file: string;
-  /** What kind of data: drugs, interactions, contraindications, allergies, etc. */
-  kind: 'drug-formulary' | 'drug-interactions' | 'icd10-contraindications' | 'cross-reactivity' | 'allergy-profiles' | 'custom';
-  /** Description shown in UI */
-  description?: string;
-}
-
-/** Manifest for knowledge-pack type plugins (xclaw.plugin.json) */
-export interface KnowledgePackManifest extends PluginManifest {
-  type: 'knowledge-pack';
-  /** Domain this pack belongs to */
-  domain: 'healthcare' | 'programming' | 'general';
-  /** Standard the data conforms to (e.g. 'HL7-FHIR-R5', 'ICD-10', 'RxNorm') */
-  standard?: string;
-  /** Locale / region */
-  locale?: string;
-  /** Data sources bundled in this pack */
-  dataSources: KnowledgeDataSource[];
-}
-
-export type PluginPermission =
-  | 'network'        // HTTP requests
-  | 'filesystem'     // File read/write
-  | 'shell'          // Shell command execution
-  | 'memory'         // Memory access
-  | 'llm'            // LLM API calls
-  | 'secrets';       // Access to secrets/API keys
-
-// ─── SkillHub Types (Marketplace) ───────────────────────────
-
-export type SkillSource = 'built-in' | 'anthropic' | 'community' | 'npm' | 'mcp' | 'partner';
-
-export interface HubAuthor {
+  traceId: string;
+  parentId?: string;
   name: string;
-  email?: string;
-  url?: string;
-  avatar?: string;
-  verified: boolean;
+  kind: 'agent' | 'llm' | 'tool' | 'workflow' | 'memory' | 'custom';
+  startTime: number;
+  endTime?: number;
+  attributes: Record<string, unknown>;
+  events: SpanEvent[];
+  status: 'ok' | 'error';
 }
 
-export interface HubSkillStats {
-  installs: number;
-  activeInstalls: number;
-  rating: number;
-  reviewCount: number;
-  weeklyDownloads: number;
+export interface SpanEvent {
+  name: string;
+  timestamp: number;
+  attributes?: Record<string, unknown>;
 }
 
-export interface HubDistribution {
-  type: 'registry' | 'npm' | 'git' | 'file';
-  url?: string;
-  checksum?: string;
-  size?: number;
-  tarball?: string;
-}
+// ─── Integration Types ──────────────────────────────────────
 
-export interface HubSkillEntry {
+export type IntegrationCategory =
+  | 'messaging'
+  | 'email'
+  | 'calendar'
+  | 'productivity'
+  | 'developer'
+  | 'search'
+  | 'social'
+  | 'storage'
+  | 'crm'
+  | 'payment'
+  | 'analytics'
+  | 'ai'
+  | 'communication'
+  | 'automation'
+  | 'database'
+  | 'custom';
+
+export type IntegrationAuthType = 'none' | 'api-key' | 'basic' | 'bearer' | 'oauth2';
+
+export interface IntegrationDefinition {
   id: string;
   name: string;
-  slug: string;
-  version: string;
   description: string;
-  longDescription?: string;
-  author: HubAuthor;
-  license: string;
-  category: SkillCategory;
-  tags: string[];
-  source: SkillSource;
-  manifest: SkillManifest;
-  readme?: string;
-  changelog?: string;
-  skillMd?: string;
-  stats: HubSkillStats;
-  distribution: HubDistribution;
-  compatible: boolean;
-  featured: boolean;
-  createdAt: string;
-  updatedAt: string;
-  publishedAt: string;
+  icon: string;
+  category: IntegrationCategory;
+  authType: IntegrationAuthType;
+  actions: IntegrationAction[];
+  triggers?: IntegrationTrigger[];
 }
 
-export interface SkillReview {
-  id: string;
-  skillId: string;
+export interface IntegrationAction {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  execute: (params: Record<string, unknown>, context: IntegrationContext) => Promise<ActionResult>;
+}
+
+export interface IntegrationTrigger {
+  name: string;
+  description: string;
+  type: 'webhook' | 'polling';
+  config?: Record<string, unknown>;
+}
+
+export interface IntegrationContext {
+  credentials: Record<string, string>;
   userId: string;
-  userName: string;
-  rating: number;
-  title: string;
-  body: string;
-  createdAt: string;
-  helpful: number;
+  metadata?: Record<string, unknown>;
 }
 
-export type SubmissionStatus = 'pending' | 'reviewing' | 'approved' | 'rejected' | 'needs-changes';
+export interface ActionResult {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+}
 
-export interface SkillSubmission {
+// ─── Domain Pack Types ──────────────────────────────────────
+
+export interface DomainPackDefinition {
   id: string;
-  skillId: string;
-  version: string;
-  submittedBy: HubAuthor;
-  status: SubmissionStatus;
-  reviewNotes?: string;
-  securityScanResult?: SecurityScanResult;
-  submittedAt: string;
-  reviewedAt?: string;
-  reviewedBy?: string;
-}
-
-export interface SecurityScanResult {
-  passed: boolean;
-  score: number;
-  issues: SecurityIssue[];
-}
-
-export interface SecurityIssue {
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
-  type: string;
-  message: string;
-  file?: string;
-  line?: number;
-}
-
-/** Parsed Anthropic SKILL.md format */
-export interface AnthropicSkill {
   name: string;
   description: string;
-  allowedTools?: string[];
-  instructions: string;
-  examples?: string;
-  sourceCommitSha?: string;
-  sourceRepoUrl: string;
-  folderPath: string;
-}
-
-export interface HubSearchParams {
-  search?: string;
-  category?: SkillCategory;
-  source?: SkillSource;
-  tags?: string[];
-  author?: string;
-  minRating?: number;
-  sort?: 'featured' | 'popular' | 'recent' | 'rating' | 'name';
-  page?: number;
-  limit?: number;
-}
-
-export interface HubSearchResult {
-  skills: HubSkillEntry[];
-  total: number;
-  page: number;
-  limit: number;
-  hasMore: boolean;
+  icon: string;
+  skillCount: number;
+  agentPersona: string;
+  recommendedIntegrations: string[];
+  knowledgePacks?: string[];
 }

@@ -1,36 +1,13 @@
-# Dependencies
+backup
 node_modules/
-.pnp
-.pnp.js
-
-# Build
 dist/
-build/
-*.tsbuildinfo
-
-# Environment
 .env
 .env.local
-.env.*.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+*.tsbuildinfo
+.turbo/
+.venv/
+.venv-mlx/
+data/
 *.log
-npm-debug.log*
-
-# Coverage
+.DS_Store
 coverage/
-
-# Misc
-*.tgz
-.cache/

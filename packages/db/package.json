@@ -1,0 +1,29 @@
+{
+    "name": "@xclaw/db",
+    "version": "2.0.0",
+    "description": "xClaw database layer — Drizzle ORM + PostgreSQL",
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "build": "tsc -b",
+        "dev": "tsc -b --watch",
+        "generate": "drizzle-kit generate",
+        "migrate": "drizzle-kit migrate",
+        "studio": "drizzle-kit studio"
+    },
+    "dependencies": {
+        "@xclaw/shared": "*",
+        "drizzle-orm": "^0.39.0",
+        "postgres": "^3.4.0"
+    },
+    "devDependencies": {
+        "drizzle-kit": "^0.30.0"
+    }
+}

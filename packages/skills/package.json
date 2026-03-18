@@ -1,56 +1,22 @@
 {
     "name": "@xclaw/skills",
-    "version": "0.1.0",
+    "version": "2.0.0",
+    "description": "xClaw built-in skills collection",
     "type": "module",
-    "description": "Pre-built AI agent skill packs for xClaw — Programming, Healthcare, Analytics, DevOps, and more",
-    "license": "MIT",
-    "homepage": "https://xclaw.xdev.asia",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/tdduydev/xClaw.git",
-        "directory": "packages/skills"
-    },
-    "keywords": [
-        "xclaw",
-        "ai",
-        "agent",
-        "skills",
-        "programming",
-        "healthcare",
-        "analytics"
-    ],
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/index.js",
-            "types": "./dist/index.d.ts"
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
         }
     },
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.org"
-    },
-    "files": [
-        "dist",
-        "README.md"
-    ],
     "scripts": {
-        "build": "tsc",
-        "dev": "tsc --watch"
+        "build": "tsc -b",
+        "dev": "tsc -b --watch"
     },
     "dependencies": {
-        "@xclaw/core": "^0.1.0",
-        "@xclaw/shared": "^0.1.0",
-        "@modelcontextprotocol/sdk": "^1.12.1",
-        "exceljs": "^4.4.0",
-        "mammoth": "^1.12.0",
-        "mongodb": "^6.12.0",
-        "pdf-parse": "^1.1.1",
-        "pg": "^8.13.0"
-    },
-    "devDependencies": {
-        "@types/pg": "^8.11.0",
-        "typescript": "^5.7.0"
+        "@xclaw/shared": "*",
+        "@xclaw/core": "*"
     }
 }

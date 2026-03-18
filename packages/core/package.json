@@ -1,48 +1,26 @@
 {
     "name": "@xclaw/core",
-    "version": "0.1.0",
+    "version": "2.0.0",
+    "description": "xClaw core engine — Agent, LLM router, memory, tools, graph, streaming, tracing",
     "type": "module",
-    "description": "Core AI agent engine for xClaw — LLM router, memory, tools, skills, and workflow engine",
-    "license": "MIT",
-    "homepage": "https://xclaw.xdev.asia",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/tdduydev/xClaw.git",
-        "directory": "packages/core"
-    },
-    "keywords": [
-        "xclaw",
-        "ai",
-        "agent",
-        "llm",
-        "tools",
-        "skills",
-        "workflow"
-    ],
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/index.js",
-            "types": "./dist/index.d.ts"
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
         }
     },
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.org"
-    },
-    "files": [
-        "dist",
-        "README.md"
-    ],
     "scripts": {
-        "build": "tsc",
-        "dev": "tsc --watch"
+        "build": "tsc -b",
+        "dev": "tsc -b --watch"
     },
     "dependencies": {
-        "@xclaw/shared": "^0.1.0"
-    },
-    "devDependencies": {
-        "typescript": "^5.7.0"
+        "@xclaw/shared": "*",
+        "@xclaw/db": "*",
+        "openai": "^4.80.0",
+        "@anthropic-ai/sdk": "^0.39.0",
+        "zod": "^3.24.0",
+        "nanoid": "^5.0.0"
     }
 }

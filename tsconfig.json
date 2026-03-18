@@ -16,33 +16,11 @@
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
-        "composite": true,
-        "paths": {
-            "@xclaw/core": [
-                "./packages/core/src"
-            ],
-            "@xclaw/shared": [
-                "./packages/shared/src"
-            ],
-            "@xclaw/skills": [
-                "./packages/skills/src"
-            ],
-            "@xclaw/gateway": [
-                "./packages/gateway/src"
-            ],
-            "@xclaw/server": [
-                "./packages/server/src"
-            ],
-            "@xclaw/channel-telegram": [
-                "./packages/channels/telegram/src"
-            ],
-            "@xclaw/channel-discord": [
-                "./packages/channels/discord/src"
-            ]
-        }
+        "composite": true
     },
     "exclude": [
         "node_modules",
-        "dist"
+        "dist",
+        "backup"
     ]
 }

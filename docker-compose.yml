@@ -1,59 +1,63 @@
-version: "3.8"
-
 services:
-  xclaw:
-    build: .
-    ports:
-      - "18789:18789"
-    env_file:
-      - .env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      mongodb:
-        condition: service_healthy
-    environment:
-      PG_CONNECTION_STRING: postgresql://xclaw:xclaw@postgres:5432/xclaw
-      MONGO_CONNECTION_STRING: mongodb://mongodb:27017/xclaw
-      GATEWAY_PORT: "18789"
-      GATEWAY_HOST: "0.0.0.0"
-      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
-      LLM_MODEL: "llama3.1:8b"
-    volumes:
-      - xclaw-data:/app/data
-    restart: unless-stopped
-
+  # ─── PostgreSQL ──────────────────────────────────────────
   postgres:
-    image: postgres:18
-    restart: unless-stopped
-    ports:
-      - "5451:5432"
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: xclaw
       POSTGRES_PASSWORD: xclaw
       POSTGRES_DB: xclaw
+    ports:
+      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U xclaw"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  mongodb:
-    image: mongo:7
-    restart: unless-stopped
+  # ─── Redis ───────────────────────────────────────────────
+  redis:
+    image: redis:8-alpine
     ports:
-      - "27018:27017"
-    volumes:
-      - mongodata:/data/db
+      - "6379:6379"
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # ─── xClaw Server ───────────────────────────────────────
+  xclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+      - DATABASE_URL=postgresql://xclaw:xclaw@postgres:5432/xclaw
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+      - CORS_ORIGINS=http://localhost,http://localhost:5173,http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─── Web Frontend (Nginx) ─────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - xclaw
+
 volumes:
-  xclaw-data:
   pgdata:
-  mongodata:

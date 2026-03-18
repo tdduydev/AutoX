@@ -1,7 +1,8 @@
 {
     "name": "@xclaw/web",
-    "version": "0.1.0",
+    "version": "2.0.0",
     "private": true,
+    "description": "xClaw web dashboard",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -10,23 +11,21 @@
     },
     "dependencies": {
         "@tailwindcss/typography": "^0.5.19",
-        "@xyflow/react": "^12.0.0",
-        "lucide-react": "^0.460.0",
+        "@tailwindcss/vite": "^4.2.1",
+        "lucide-react": "^0.577.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "react-markdown": "^10.1.0",
-        "recharts": "^3.8.0",
-        "remark-gfm": "^4.0.1",
-        "zustand": "^5.0.0"
+        "react-router-dom": "^7.13.1",
+        "rehype-raw": "^7.0.0",
+        "remark-gfm": "^4.0.1"
     },
     "devDependencies": {
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",
         "@vitejs/plugin-react": "^4.3.0",
-        "autoprefixer": "^10.4.0",
-        "postcss": "^8.4.0",
-        "tailwindcss": "^3.4.0",
-        "typescript": "^5.7.0",
+        "tailwindcss": "^4.0.0",
+        "typescript": "^5.8.0",
         "vite": "^6.0.0"
     }
 }

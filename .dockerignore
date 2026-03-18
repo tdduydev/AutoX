@@ -1,5 +1,9 @@
 node_modules
 dist
+.git
+backup
+*.md
 .env
-*.log
+data
+coverage
 .DS_Store

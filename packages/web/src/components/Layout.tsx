@@ -1,0 +1,256 @@
+import { useState, useEffect } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import {
+    MessageSquare,
+    Database,
+    LayoutDashboard,
+    Settings,
+    LogOut,
+    Search,
+    PawPrint,
+    Cpu,
+    Shield,
+    ChevronDown,
+    Boxes,
+    BrainCircuit,
+    Globe,
+    Menu,
+    X,
+    Plug,
+} from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { getDomains } from '../lib/api';
+
+interface DomainInfo {
+    id: string;
+    name: string;
+    icon: string;
+    skillCount: number;
+}
+
+const MAIN_NAV = [
+    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/chat', icon: MessageSquare, label: 'Chat' },
+];
+
+const KNOWLEDGE_NAV = [
+    { to: '/knowledge', icon: Database, label: 'Knowledge Base' },
+    { to: '/search', icon: Search, label: 'RAG Search' },
+];
+
+const TOOLS_NAV = [
+    { to: '/models', icon: Cpu, label: 'Ollama Models' },
+    { to: '/ml', icon: BrainCircuit, label: 'ML / AutoML' },
+    { to: '/medical', icon: Shield, label: 'Medical Tools' },
+    { to: '/mcp', icon: Plug, label: 'MCP Servers' },
+];
+
+export function Layout() {
+    const { user, logout } = useAuth();
+    const location = useLocation();
+    const [domains, setDomains] = useState<DomainInfo[]>([]);
+    const [domainsOpen, setDomainsOpen] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
+
+    useEffect(() => {
+        getDomains()
+            .then((data) => {
+                if (data.domains) setDomains(data.domains);
+            })
+            .catch(() => { });
+    }, []);
+
+    useEffect(() => {
+        if (location.pathname.startsWith('/domains')) {
+            setDomainsOpen(true);
+        }
+    }, [location.pathname]);
+
+    return (
+        <div className="flex h-screen overflow-hidden" style={{ background: 'var(--color-bg)' }}>
+            {/* Sidebar */}
+            <aside
+                className="flex flex-col shrink-0 border-r transition-all duration-200"
+                style={{
+                    background: 'var(--color-bg-surface)',
+                    borderColor: 'var(--color-border)',
+                    width: collapsed ? '56px' : '240px',
+                }}
+            >
+                {/* Logo */}
+                <div className="flex items-center gap-2.5 px-3 h-14 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                    {!collapsed && (
+                        <>
+                            <PawPrint size={22} style={{ color: 'var(--color-primary)' }} />
+                            <span className="text-lg font-bold" style={{ color: 'var(--color-fg)' }}>xClaw</span>
+                            <span
+                                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary-light)' }}
+                            >
+                                v2
+                            </span>
+                        </>
+                    )}
+                    <button
+                        onClick={() => setCollapsed(!collapsed)}
+                        className="ml-auto p-1 rounded-md transition-colors cursor-pointer"
+                        style={{ color: 'var(--color-fg-muted)' }}
+                        title={collapsed ? 'Expand' : 'Collapse'}
+                    >
+                        {collapsed ? <Menu size={18} /> : <X size={14} />}
+                    </button>
+                </div>
+
+                {/* Nav */}
+                <nav className="flex-1 py-2 px-2 overflow-y-auto space-y-1">
+                    <NavSection label="MAIN" collapsed={collapsed}>
+                        {MAIN_NAV.map((item) => (
+                            <SidebarLink key={item.to} {...item} collapsed={collapsed} />
+                        ))}
+                    </NavSection>
+
+                    <NavSection label="KNOWLEDGE" collapsed={collapsed}>
+                        {KNOWLEDGE_NAV.map((item) => (
+                            <SidebarLink key={item.to} {...item} collapsed={collapsed} />
+                        ))}
+                    </NavSection>
+
+                    {/* Domain Packs */}
+                    {domains.length > 0 && (
+                        <NavSection label="DOMAINS" collapsed={collapsed}>
+                            {!collapsed ? (
+                                <>
+                                    <button
+                                        onClick={() => setDomainsOpen(!domainsOpen)}
+                                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                                        style={{ color: 'var(--color-fg-muted)' }}
+                                    >
+                                        <Globe size={15} />
+                                        <span className="flex-1 text-left">All Domains</span>
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full"
+                                            style={{ background: 'var(--color-bg-soft)', color: 'var(--color-fg-muted)' }}>
+                                            {domains.length}
+                                        </span>
+                                        <ChevronDown
+                                            size={12}
+                                            className="transition-transform"
+                                            style={{ transform: domainsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                                        />
+                                    </button>
+                                    {domainsOpen && (
+                                        <div className="ml-1 space-y-0.5 animate-fade-in">
+                                            <SidebarLink to="/domains" icon={Boxes} label="Domain Hub" collapsed={collapsed} />
+                                            {domains.slice(0, 8).map((d) => (
+                                                <NavLink
+                                                    key={d.id}
+                                                    to={`/domains/${d.id}`}
+                                                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors"
+                                                    style={({ isActive }) => ({
+                                                        background: isActive ? 'var(--color-primary-soft)' : 'transparent',
+                                                        color: isActive ? 'var(--color-primary-light)' : 'var(--color-fg-muted)',
+                                                    })}
+                                                >
+                                                    <span className="text-sm w-5 text-center">{d.icon}</span>
+                                                    <span className="truncate">{d.name}</span>
+                                                    <span className="ml-auto text-[10px] opacity-50">{d.skillCount}</span>
+                                                </NavLink>
+                                            ))}
+                                            {domains.length > 8 && (
+                                                <NavLink
+                                                    to="/domains"
+                                                    className="flex items-center gap-2 px-2 py-1 rounded-lg text-[11px] transition-colors"
+                                                    style={{ color: 'var(--color-primary-light)' }}
+                                                >
+                                                    +{domains.length - 8} more...
+                                                </NavLink>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <SidebarLink to="/domains" icon={Globe} label="Domains" collapsed={collapsed} />
+                            )}
+                        </NavSection>
+                    )}
+
+                    <NavSection label="TOOLS" collapsed={collapsed}>
+                        {TOOLS_NAV.map((item) => (
+                            <SidebarLink key={item.to} {...item} collapsed={collapsed} />
+                        ))}
+                    </NavSection>
+
+                    <NavSection label="SYSTEM" collapsed={collapsed}>
+                        <SidebarLink to="/settings" icon={Settings} label="Settings" collapsed={collapsed} />
+                    </NavSection>
+                </nav>
+
+                {/* User */}
+                <div className="flex items-center gap-2 px-3 py-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                    <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                        style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary-light)' }}
+                    >
+                        {user?.email?.charAt(0).toUpperCase() ?? 'U'}
+                    </div>
+                    {!collapsed && (
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs truncate" style={{ color: 'var(--color-fg)' }}>{user?.email ?? 'Guest'}</p>
+                            <p className="text-[10px]" style={{ color: 'var(--color-fg-muted)' }}>{user?.role ?? 'admin'}</p>
+                        </div>
+                    )}
+                    <button
+                        onClick={logout}
+                        className="p-1.5 rounded-md transition-colors cursor-pointer"
+                        style={{ color: 'var(--color-fg-muted)' }}
+                        title="Logout"
+                    >
+                        <LogOut size={14} />
+                    </button>
+                </div>
+            </aside>
+
+            {/* Main */}
+            <main className="flex-1 overflow-hidden">
+                <Outlet />
+            </main>
+        </div>
+    );
+}
+
+function NavSection({ label, collapsed, children }: { label: string; collapsed: boolean; children: React.ReactNode }) {
+    return (
+        <div className="mb-1">
+            {!collapsed && (
+                <div className="px-2 pt-3 pb-1">
+                    <span className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--color-fg-muted)', opacity: 0.5 }}>
+                        {label}
+                    </span>
+                </div>
+            )}
+            {collapsed && <div className="pt-1" />}
+            <div className="space-y-0.5">{children}</div>
+        </div>
+    );
+}
+
+function SidebarLink({
+    to, icon: Icon, label, collapsed,
+}: {
+    to: string; icon: typeof LayoutDashboard; label: string; collapsed: boolean;
+}) {
+    return (
+        <NavLink
+            to={to}
+            end={to === '/' || to === '/domains'}
+            className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13px] font-medium transition-colors"
+            style={({ isActive }) => ({
+                background: isActive ? 'var(--color-primary-soft)' : 'transparent',
+                color: isActive ? 'var(--color-primary-light)' : 'var(--color-fg-muted)',
+            })}
+            title={collapsed ? label : undefined}
+        >
+            <Icon size={17} className="shrink-0" />
+            {!collapsed && <span className="truncate">{label}</span>}
+        </NavLink>
+    );
+}

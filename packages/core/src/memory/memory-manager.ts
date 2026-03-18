@@ -1,145 +1,95 @@
-// ============================================================
-// Memory Manager - Persistent memory with vector search
-// ============================================================
-
+import { randomUUID } from 'node:crypto';
 import type { MemoryEntry, ConversationMessage } from '@xclaw/shared';
-import { LLMRouter, type LLMAdapter } from '../llm/llm-router.js';
 
 export interface MemoryStore {
-  save(entry: MemoryEntry): Promise<void>;
-  get(id: string): Promise<MemoryEntry | null>;
-  search(query: string, limit?: number): Promise<MemoryEntry[]>;
-  searchByEmbedding(embedding: number[], limit?: number): Promise<MemoryEntry[]>;
-  delete(id: string): Promise<void>;
-  listByTags(tags: string[], limit?: number): Promise<MemoryEntry[]>;
-  listByType(type: MemoryEntry['type'], limit?: number): Promise<MemoryEntry[]>;
+  getHistory(sessionId: string, limit?: number): Promise<ConversationMessage[]>;
+  addMessage(sessionId: string, message: ConversationMessage): Promise<void>;
+  clearHistory(sessionId: string): Promise<void>;
+  search(query: string, options?: { limit?: number }): Promise<MemoryEntry[]>;
+  store(entry: Omit<MemoryEntry, 'id'>): Promise<MemoryEntry>;
 }
 
-// ─── In-Memory Store (dev / small-scale) ────────────────────
+/**
+ * In-memory store for development / testing.
+ */
+class InMemoryStore implements MemoryStore {
+  private history = new Map<string, ConversationMessage[]>();
+  private entries: MemoryEntry[] = [];
 
-export class InMemoryStore implements MemoryStore {
-  private entries: Map<string, MemoryEntry> = new Map();
-
-  async save(entry: MemoryEntry): Promise<void> {
-    this.entries.set(entry.id, { ...entry, updatedAt: new Date().toISOString() });
+  async getHistory(sessionId: string, limit = 50): Promise<ConversationMessage[]> {
+    const msgs = this.history.get(sessionId) ?? [];
+    return msgs.slice(-limit);
   }
 
-  async get(id: string): Promise<MemoryEntry | null> {
-    return this.entries.get(id) ?? null;
-  }
-
-  async search(query: string, limit = 10): Promise<MemoryEntry[]> {
-    const lower = query.toLowerCase();
-    return [...this.entries.values()]
-      .filter(e => e.content.toLowerCase().includes(lower))
-      .slice(0, limit);
-  }
-
-  async searchByEmbedding(embedding: number[], limit = 10): Promise<MemoryEntry[]> {
-    // Cosine similarity search
-    const scored = [...this.entries.values()]
-      .filter(e => e.embedding?.length)
-      .map(e => ({
-        entry: e,
-        score: this.cosineSim(embedding, e.embedding!),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
-    return scored.map(s => s.entry);
-  }
-
-  async delete(id: string): Promise<void> {
-    this.entries.delete(id);
-  }
-
-  async listByTags(tags: string[], limit = 20): Promise<MemoryEntry[]> {
-    return [...this.entries.values()]
-      .filter(e => tags.some(t => e.tags.includes(t)))
-      .slice(0, limit);
-  }
-
-  async listByType(type: MemoryEntry['type'], limit = 20): Promise<MemoryEntry[]> {
-    return [...this.entries.values()]
-      .filter(e => e.type === type)
-      .slice(0, limit);
-  }
-
-  private cosineSim(a: number[], b: number[]): number {
-    let dot = 0, normA = 0, normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+  async addMessage(sessionId: string, message: ConversationMessage): Promise<void> {
+    if (!this.history.has(sessionId)) {
+      this.history.set(sessionId, []);
     }
-    const denom = Math.sqrt(normA) * Math.sqrt(normB);
-    return denom === 0 ? 0 : dot / denom;
+    this.history.get(sessionId)!.push(message);
+  }
+
+  async clearHistory(sessionId: string): Promise<void> {
+    this.history.delete(sessionId);
+  }
+
+  async search(query: string, options?: { limit?: number }): Promise<MemoryEntry[]> {
+    const q = query.toLowerCase();
+    const results = this.entries.filter((e) => e.content.toLowerCase().includes(q));
+    return results.slice(0, options?.limit ?? 10);
+  }
+
+  async store(entry: Omit<MemoryEntry, 'id'>): Promise<MemoryEntry> {
+    const full: MemoryEntry = {
+      ...entry,
+      id: randomUUID(),
+    };
+    this.entries.push(full);
+    return full;
   }
 }
-
-// ─── Memory Manager ─────────────────────────────────────────
 
 export class MemoryManager {
-  private conversations: Map<string, ConversationMessage[]> = new Map();
+  private store: MemoryStore;
+  private historyCache = new Map<string, ConversationMessage[]>();
 
-  constructor(
-    private store: MemoryStore,
-    private embedAdapter?: LLMAdapter,
-  ) {}
+  constructor(store?: MemoryStore) {
+    this.store = store ?? new InMemoryStore();
+  }
 
-  // Save a fact/preference to long-term memory
-  async remember(content: string, type: MemoryEntry['type'], tags: string[] = [], source = 'user'): Promise<MemoryEntry> {
-    const entry: MemoryEntry = {
-      id: crypto.randomUUID(),
-      type,
-      content,
-      metadata: {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      source,
-      tags,
-    };
+  async getHistory(sessionId: string, limit?: number): Promise<ConversationMessage[]> {
+    return this.store.getHistory(sessionId, limit);
+  }
 
-    // Generate embedding if adapter available
-    if (this.embedAdapter?.embed) {
-      entry.embedding = await this.embedAdapter.embed(content);
+  /** Sync helper — returns cached history for building LLM messages */
+  getHistorySync(sessionId: string): ConversationMessage[] {
+    return this.historyCache.get(sessionId) ?? [];
+  }
+
+  async loadHistory(sessionId: string, limit?: number): Promise<ConversationMessage[]> {
+    const history = await this.store.getHistory(sessionId, limit);
+    this.historyCache.set(sessionId, history);
+    return history;
+  }
+
+  async addMessage(sessionId: string, message: ConversationMessage): Promise<void> {
+    await this.store.addMessage(sessionId, message);
+    // Update cache
+    if (!this.historyCache.has(sessionId)) {
+      this.historyCache.set(sessionId, []);
     }
-
-    await this.store.save(entry);
-    return entry;
+    this.historyCache.get(sessionId)!.push(message);
   }
 
-  // Semantic search over memories (falls back to text search if embedding fails)
-  async recall(query: string, limit = 5): Promise<MemoryEntry[]> {
-    if (this.embedAdapter?.embed) {
-      try {
-        const embedding = await this.embedAdapter.embed(query);
-        return this.store.searchByEmbedding(embedding, limit);
-      } catch {
-        // Fall back to text search when embedding is unavailable
-      }
-    }
-    return this.store.search(query, limit);
+  async clearHistory(sessionId: string): Promise<void> {
+    await this.store.clearHistory(sessionId);
+    this.historyCache.delete(sessionId);
   }
 
-  async forget(id: string): Promise<void> {
-    await this.store.delete(id);
+  async search(query: string, options?: { limit?: number }): Promise<MemoryEntry[]> {
+    return this.store.search(query, options);
   }
 
-  // ─── Conversation History ───────────────────────────────
-
-  addMessage(sessionId: string, message: ConversationMessage): void {
-    if (!this.conversations.has(sessionId)) {
-      this.conversations.set(sessionId, []);
-    }
-    this.conversations.get(sessionId)!.push(message);
-  }
-
-  getHistory(sessionId: string, limit?: number): ConversationMessage[] {
-    const history = this.conversations.get(sessionId) ?? [];
-    return limit ? history.slice(-limit) : history;
-  }
-
-  clearSession(sessionId: string): void {
-    this.conversations.delete(sessionId);
+  async storeEntry(entry: Omit<MemoryEntry, 'id'>): Promise<MemoryEntry> {
+    return this.store.store(entry);
   }
 }

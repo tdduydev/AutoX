@@ -1,12 +1,4 @@
-export { programmingSkill } from './programming/index.js';
-export { healthcareSkill } from './healthcare/index.js';
-export { modelManagementSkill, getRAGService } from './model-management/index.js';
-export { dataAnalyticsSkill } from './data-analytics/index.js';
-export { devopsSkill } from './devops/index.js';
-export { contentWriterSkill } from './content-writer/index.js';
-export { researchSkill } from './research/index.js';
-export { salesCrmSkill } from './sales-crm/index.js';
-export { projectManagerSkill } from './project-manager/index.js';
-export { learningSkill } from './learning/index.js';
-export { financeSkill } from './finance/index.js';
-export { designSkill } from './design/index.js';
+// @xclaw/skills — Built-in skills collection
+// Skills will be registered here as they are created
+
+export const builtinSkills = [] as const;

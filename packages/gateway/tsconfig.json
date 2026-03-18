@@ -6,16 +6,5 @@
     },
     "include": [
         "src"
-    ],
-    "references": [
-        {
-            "path": "../shared"
-        },
-        {
-            "path": "../core"
-        },
-        {
-            "path": "../skill-hub"
-        }
     ]
 }

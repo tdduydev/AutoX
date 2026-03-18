@@ -1,49 +1,22 @@
 {
     "name": "@xclaw/skill-hub",
-    "version": "0.1.0",
+    "version": "2.0.0",
+    "description": "xClaw Skill Hub — skill registry and marketplace",
     "type": "module",
-    "description": "SkillHub — Community skill marketplace, Anthropic skill importer, and user skill submission for xClaw",
-    "license": "MIT",
-    "homepage": "https://xclaw.xdev.asia",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/tdduydev/xClaw.git",
-        "directory": "packages/skill-hub"
-    },
-    "keywords": [
-        "xclaw",
-        "skill-hub",
-        "marketplace",
-        "anthropic",
-        "skills",
-        "mcp",
-        "ai-agent"
-    ],
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/index.js",
-            "types": "./dist/index.d.ts"
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
         }
     },
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.org"
-    },
-    "files": [
-        "dist",
-        "README.md"
-    ],
     "scripts": {
-        "build": "tsc",
-        "dev": "tsc --watch"
+        "build": "tsc -b",
+        "dev": "tsc -b --watch"
     },
     "dependencies": {
-        "@xclaw/shared": "^0.1.0",
-        "@xclaw/core": "^0.1.0"
-    },
-    "devDependencies": {
-        "typescript": "^5.7.0"
+        "@xclaw/shared": "*",
+        "@xclaw/core": "*"
     }
 }

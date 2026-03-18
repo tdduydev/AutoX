@@ -1,11 +1,9 @@
-// ============================================================
-// xClaw Gateway - WebSocket Control Plane
-// ============================================================
-
-export { Gateway } from './gateway.js';
-export { SessionManager } from './session-manager.js';
-export { ChannelManager } from './channel-manager.js';
-export { AuthService } from './auth-service.js';
-export { ReportService } from './report-service.js';
-export type { AuthUser, Conversation, ChatMessage } from './auth-service.js';
-export type { ReportSummary, UserActivityReport } from './report-service.js';
+export { createGateway } from './gateway.js';
+export type { GatewayContext } from './gateway.js';
+export { authMiddleware, createAuthRoutes } from './auth.js';
+export { createChatRoutes } from './chat.js';
+export { createHealthRoutes } from './health.js';
+export { createKnowledgeRoutes } from './knowledge.js';
+export { createModelsRoutes } from './models.js';
+export { createMedicalRoutes } from './medical.js';
+export { createSearchRoutes } from './search.js';

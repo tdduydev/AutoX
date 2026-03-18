@@ -1,16 +1,19 @@
 {
     "name": "xclaw",
-    "version": "0.2.0",
+    "version": "2.0.0",
     "private": true,
-    "description": "xClaw - AI Agent Platform with Gateway architecture, drag-and-drop workflow builder, and multi-channel support",
+    "description": "xClaw — Open-source AI Agent Platform with multi-agent orchestration, streaming, MCP, and visual workflow builder",
     "workspaces": [
         "packages/shared",
+        "packages/db",
         "packages/core",
+        "packages/integrations",
+        "packages/domains",
+        "packages/ml",
         "packages/skills",
         "packages/skill-hub",
         "packages/gateway",
         "packages/channels/*",
-        "packages/knowledge-packs/*",
         "packages/cli",
         "packages/server",
         "packages/web"
@@ -19,22 +22,24 @@
         "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
         "dev:server": "npm run dev -w packages/server",
         "dev:web": "npm run dev -w packages/web",
-        "dev:gateway": "npm run dev -w packages/gateway",
-        "build": "npm run build -w packages/shared && npm run build -w packages/core && npm run build -w packages/skills && npm run build -w packages/skill-hub && npm run build -w packages/gateway && npm run build -w packages/server && npm run build -w packages/web",
-        "gateway": "npm run start -w packages/gateway",
+        "build": "npm run build -w packages/shared && npm run build -w packages/db && npm run build -w packages/core && npm run build -w packages/integrations && npm run build -w packages/domains && npm run build -w packages/ml && npm run build -w packages/skills && npm run build -w packages/skill-hub && npm run build -w packages/gateway && npm run build -w packages/server && npm run build -w packages/web",
+        "build:server": "npm run build -w packages/shared && npm run build -w packages/db && npm run build -w packages/core && npm run build -w packages/integrations && npm run build -w packages/domains && npm run build -w packages/ml && npm run build -w packages/skills && npm run build -w packages/gateway && npm run build -w packages/server",
         "cli": "tsx packages/cli/src/index.ts",
         "test": "vitest",
         "lint": "eslint packages/*/src --ext .ts,.tsx",
-        "release:patch": "npm run build && npm version patch --no-git-tag-version && node scripts/sync-versions.mjs && npm run publish:all",
-        "release:minor": "npm run build && npm version minor --no-git-tag-version && node scripts/sync-versions.mjs && npm run publish:all",
-        "release:major": "npm run build && npm version major --no-git-tag-version && node scripts/sync-versions.mjs && npm run publish:all",
-        "publish:all": "npm publish -w packages/shared --access public && npm publish -w packages/core --access public && npm publish -w packages/skills --access public && npm publish -w packages/gateway --access public && npm publish -w packages/cli --access public"
+        "db:generate": "npm run generate -w packages/db",
+        "db:migrate": "npm run migrate -w packages/db",
+        "db:studio": "npm run studio -w packages/db"
     },
     "devDependencies": {
         "concurrently": "^9.1.0",
-        "typescript": "^5.7.0",
+        "typescript": "^5.8.0",
         "vitest": "^3.0.0",
         "eslint": "^9.0.0",
         "tsx": "^4.19.0"
+    },
+    "engines": {
+        "node": ">=20.0.0",
+        "npm": ">=10.0.0"
     }
 }

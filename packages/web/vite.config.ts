@@ -1,19 +1,15 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-    },
-  },
+  plugins: [react(), tailwindcss()],
   server: {
-    port: 3000,
+    port: 5173,
     proxy: {
-      '/api': 'http://127.0.0.1:18789',
-      '/ws': { target: 'ws://127.0.0.1:18789', ws: true },
+      '/api': process.env.VITE_API_URL || 'http://localhost:3000',
+      '/auth': process.env.VITE_API_URL || 'http://localhost:3000',
+      '/health': process.env.VITE_API_URL || 'http://localhost:3000',
     },
   },
 });

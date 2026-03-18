@@ -1,63 +1,30 @@
 {
     "name": "@xclaw/gateway",
-    "version": "0.1.0",
+    "version": "2.0.0",
+    "description": "xClaw gateway — Hono HTTP/WS/SSE server + MCP Server + Auth",
     "type": "module",
-    "description": "HTTP/WebSocket gateway server for xClaw AI Agent Platform",
-    "license": "MIT",
-    "homepage": "https://xclaw.xdev.asia",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/tdduydev/xClaw.git",
-        "directory": "packages/gateway"
-    },
-    "keywords": [
-        "xclaw",
-        "ai",
-        "agent",
-        "gateway",
-        "api",
-        "websocket"
-    ],
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/index.js",
-            "types": "./dist/index.d.ts"
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
         }
     },
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.org"
-    },
-    "files": [
-        "dist",
-        "README.md"
-    ],
     "scripts": {
-        "build": "tsc",
-        "dev": "tsx watch src/index.ts",
-        "start": "node dist/index.js"
+        "build": "tsc -b",
+        "dev": "tsc -b --watch"
     },
     "dependencies": {
-        "@xclaw/core": "^0.1.0",
-        "@xclaw/shared": "^0.1.0",
-        "@xclaw/skill-hub": "^0.1.0",
-        "@types/multer": "^2.1.0",
-        "cors": "^2.8.5",
-        "exceljs": "^4.4.0",
-        "express": "^5.0.0",
-        "multer": "^2.1.1",
-        "pdfkit": "^0.18.0",
-        "pg": "^8.13.0",
-        "ws": "^8.18.0"
-    },
-    "devDependencies": {
-        "@types/cors": "^2.8.17",
-        "@types/express": "^5.0.0",
-        "@types/pdfkit": "^0.17.5",
-        "@types/ws": "^8.5.0",
-        "tsx": "^4.19.0",
-        "typescript": "^5.7.0"
+        "@xclaw/shared": "*",
+        "@xclaw/core": "*",
+        "@xclaw/db": "*",
+        "@xclaw/integrations": "*",
+        "@xclaw/domains": "*",
+        "@xclaw/ml": "*",
+        "hono": "^4.7.0",
+        "@hono/node-server": "^1.14.0",
+        "@hono/node-ws": "^1.1.0",
+        "jose": "^6.0.0"
     }
 }

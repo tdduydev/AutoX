@@ -1,43 +1,21 @@
 {
     "name": "@xclaw/shared",
-    "version": "0.1.0",
+    "version": "2.0.0",
+    "description": "xClaw shared types, schemas, and constants",
     "type": "module",
-    "description": "Shared type definitions, constants, and interfaces for the xClaw AI Agent Platform",
-    "license": "MIT",
-    "homepage": "https://xclaw.xdev.asia",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/tdduydev/xClaw.git",
-        "directory": "packages/shared"
-    },
-    "keywords": [
-        "xclaw",
-        "ai",
-        "agent",
-        "types",
-        "shared"
-    ],
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/index.js",
-            "types": "./dist/index.d.ts"
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
         }
     },
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.org"
-    },
-    "files": [
-        "dist",
-        "README.md"
-    ],
     "scripts": {
-        "build": "tsc",
-        "dev": "tsc --watch"
+        "build": "tsc -b",
+        "dev": "tsc -b --watch"
     },
-    "devDependencies": {
-        "typescript": "^5.7.0"
+    "dependencies": {
+        "zod": "^3.24.0"
     }
 }
