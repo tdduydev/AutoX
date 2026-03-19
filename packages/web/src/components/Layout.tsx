@@ -19,6 +19,7 @@ import {
     Plug,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../i18n';
 import { getDomains } from '../lib/api';
 
 interface DomainInfo {
@@ -29,24 +30,25 @@ interface DomainInfo {
 }
 
 const MAIN_NAV = [
-    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/chat', icon: MessageSquare, label: 'Chat' },
+    { to: '/', icon: LayoutDashboard, key: 'nav.dashboard' as const },
+    { to: '/chat', icon: MessageSquare, key: 'nav.chat' as const },
 ];
 
 const KNOWLEDGE_NAV = [
-    { to: '/knowledge', icon: Database, label: 'Knowledge Base' },
-    { to: '/search', icon: Search, label: 'RAG Search' },
+    { to: '/knowledge', icon: Database, key: 'nav.knowledgeBase' as const },
+    { to: '/search', icon: Search, key: 'nav.ragSearch' as const },
 ];
 
 const TOOLS_NAV = [
-    { to: '/models', icon: Cpu, label: 'Ollama Models' },
-    { to: '/ml', icon: BrainCircuit, label: 'ML / AutoML' },
-    { to: '/medical', icon: Shield, label: 'Medical Tools' },
-    { to: '/mcp', icon: Plug, label: 'MCP Servers' },
+    { to: '/models', icon: Cpu, key: 'nav.ollamaModels' as const },
+    { to: '/ml', icon: BrainCircuit, key: 'nav.mlAutoml' as const },
+    { to: '/medical', icon: Shield, key: 'nav.medicalTools' as const },
+    { to: '/mcp', icon: Plug, key: 'nav.mcpServers' as const },
 ];
 
 export function Layout() {
     const { user, logout } = useAuth();
+    const { t } = useI18n();
     const location = useLocation();
     const [domains, setDomains] = useState<DomainInfo[]>([]);
     const [domainsOpen, setDomainsOpen] = useState(false);
@@ -103,21 +105,21 @@ export function Layout() {
 
                 {/* Nav */}
                 <nav className="flex-1 py-2 px-2 overflow-y-auto space-y-1">
-                    <NavSection label="MAIN" collapsed={collapsed}>
+                    <NavSection label={t('nav.main')} collapsed={collapsed}>
                         {MAIN_NAV.map((item) => (
-                            <SidebarLink key={item.to} {...item} collapsed={collapsed} />
+                            <SidebarLink key={item.to} to={item.to} icon={item.icon} label={t(item.key)} collapsed={collapsed} />
                         ))}
                     </NavSection>
 
-                    <NavSection label="KNOWLEDGE" collapsed={collapsed}>
+                    <NavSection label={t('nav.knowledge')} collapsed={collapsed}>
                         {KNOWLEDGE_NAV.map((item) => (
-                            <SidebarLink key={item.to} {...item} collapsed={collapsed} />
+                            <SidebarLink key={item.to} to={item.to} icon={item.icon} label={t(item.key)} collapsed={collapsed} />
                         ))}
                     </NavSection>
 
                     {/* Domain Packs */}
                     {domains.length > 0 && (
-                        <NavSection label="DOMAINS" collapsed={collapsed}>
+                        <NavSection label={t('nav.domains')} collapsed={collapsed}>
                             {!collapsed ? (
                                 <>
                                     <button
@@ -126,7 +128,7 @@ export function Layout() {
                                         style={{ color: 'var(--color-fg-muted)' }}
                                     >
                                         <Globe size={15} />
-                                        <span className="flex-1 text-left">All Domains</span>
+                                        <span className="flex-1 text-left">{t('nav.allDomains')}</span>
                                         <span className="text-[10px] px-1.5 py-0.5 rounded-full"
                                             style={{ background: 'var(--color-bg-soft)', color: 'var(--color-fg-muted)' }}>
                                             {domains.length}
@@ -139,7 +141,7 @@ export function Layout() {
                                     </button>
                                     {domainsOpen && (
                                         <div className="ml-1 space-y-0.5 animate-fade-in">
-                                            <SidebarLink to="/domains" icon={Boxes} label="Domain Hub" collapsed={collapsed} />
+                                            <SidebarLink to="/domains" icon={Boxes} label={t('nav.domainHub')} collapsed={collapsed} />
                                             {domains.slice(0, 8).map((d) => (
                                                 <NavLink
                                                     key={d.id}
@@ -168,19 +170,19 @@ export function Layout() {
                                     )}
                                 </>
                             ) : (
-                                <SidebarLink to="/domains" icon={Globe} label="Domains" collapsed={collapsed} />
+                                <SidebarLink to="/domains" icon={Globe} label={t('nav.allDomains')} collapsed={collapsed} />
                             )}
                         </NavSection>
                     )}
 
-                    <NavSection label="TOOLS" collapsed={collapsed}>
+                    <NavSection label={t('nav.tools')} collapsed={collapsed}>
                         {TOOLS_NAV.map((item) => (
-                            <SidebarLink key={item.to} {...item} collapsed={collapsed} />
+                            <SidebarLink key={item.to} to={item.to} icon={item.icon} label={t(item.key)} collapsed={collapsed} />
                         ))}
                     </NavSection>
 
-                    <NavSection label="SYSTEM" collapsed={collapsed}>
-                        <SidebarLink to="/settings" icon={Settings} label="Settings" collapsed={collapsed} />
+                    <NavSection label={t('nav.system')} collapsed={collapsed}>
+                        <SidebarLink to="/settings" icon={Settings} label={t('nav.settings')} collapsed={collapsed} />
                     </NavSection>
                 </nav>
 

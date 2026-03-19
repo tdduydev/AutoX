@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
-    Bot, Send, User, LogIn, Loader2, Wifi, WifiOff, Plus, Trash2,
+    Bot, Send, User, Loader2, Wifi, WifiOff, Plus, Trash2,
     MessageSquare, ThumbsUp, ThumbsDown, Copy, Check, RotateCcw,
     BarChart3, History, X, Sparkles,
 } from 'lucide-react';
@@ -215,13 +215,8 @@ const QUICK_PROMPTS = [
 // ═══════════════════════════════════════════════════
 
 export function ChatbotPage() {
-    // Auth
+    // Auth - auto-login to xClaw
     const [token, setToken] = useState<string | null>(null);
-    const [showLogin, setShowLogin] = useState(false);
-    const [loginLoading, setLoginLoading] = useState(false);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [loginError, setLoginError] = useState('');
 
     // Messages
     const [messages, setMessages] = useState<Message[]>([]);
@@ -254,6 +249,18 @@ export function ChatbotPage() {
     }, []);
 
     useEffect(() => { loadSessions(); loadStats(); }, [loadSessions, loadStats]);
+
+    // ─── Auto-login to xClaw ───
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await loginXClaw('doctor@his.local', 'doctor123');
+                if ('token' in res && res.token) {
+                    setToken(res.token);
+                }
+            } catch { /* xClaw not available */ }
+        })();
+    }, []);
 
     // ─── Load messages for active session ───
     useEffect(() => {
@@ -298,32 +305,18 @@ export function ChatbotPage() {
         loadStats();
     };
 
-    // ─── Login ───
-    const handleLogin = async () => {
-        if (!email.trim() || !password.trim()) return;
-        setLoginLoading(true);
-        setLoginError('');
-        try {
-            const res = await loginXClaw(email, password);
-            if ('token' in res && res.token) {
-                setToken(res.token);
-                setShowLogin(false);
-                if (!activeSessionId) await startNewSession();
-            } else {
-                setLoginError('error' in res ? res.error : 'Đăng nhập thất bại');
-            }
-        } catch {
-            setLoginError('Không thể kết nối tới xClaw server');
-        } finally {
-            setLoginLoading(false);
-        }
-    };
-
     // ─── Send message ───
     const send = async (text?: string) => {
         const msg = (text || input).trim();
         if (!msg || sending) return;
-        if (!token) { setShowLogin(true); return; }
+        if (!token) {
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: '⚠️ Chưa kết nối được tới xClaw AI. Hãy kiểm tra xClaw server đang chạy (port 3000).',
+                timestamp: new Date(),
+            }]);
+            return;
+        }
 
         setInput('');
 
@@ -482,14 +475,13 @@ export function ChatbotPage() {
                         {token ? (
                             <span className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full"
                                 style={{ background: 'var(--his-success-soft)', color: 'var(--his-success)' }}>
-                                <Wifi size={10} /> Đã kết nối
+                                <Wifi size={10} /> Đã kết nối xClaw
                             </span>
                         ) : (
-                            <button onClick={() => setShowLogin(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer transition-all"
-                                style={{ background: 'var(--his-primary)', color: '#fff' }}>
-                                <LogIn size={13} /> Đăng nhập
-                            </button>
+                            <span className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full"
+                                style={{ background: 'var(--his-danger-soft)', color: 'var(--his-danger)' }}>
+                                <WifiOff size={10} /> xClaw chưa kết nối
+                            </span>
                         )}
                     </div>
                 </div>
@@ -611,60 +603,6 @@ export function ChatbotPage() {
                     </div>
                 </div>
             </div>
-
-            {/* ─── Login Modal ─── */}
-            {showLogin && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-                    <div className="rounded-2xl border p-6 w-[380px] shadow-xl" style={{ background: 'var(--his-surface)', borderColor: 'var(--his-border)' }}>
-                        <div className="flex items-center justify-between mb-5">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--his-primary-soft)' }}>
-                                    <Bot size={20} style={{ color: 'var(--his-primary)' }} />
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-bold" style={{ color: 'var(--his-fg)' }}>Đăng nhập xClaw</h3>
-                                    <p className="text-[10px]" style={{ color: 'var(--his-fg-muted)' }}>Kết nối với AI Agent server</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setShowLogin(false)} className="p-1 rounded-lg hover:bg-gray-100 cursor-pointer">
-                                <X size={16} style={{ color: 'var(--his-fg-muted)' }} />
-                            </button>
-                        </div>
-
-                        {loginError && (
-                            <div className="rounded-lg p-2.5 mb-3 text-[12px]" style={{ background: 'var(--his-danger-soft)', color: 'var(--his-danger)' }}>
-                                {loginError}
-                            </div>
-                        )}
-
-                        <div className="space-y-3">
-                            <div>
-                                <label className="his-label">Email</label>
-                                <input className="his-input" placeholder="admin@xclaw.ai" value={email} onChange={(e) => setEmail(e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="his-label">Mật khẩu</label>
-                                <input className="his-input" type="password" placeholder="••••••••" value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-2 mt-5">
-                            <button onClick={() => setShowLogin(false)}
-                                className="px-4 py-2 rounded-lg text-[12px] font-medium cursor-pointer"
-                                style={{ color: 'var(--his-fg-secondary)' }}>Huỷ</button>
-                            <button onClick={handleLogin} disabled={loginLoading || !email.trim() || !password.trim()}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium cursor-pointer"
-                                style={{ background: 'var(--his-primary)', color: '#fff', opacity: loginLoading || !email.trim() || !password.trim() ? 0.5 : 1 }}>
-                                {loginLoading ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />}
-                                Đăng nhập
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

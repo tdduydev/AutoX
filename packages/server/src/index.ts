@@ -16,6 +16,7 @@ import { allDomainPacks } from '@xclaw/domains';
 import { MLEngine } from '@xclaw/ml';
 import type { AgentConfig, GatewayConfig } from '@xclaw/shared';
 import { loadKnowledgePacks } from './knowledge-loader.js';
+import { runMigrations, seedInitialData, connectMongo } from '@xclaw/db';
 
 dotenv.config();
 
@@ -50,6 +51,29 @@ const SYSTEM_PROMPT = AGENT_SYSTEM_PROMPT || DEFAULT_SYSTEM_PROMPT;
 
 async function main() {
   console.log('🐾 xClaw v2.1.0 — Open Platform Starting...');
+
+  // Run PostgreSQL migrations (idempotent)
+  try {
+    await runMigrations();
+    console.log('   PostgreSQL: migrations applied');
+  } catch (err) {
+    console.warn('⚠️  Migration skipped:', (err as Error).message);
+  }
+
+  // Connect MongoDB (sessions, messages, memory)
+  try {
+    await connectMongo();
+    console.log('   MongoDB:    connected (sessions, messages, memory)');
+  } catch (err) {
+    console.warn('⚠️  MongoDB skipped:', (err as Error).message);
+  }
+
+  // Seed default data (idempotent — skips if already seeded)
+  try {
+    await seedInitialData();
+  } catch (err) {
+    console.warn('⚠️  Seed skipped (DB may not be ready):', (err as Error).message);
+  }
 
   // Agent config
   const agentConfig: AgentConfig = {

@@ -9,58 +9,48 @@ import { getLanguageInstruction } from './settings.js';
 import { tavilyWebSearch } from '@xclaw/integrations';
 import { getTenantLanguageInstruction } from './tenant.js';
 import type { TenantSettingsInfo } from './tenant.js';
+import {
+  sessionsCollection, messagesCollection,
+  type MongoSession, type MongoMessage,
+} from '@xclaw/db';
 
-// In-memory attachment store (per session)
+// In-memory attachment store (per session) — attachments are ephemeral
 const attachmentStore = new Map<string, Array<{ id: string; name: string; mimeType: string; size: number; dataUrl: string }>>();
 
-// ─── Conversation History Store ─────────────────────────────
-interface ConversationMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-}
+// ─── MongoDB-backed Conversation Store ──────────────────────
 
-interface Conversation {
-  id: string;
-  title: string;
-  messages: ConversationMessage[];
-  createdAt: string;
-  updatedAt: string;
-}
+async function getOrCreateSession(sessionId: string, tenantId: string, userId: string, firstMessage?: string): Promise<MongoSession> {
+  const sessions = sessionsCollection();
+  const existing = await sessions.findOne({ _id: sessionId });
+  if (existing) return existing;
 
-const conversationStore = new Map<string, Conversation>();
-
-function getOrCreateConversation(sessionId: string, firstMessage?: string): Conversation {
-  if (conversationStore.has(sessionId)) {
-    return conversationStore.get(sessionId)!;
-  }
-  const conv: Conversation = {
-    id: sessionId,
+  const now = new Date();
+  const session: MongoSession = {
+    _id: sessionId,
+    tenantId,
+    userId,
+    platform: 'web',
     title: firstMessage ? firstMessage.slice(0, 60) + (firstMessage.length > 60 ? '...' : '') : 'New Chat',
-    messages: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
   };
-  conversationStore.set(sessionId, conv);
-
-  // Limit total conversations (keep last 100)
-  if (conversationStore.size > 100) {
-    const keys = [...conversationStore.keys()];
-    for (let i = 0; i < keys.length - 100; i++) {
-      conversationStore.delete(keys[i]);
-    }
-  }
-
-  return conv;
+  await sessions.insertOne(session);
+  return session;
 }
 
-function addMessageToConversation(sessionId: string, msg: ConversationMessage): void {
-  const conv = conversationStore.get(sessionId);
-  if (conv) {
-    conv.messages.push(msg);
-    conv.updatedAt = new Date().toISOString();
-  }
+async function addMessage(sessionId: string, role: 'user' | 'assistant', content: string, extra?: Partial<MongoMessage>): Promise<void> {
+  const messages = messagesCollection();
+  const now = new Date();
+  await messages.insertOne({
+    _id: `${role[0]}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    sessionId,
+    role,
+    content,
+    createdAt: now,
+    ...extra,
+  });
+  // Update session timestamp
+  await sessionsCollection().updateOne({ _id: sessionId }, { $set: { updatedAt: now } });
 }
 
 // Decode HTML entities
@@ -252,6 +242,9 @@ export function createChatRoutes(ctx: GatewayContext) {
 
     const { message, sessionId, stream, webSearch: enableWebSearch, domainId } = parsed.data;
     const sid = sessionId || randomUUID();
+    const user = c.get('user');
+    const tenantId = user?.tenantId || 'default';
+    const userId = user?.sub || 'anonymous';
 
     // Resolve domain persona if a domain is selected and installed
     let domainPersona = '';
@@ -265,14 +258,9 @@ export function createChatRoutes(ctx: GatewayContext) {
       }
     }
 
-    // Track conversation — save user message
-    getOrCreateConversation(sid, message);
-    addMessageToConversation(sid, {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      content: message,
-      timestamp: new Date().toISOString(),
-    });
+    // Track conversation — save user message to MongoDB
+    await getOrCreateSession(sid, tenantId, userId, message);
+    await addMessage(sid, 'user', message);
 
     // Build message with attachment context
     let fullMessage = message;
@@ -325,13 +313,8 @@ export function createChatRoutes(ctx: GatewayContext) {
     }
 
     const response = await ctx.agent.chat(sid, fullMessage, ragContext);
-    // Track assistant response
-    addMessageToConversation(sid, {
-      id: `a-${Date.now()}`,
-      role: 'assistant',
-      content: response,
-      timestamp: new Date().toISOString(),
-    });
+    // Track assistant response in MongoDB
+    await addMessage(sid, 'assistant', response);
     return c.json({ sessionId: sid, content: response });
   });
 
@@ -491,19 +474,10 @@ export function createChatRoutes(ctx: GatewayContext) {
 
     // Track in conversation
     if (sessionId) {
-      getOrCreateConversation(sessionId, `🎨 ${prompt.slice(0, 50)}`);
-      addMessageToConversation(sessionId, {
-        id: `u-${Date.now()}`,
-        role: 'user',
-        content: `🎨 Generate image: ${prompt}`,
-        timestamp: new Date().toISOString(),
-      });
-      addMessageToConversation(sessionId, {
-        id: `a-${Date.now()}`,
-        role: 'assistant',
-        content: `![Generated Image](${imageUrl})`,
-        timestamp: new Date().toISOString(),
-      });
+      const imgUser = c.get('user');
+      await getOrCreateSession(sessionId, imgUser?.tenantId || 'default', imgUser?.sub || 'anonymous', `🎨 ${prompt.slice(0, 50)}`);
+      await addMessage(sessionId, 'user', `🎨 Generate image: ${prompt}`);
+      await addMessage(sessionId, 'assistant', `![Generated Image](${imageUrl})`);
     }
 
     return c.json({
@@ -522,55 +496,86 @@ export function createChatRoutes(ctx: GatewayContext) {
     if (!sessionId || !content) {
       return c.json({ error: 'sessionId and content required' }, 400);
     }
-    addMessageToConversation(sessionId, {
-      id: `a-${Date.now()}`,
-      role: 'assistant',
-      content,
-      timestamp: new Date().toISOString(),
-    });
+    await addMessage(sessionId, 'assistant', content);
     return c.json({ success: true });
   });
 
-  // ─── Conversation History Endpoints ─────────────────────────
+  // ─── Conversation History Endpoints (MongoDB-backed) ──────
 
   // GET /api/chat/conversations — List all conversations
-  app.get('/conversations', (c) => {
-    const conversations = [...conversationStore.values()]
-      .map(({ id, title, createdAt, updatedAt, messages }) => ({
-        id,
-        title,
-        createdAt,
-        updatedAt,
-        messageCount: messages.length,
-        lastMessage: messages.length > 0 ? messages[messages.length - 1].content.slice(0, 100) : '',
-      }))
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  app.get('/conversations', async (c) => {
+    const user = c.get('user');
+    const tenantId = user?.tenantId || 'default';
+    const sessions = sessionsCollection();
+    const msgs = messagesCollection();
+
+    const sessionList = await sessions
+      .find({ tenantId })
+      .sort({ updatedAt: -1 })
+      .limit(100)
+      .toArray();
+
+    const conversations = await Promise.all(sessionList.map(async (s) => {
+      const messageCount = await msgs.countDocuments({ sessionId: s._id });
+      const lastMsg = await msgs.findOne({ sessionId: s._id }, { sort: { createdAt: -1 } });
+      return {
+        id: s._id,
+        title: s.title,
+        createdAt: s.createdAt.toISOString(),
+        updatedAt: s.updatedAt.toISOString(),
+        messageCount,
+        lastMessage: lastMsg ? lastMsg.content.slice(0, 100) : '',
+      };
+    }));
+
     return c.json(conversations);
   });
 
   // GET /api/chat/conversations/:id — Get conversation with messages
-  app.get('/conversations/:id', (c) => {
+  app.get('/conversations/:id', async (c) => {
     const id = c.req.param('id');
-    const conv = conversationStore.get(id);
-    if (!conv) return c.json({ error: 'Conversation not found' }, 404);
-    return c.json(conv);
+    const sessions = sessionsCollection();
+    const session = await sessions.findOne({ _id: id });
+    if (!session) return c.json({ error: 'Conversation not found' }, 404);
+
+    const msgs = await messagesCollection()
+      .find({ sessionId: id })
+      .sort({ createdAt: 1 })
+      .toArray();
+
+    return c.json({
+      id: session._id,
+      title: session.title,
+      createdAt: session.createdAt.toISOString(),
+      updatedAt: session.updatedAt.toISOString(),
+      messages: msgs.map(m => ({
+        id: m._id,
+        role: m.role,
+        content: m.content,
+        timestamp: m.createdAt.toISOString(),
+      })),
+    });
   });
 
   // PUT /api/chat/conversations/:id — Rename conversation
   app.put('/conversations/:id', async (c) => {
     const id = c.req.param('id');
-    const conv = conversationStore.get(id);
-    if (!conv) return c.json({ error: 'Conversation not found' }, 404);
     const body = await c.req.json();
-    if (body.title) conv.title = String(body.title).slice(0, 100);
-    conv.updatedAt = new Date().toISOString();
+    const sessions = sessionsCollection();
+
+    const result = await sessions.updateOne(
+      { _id: id },
+      { $set: { title: String(body.title).slice(0, 100), updatedAt: new Date() } },
+    );
+    if (result.matchedCount === 0) return c.json({ error: 'Conversation not found' }, 404);
     return c.json({ success: true });
   });
 
   // DELETE /api/chat/conversations/:id — Delete conversation
-  app.delete('/conversations/:id', (c) => {
+  app.delete('/conversations/:id', async (c) => {
     const id = c.req.param('id');
-    conversationStore.delete(id);
+    await sessionsCollection().deleteOne({ _id: id });
+    await messagesCollection().deleteMany({ sessionId: id });
     return c.json({ success: true });
   });
 

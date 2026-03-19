@@ -1,13 +1,18 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { I18nProvider } from './i18n';
 import { Layout } from './components/Layout';
+import { SettingsLayout } from './components/SettingsLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ChatPage } from './pages/ChatPage';
 import { KnowledgePage } from './pages/KnowledgePage';
 import { DocumentDetailPage } from './pages/DocumentDetailPage';
 import { SearchPage } from './pages/SearchPage';
-import { SettingsPage } from './pages/SettingsPage';
+import {
+    SettingsOverviewPage, SettingsUsersPage, SettingsModelsPage,
+    SettingsLanguagePage, SettingsRagPage, SettingsDomainsPage, SettingsSecurityPage,
+} from './pages/settings';
 import { ModelsPage } from './pages/ModelsPage';
 import { MedicalPage } from './pages/MedicalPage';
 import { DomainsPage } from './pages/DomainsPage';
@@ -37,7 +42,15 @@ function ProtectedRoutes() {
                 <Route path="domains/:id/workspace" element={<DomainWorkspacePage />} />
                 <Route path="ml" element={<MLPage />} />
                 <Route path="mcp" element={<MCPPage />} />
-                <Route path="settings" element={<SettingsPage />} />
+                <Route path="settings" element={<SettingsLayout />}>
+                    <Route index element={<SettingsOverviewPage />} />
+                    <Route path="users" element={<SettingsUsersPage />} />
+                    <Route path="models" element={<SettingsModelsPage />} />
+                    <Route path="language" element={<SettingsLanguagePage />} />
+                    <Route path="rag" element={<SettingsRagPage />} />
+                    <Route path="domains" element={<SettingsDomainsPage />} />
+                    <Route path="security" element={<SettingsSecurityPage />} />
+                </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
         </Routes>
@@ -47,14 +60,16 @@ function ProtectedRoutes() {
 export function App() {
     return (
         <BrowserRouter>
-            <AuthProvider>
-                <Routes>
-                    {/* Embed route — no sidebar, auto-login via token */}
-                    <Route path="/embed/chat" element={<EmbedChatPage />} />
-                    {/* All other routes — with auth + sidebar layout */}
-                    <Route path="/*" element={<ProtectedRoutes />} />
-                </Routes>
-            </AuthProvider>
+            <I18nProvider>
+                <AuthProvider>
+                    <Routes>
+                        {/* Embed route — no sidebar, auto-login via token */}
+                        <Route path="/embed/chat" element={<EmbedChatPage />} />
+                        {/* All other routes — with auth + sidebar layout */}
+                        <Route path="/*" element={<ProtectedRoutes />} />
+                    </Routes>
+                </AuthProvider>
+            </I18nProvider>
         </BrowserRouter>
     );
 }

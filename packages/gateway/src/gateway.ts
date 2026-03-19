@@ -20,6 +20,8 @@ import { createMLRoutes } from './ml.js';
 import { createSettingsRoutes } from './settings.js';
 import { createMCPRoutes } from './mcp.js';
 import { tenantMiddleware, createTenantRoutes } from './tenant.js';
+import { createRBACRoutes } from './rbac.js';
+import { createOAuth2Routes } from './oauth2.js';
 
 export interface GatewayContext {
   agent: Agent;
@@ -45,6 +47,7 @@ export function createGateway(ctx: GatewayContext) {
   // Public routes
   app.route('/', createHealthRoutes());
   app.route('/auth', createAuthRoutes(ctx));
+  app.route('/auth/oauth2', createOAuth2Routes(ctx));
 
   // Protected routes
   const api = new Hono();
@@ -67,6 +70,7 @@ export function createGateway(ctx: GatewayContext) {
   api.route('/settings', createSettingsRoutes());
   api.route('/tenants', createTenantRoutes());
   api.route('/mcp', createMCPRoutes(ctx.domainPacks, ctx.agent));
+  api.route('/rbac', createRBACRoutes());
   app.route('/api', api);
 
   return app;

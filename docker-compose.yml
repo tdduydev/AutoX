@@ -16,6 +16,19 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─── MongoDB (AI data: sessions, messages, memory) ──────
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # ─── Redis ───────────────────────────────────────────────
   redis:
     image: redis:8-alpine
@@ -40,11 +53,14 @@ services:
       - HOST=0.0.0.0
       - PORT=3000
       - DATABASE_URL=postgresql://xclaw:xclaw@postgres:5432/xclaw
+      - MONGODB_URL=mongodb://mongodb:27017/xclaw
       - REDIS_URL=redis://redis:6379
       - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
       - CORS_ORIGINS=http://localhost,http://localhost:5173,http://localhost:3000
     depends_on:
       postgres:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -61,3 +77,4 @@ services:
 
 volumes:
   pgdata:
+  mongodata:

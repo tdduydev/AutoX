@@ -58,82 +58,93 @@ export const users = pgTable('users', {
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   email: text('email').notNull(),
-  passwordHash: text('password_hash').notNull(),
-  role: text('role').notNull().default('user'), // owner | admin | user
+  passwordHash: text('password_hash'), // nullable for OAuth-only users
+  avatarUrl: text('avatar_url'),
+  role: text('role').notNull().default('user'), // legacy: owner | admin | user
+  status: text('status').notNull().default('active'), // active | suspended | invited
+  lastLoginAt: timestamp('last_login_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   uniqueIndex('users_tenant_email_idx').on(table.tenantId, table.email),
 ]);
 
-// ─── Sessions ───────────────────────────────────────────────
+// ─── Roles (per-tenant RBAC) ────────────────────────────────
 
-export const sessions = pgTable('sessions', {
+export const roles = pgTable('roles', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-  userId: text('user_id').notNull().references(() => users.id),
-  platform: text('platform').notNull().default('web'),
-  title: text('title'),
+  name: text('name').notNull(), // e.g. 'owner', 'admin', 'member', 'viewer', or custom
+  displayName: text('display_name').notNull(),
+  description: text('description'),
+  isSystem: boolean('is_system').notNull().default(false), // system roles can't be deleted
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('sessions_user_id_idx').on(table.userId),
-  index('sessions_tenant_id_idx').on(table.tenantId),
+  uniqueIndex('roles_tenant_name_idx').on(table.tenantId, table.name),
+  index('roles_tenant_id_idx').on(table.tenantId),
 ]);
 
-// ─── Messages ───────────────────────────────────────────────
+// ─── Permissions ────────────────────────────────────────────
 
-export const messages = pgTable('messages', {
+export const permissions = pgTable('permissions', {
   id: text('id').primaryKey(),
-  sessionId: text('session_id').notNull().references(() => sessions.id, { onDelete: 'cascade' }),
-  role: text('role').notNull(), // user | assistant | system
-  content: text('content').notNull(),
-  toolCalls: jsonb('tool_calls'),
-  toolResults: jsonb('tool_results'),
-  metadata: jsonb('metadata'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  resource: text('resource').notNull(), // e.g. 'chat', 'users', 'settings', 'workflows', 'roles'
+  action: text('action').notNull(), // e.g. 'read', 'write', 'delete', 'manage'
+  description: text('description'),
 }, (table) => [
-  index('messages_session_id_idx').on(table.sessionId),
+  uniqueIndex('permissions_resource_action_idx').on(table.resource, table.action),
 ]);
 
-// ─── Memory Entries ─────────────────────────────────────────
+// ─── Role ↔ Permission (many-to-many) ──────────────────────
 
-export const memoryEntries = pgTable('memory_entries', {
+export const rolePermissions = pgTable('role_permissions', {
   id: text('id').primaryKey(),
+  roleId: text('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
+  permissionId: text('permission_id').notNull().references(() => permissions.id, { onDelete: 'cascade' }),
+}, (table) => [
+  uniqueIndex('role_permissions_role_perm_idx').on(table.roleId, table.permissionId),
+  index('role_permissions_role_id_idx').on(table.roleId),
+]);
+
+// ─── User ↔ Role (many-to-many, per-tenant) ────────────────
+
+export const userRoles = pgTable('user_roles', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  roleId: text('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
+  assignedAt: timestamp('assigned_at').defaultNow().notNull(),
+  assignedBy: text('assigned_by'), // userId who assigned this role
+}, (table) => [
+  uniqueIndex('user_roles_user_role_idx').on(table.userId, table.roleId),
+  index('user_roles_user_id_idx').on(table.userId),
+  index('user_roles_role_id_idx').on(table.roleId),
+]);
+
+// ─── OAuth Accounts (linked external providers) ─────────────
+
+export const oauthAccounts = pgTable('oauth_accounts', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-  type: text('type').notNull(), // fact | preference | conversation | context | skill-data
-  content: text('content').notNull(),
-  metadata: jsonb('metadata').notNull().default({}),
-  source: text('source').notNull(),
-  tags: jsonb('tags').notNull().default([]),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  expiresAt: timestamp('expires_at'),
-}, (table) => [
-  index('memory_entries_type_idx').on(table.type),
-  index('memory_entries_tenant_id_idx').on(table.tenantId),
-]);
-
-// ─── Agent Configs ──────────────────────────────────────────
-
-export const agentConfigs = pgTable('agent_configs', {
-  id: text('id').primaryKey(),
-  tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
-  persona: text('persona').notNull(),
-  systemPrompt: text('system_prompt').notNull(),
-  llmConfig: jsonb('llm_config').notNull(),
-  enabledSkills: jsonb('enabled_skills').notNull().default([]),
-  memoryConfig: jsonb('memory_config').notNull(),
-  securityConfig: jsonb('security_config').notNull(),
-  maxToolIterations: integer('max_tool_iterations').notNull().default(10),
-  toolTimeout: integer('tool_timeout').notNull().default(30000),
-  isDefault: boolean('is_default').notNull().default(false),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  provider: text('provider').notNull(), // google | github | discord
+  providerAccountId: text('provider_account_id').notNull(), // external userId
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  tokenExpiresAt: timestamp('token_expires_at'),
+  scope: text('scope'),
+  profile: jsonb('profile').notNull().default({}), // raw provider profile
+  connectedAt: timestamp('connected_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  index('agent_configs_tenant_id_idx').on(table.tenantId),
+  uniqueIndex('oauth_accounts_provider_account_idx').on(table.provider, table.providerAccountId, table.tenantId),
+  index('oauth_accounts_user_id_idx').on(table.userId),
+  index('oauth_accounts_tenant_id_idx').on(table.tenantId),
 ]);
+
+// ─── Sessions, Messages, Memory, AgentConfigs → MongoDB ────
+// These tables have been moved to MongoDB for flexible AI data storage.
+// See packages/db/src/mongo.ts for MongoDB models.
 
 // ─── Workflows ──────────────────────────────────────────────
 

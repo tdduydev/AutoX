@@ -587,8 +587,8 @@ app.get('/api/his/knowledge/drugs', (c) => {
 
   // Sort
   list.sort((a, b) => {
-    const aVal = (a as Record<string, unknown>)[sortBy] ?? '';
-    const bVal = (b as Record<string, unknown>)[sortBy] ?? '';
+    const aVal = (a as unknown as Record<string, unknown>)[sortBy] ?? '';
+    const bVal = (b as unknown as Record<string, unknown>)[sortBy] ?? '';
     return String(aVal).localeCompare(String(bVal)) * sortDir;
   });
 
@@ -722,6 +722,498 @@ app.get('/api/his/knowledge/stats', (c) => {
 });
 
 // ============================================================
+// Users, Roles & Permissions
+// ============================================================
+
+// ─── Permission definitions ───
+
+const ALL_PERMISSIONS = [
+  // Patients
+  'patients.read', 'patients.write', 'patients.delete',
+  // Prescriptions
+  'prescriptions.read', 'prescriptions.write',
+  // Encounters
+  'encounters.read', 'encounters.write',
+  // Alerts
+  'alerts.read',
+  // Knowledge Base
+  'knowledge.read', 'knowledge.write',
+  // Chat AI
+  'chat.use',
+  // User Management
+  'users.read', 'users.write', 'users.delete',
+  // Roles
+  'roles.read', 'roles.write',
+  // System
+  'system.admin',
+] as const;
+
+type Permission = typeof ALL_PERMISSIONS[number];
+
+interface HISRole {
+  id: string;
+  name: string;
+  description: string;
+  permissions: Permission[];
+  isSystem: boolean; // system roles cannot be deleted
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface HISUser {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: string; // role id
+  department: string;
+  status: 'active' | 'inactive' | 'locked';
+  avatar?: string;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AuthToken {
+  userId: string;
+  token: string;
+  expiresAt: string;
+}
+
+const hisRoles = new Map<string, HISRole>();
+const hisUsers = new Map<string, HISUser>();
+const authTokens = new Map<string, AuthToken>();
+
+// ─── Password hashing (SHA-256) ───
+
+function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+function verifyPassword(password: string, hash: string): boolean {
+  return hashPassword(password) === hash;
+}
+
+// ─── Seed roles ───
+
+const seedRoles: Omit<HISRole, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'role-admin', name: 'Quản trị viên', description: 'Toàn quyền hệ thống',
+    permissions: [...ALL_PERMISSIONS], isSystem: true,
+  },
+  {
+    id: 'role-doctor', name: 'Bác sĩ', description: 'Khám bệnh, kê đơn, tra cứu',
+    permissions: [
+      'patients.read', 'patients.write',
+      'prescriptions.read', 'prescriptions.write',
+      'encounters.read', 'encounters.write',
+      'alerts.read', 'knowledge.read', 'chat.use',
+    ], isSystem: true,
+  },
+  {
+    id: 'role-nurse', name: 'Điều dưỡng', description: 'Xem bệnh nhân, cảnh báo',
+    permissions: [
+      'patients.read', 'prescriptions.read',
+      'encounters.read', 'alerts.read', 'knowledge.read', 'chat.use',
+    ], isSystem: true,
+  },
+  {
+    id: 'role-pharmacist', name: 'Dược sĩ', description: 'Quản lý thuốc, tra cứu tương tác',
+    permissions: [
+      'patients.read', 'prescriptions.read',
+      'alerts.read', 'knowledge.read', 'knowledge.write', 'chat.use',
+    ], isSystem: true,
+  },
+  {
+    id: 'role-receptionist', name: 'Lễ tân', description: 'Tiếp nhận bệnh nhân',
+    permissions: [
+      'patients.read', 'patients.write', 'encounters.read',
+    ], isSystem: true,
+  },
+];
+
+for (const r of seedRoles) {
+  const now = new Date().toISOString();
+  hisRoles.set(r.id, { ...r, createdAt: now, updatedAt: now });
+}
+
+// ─── Seed users ───
+
+const seedUsers: Omit<HISUser, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'user-admin', name: 'Admin HIS', email: 'admin@his.local',
+    passwordHash: hashPassword('admin123'), role: 'role-admin',
+    department: 'CNTT', status: 'active',
+  },
+  {
+    id: 'user-doctor', name: 'BS. Nguyễn Văn A', email: 'doctor@his.local',
+    passwordHash: hashPassword('doctor123'), role: 'role-doctor',
+    department: 'Nội khoa', status: 'active',
+  },
+  {
+    id: 'user-doctor2', name: 'BS. Trần Thị B', email: 'doctor2@his.local',
+    passwordHash: hashPassword('doctor123'), role: 'role-doctor',
+    department: 'Ngoại khoa', status: 'active',
+  },
+  {
+    id: 'user-nurse', name: 'ĐD. Lê Văn C', email: 'nurse@his.local',
+    passwordHash: hashPassword('nurse123'), role: 'role-nurse',
+    department: 'Nội khoa', status: 'active',
+  },
+  {
+    id: 'user-pharmacist', name: 'DS. Phạm Thị D', email: 'pharmacist@his.local',
+    passwordHash: hashPassword('pharma123'), role: 'role-pharmacist',
+    department: 'Dược', status: 'active',
+  },
+  {
+    id: 'user-receptionist', name: 'Hoàng Văn E', email: 'reception@his.local',
+    passwordHash: hashPassword('reception123'), role: 'role-receptionist',
+    department: 'Lễ tân', status: 'active',
+  },
+];
+
+for (const u of seedUsers) {
+  const now = new Date().toISOString();
+  hisUsers.set(u.id, { ...u, createdAt: now, updatedAt: now });
+}
+
+// ─── Auth helpers ───
+
+function generateToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function getUserFromToken(authHeader: string | undefined): HISUser | null {
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  const token = authHeader.slice(7);
+  const authToken = authTokens.get(token);
+  if (!authToken) return null;
+  if (new Date(authToken.expiresAt) < new Date()) {
+    authTokens.delete(token);
+    return null;
+  }
+  return hisUsers.get(authToken.userId) || null;
+}
+
+function userHasPermission(user: HISUser, permission: Permission): boolean {
+  const role = hisRoles.get(user.role);
+  if (!role) return false;
+  return role.permissions.includes(permission) || role.permissions.includes('system.admin');
+}
+
+function sanitizeUser(u: HISUser) {
+  const { passwordHash, ...safe } = u;
+  const role = hisRoles.get(u.role);
+  return { ...safe, roleName: role?.name || u.role, permissions: role?.permissions || [] };
+}
+
+// ─── Auth endpoints ───
+
+app.post('/api/his/auth/login', async (c) => {
+  const body = await c.req.json();
+  const { email, password } = body;
+  if (!email || !password) return c.json({ error: 'Email và mật khẩu là bắt buộc' }, 400);
+
+  const user = [...hisUsers.values()].find(u => u.email === email);
+  if (!user) return c.json({ error: 'Email hoặc mật khẩu không đúng' }, 401);
+  if (user.status === 'locked') return c.json({ error: 'Tài khoản đã bị khóa' }, 403);
+  if (user.status === 'inactive') return c.json({ error: 'Tài khoản đã bị vô hiệu hóa' }, 403);
+  if (!verifyPassword(password, user.passwordHash)) return c.json({ error: 'Email hoặc mật khẩu không đúng' }, 401);
+
+  // Generate token (24h expiry)
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  authTokens.set(token, { userId: user.id, token, expiresAt });
+
+  // Update last login
+  user.lastLoginAt = new Date().toISOString();
+
+  return c.json({ token, user: sanitizeUser(user), expiresAt });
+});
+
+app.post('/api/his/auth/logout', (c) => {
+  const authHeader = c.req.header('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    authTokens.delete(authHeader.slice(7));
+  }
+  return c.json({ success: true });
+});
+
+app.get('/api/his/auth/me', (c) => {
+  const user = getUserFromToken(c.req.header('Authorization'));
+  if (!user) return c.json({ error: 'Chưa đăng nhập' }, 401);
+  return c.json({ user: sanitizeUser(user) });
+});
+
+app.put('/api/his/auth/password', async (c) => {
+  const user = getUserFromToken(c.req.header('Authorization'));
+  if (!user) return c.json({ error: 'Chưa đăng nhập' }, 401);
+  const body = await c.req.json();
+  const { currentPassword, newPassword } = body;
+  if (!currentPassword || !newPassword) return c.json({ error: 'Thiếu mật khẩu' }, 400);
+  if (!verifyPassword(currentPassword, user.passwordHash)) return c.json({ error: 'Mật khẩu hiện tại không đúng' }, 401);
+  if (newPassword.length < 6) return c.json({ error: 'Mật khẩu mới phải ít nhất 6 ký tự' }, 400);
+  user.passwordHash = hashPassword(newPassword);
+  user.updatedAt = new Date().toISOString();
+  return c.json({ success: true });
+});
+
+// ─── User CRUD ───
+
+app.get('/api/his/users', (c) => {
+  const authUser = getUserFromToken(c.req.header('Authorization'));
+  if (!authUser || !userHasPermission(authUser, 'users.read')) {
+    return c.json({ error: 'Không có quyền truy cập' }, 403);
+  }
+
+  const q = c.req.query('q')?.toLowerCase();
+  const roleFilter = c.req.query('role');
+  const statusFilter = c.req.query('status');
+  const departmentFilter = c.req.query('department');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1'));
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '20')));
+
+  let list = [...hisUsers.values()].map(sanitizeUser);
+
+  if (q) {
+    list = list.filter(u =>
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.department.toLowerCase().includes(q),
+    );
+  }
+  if (roleFilter) list = list.filter(u => u.role === roleFilter);
+  if (statusFilter) list = list.filter(u => u.status === statusFilter);
+  if (departmentFilter) list = list.filter(u => u.department === departmentFilter);
+
+  list.sort((a, b) => a.name.localeCompare(b.name));
+
+  const total = list.length;
+  const totalPages = Math.ceil(total / limit);
+  const offset = (page - 1) * limit;
+  const data = list.slice(offset, offset + limit);
+
+  const departments = [...new Set([...hisUsers.values()].map(u => u.department))].sort();
+
+  return c.json({ data, total, page, limit, totalPages, departments });
+});
+
+app.get('/api/his/users/:id', (c) => {
+  const authUser = getUserFromToken(c.req.header('Authorization'));
+  if (!authUser || !userHasPermission(authUser, 'users.read')) {
+    return c.json({ error: 'Không có quyền truy cập' }, 403);
+  }
+  const user = hisUsers.get(c.req.param('id'));
+  if (!user) return c.json({ error: 'Không tìm thấy người dùng' }, 404);
+  return c.json({ user: sanitizeUser(user) });
+});
+
+app.post('/api/his/users', async (c) => {
+  const authUser = getUserFromToken(c.req.header('Authorization'));
+  if (!authUser || !userHasPermission(authUser, 'users.write')) {
+    return c.json({ error: 'Không có quyền tạo người dùng' }, 403);
+  }
+
+  const body = await c.req.json();
+  const { name, email, password, role, department, status } = body;
+  if (!name || !email || !password) return c.json({ error: 'name, email, password là bắt buộc' }, 400);
+  if (password.length < 6) return c.json({ error: 'Mật khẩu phải ít nhất 6 ký tự' }, 400);
+
+  // Check duplicate email
+  if ([...hisUsers.values()].some(u => u.email === email)) {
+    return c.json({ error: 'Email đã tồn tại' }, 409);
+  }
+  // Validate role
+  if (role && !hisRoles.has(role)) return c.json({ error: 'Role không tồn tại' }, 400);
+
+  const id = `user-${crypto.randomUUID().slice(0, 8)}`;
+  const now = new Date().toISOString();
+  const user: HISUser = {
+    id, name, email,
+    passwordHash: hashPassword(password),
+    role: role || 'role-doctor',
+    department: department || '',
+    status: status || 'active',
+    createdAt: now, updatedAt: now,
+  };
+  hisUsers.set(id, user);
+  return c.json({ user: sanitizeUser(user) }, 201);
+});
+
+app.put('/api/his/users/:id', async (c) => {
+  const authUser = getUserFromToken(c.req.header('Authorization'));
+  if (!authUser || !userHasPermission(authUser, 'users.write')) {
+    return c.json({ error: 'Không có quyền chỉnh sửa người dùng' }, 403);
+  }
+
+  const user = hisUsers.get(c.req.param('id'));
+  if (!user) return c.json({ error: 'Không tìm thấy người dùng' }, 404);
+
+  const body = await c.req.json();
+  if (body.name !== undefined) user.name = body.name;
+  if (body.email !== undefined) {
+    // Check duplicate email
+    const dup = [...hisUsers.values()].find(u => u.email === body.email && u.id !== user.id);
+    if (dup) return c.json({ error: 'Email đã tồn tại' }, 409);
+    user.email = body.email;
+  }
+  if (body.password) {
+    if (body.password.length < 6) return c.json({ error: 'Mật khẩu phải ít nhất 6 ký tự' }, 400);
+    user.passwordHash = hashPassword(body.password);
+  }
+  if (body.role !== undefined) {
+    if (!hisRoles.has(body.role)) return c.json({ error: 'Role không tồn tại' }, 400);
+    user.role = body.role;
+  }
+  if (body.department !== undefined) user.department = body.department;
+  if (body.status !== undefined) user.status = body.status;
+  user.updatedAt = new Date().toISOString();
+
+  return c.json({ user: sanitizeUser(user) });
+});
+
+app.delete('/api/his/users/:id', (c) => {
+  const authUser = getUserFromToken(c.req.header('Authorization'));
+  if (!authUser || !userHasPermission(authUser, 'users.delete')) {
+    return c.json({ error: 'Không có quyền xóa người dùng' }, 403);
+  }
+
+  const userId = c.req.param('id');
+  if (userId === authUser.id) return c.json({ error: 'Không thể xóa chính mình' }, 400);
+  if (!hisUsers.has(userId)) return c.json({ error: 'Không tìm thấy người dùng' }, 404);
+  hisUsers.delete(userId);
+
+  // Invalidate user tokens
+  for (const [token, auth] of authTokens) {
+    if (auth.userId === userId) authTokens.delete(token);
+  }
+
+  return c.json({ success: true });
+});
+
+// ─── Roles ───
+
+app.get('/api/his/roles', (c) => {
+  const list = [...hisRoles.values()];
+  list.sort((a, b) => a.name.localeCompare(b.name));
+  return c.json({ roles: list, total: list.length });
+});
+
+app.get('/api/his/roles/:id', (c) => {
+  const role = hisRoles.get(c.req.param('id'));
+  if (!role) return c.json({ error: 'Role không tồn tại' }, 404);
+  // Count users with this role
+  const userCount = [...hisUsers.values()].filter(u => u.role === role.id).length;
+  return c.json({ role, userCount });
+});
+
+app.post('/api/his/roles', async (c) => {
+  const authUser = getUserFromToken(c.req.header('Authorization'));
+  if (!authUser || !userHasPermission(authUser, 'roles.write')) {
+    return c.json({ error: 'Không có quyền tạo vai trò' }, 403);
+  }
+
+  const body = await c.req.json();
+  const { name, description, permissions } = body;
+  if (!name) return c.json({ error: 'Tên vai trò là bắt buộc' }, 400);
+
+  const id = `role-${crypto.randomUUID().slice(0, 8)}`;
+  const now = new Date().toISOString();
+  const role: HISRole = {
+    id, name, description: description || '',
+    permissions: (permissions || []).filter((p: string) => ALL_PERMISSIONS.includes(p as Permission)),
+    isSystem: false,
+    createdAt: now, updatedAt: now,
+  };
+  hisRoles.set(id, role);
+  return c.json({ role }, 201);
+});
+
+app.put('/api/his/roles/:id', async (c) => {
+  const authUser = getUserFromToken(c.req.header('Authorization'));
+  if (!authUser || !userHasPermission(authUser, 'roles.write')) {
+    return c.json({ error: 'Không có quyền chỉnh sửa vai trò' }, 403);
+  }
+
+  const role = hisRoles.get(c.req.param('id'));
+  if (!role) return c.json({ error: 'Role không tồn tại' }, 404);
+
+  const body = await c.req.json();
+  if (body.name !== undefined) role.name = body.name;
+  if (body.description !== undefined) role.description = body.description;
+  if (body.permissions !== undefined) {
+    role.permissions = body.permissions.filter((p: string) => ALL_PERMISSIONS.includes(p as Permission));
+  }
+  role.updatedAt = new Date().toISOString();
+
+  return c.json({ role });
+});
+
+app.delete('/api/his/roles/:id', (c) => {
+  const authUser = getUserFromToken(c.req.header('Authorization'));
+  if (!authUser || !userHasPermission(authUser, 'roles.write')) {
+    return c.json({ error: 'Không có quyền xóa vai trò' }, 403);
+  }
+
+  const roleId = c.req.param('id');
+  const role = hisRoles.get(roleId);
+  if (!role) return c.json({ error: 'Role không tồn tại' }, 404);
+  if (role.isSystem) return c.json({ error: 'Không thể xóa vai trò hệ thống' }, 400);
+
+  // Check if any users still have this role
+  const usersWithRole = [...hisUsers.values()].filter(u => u.role === roleId);
+  if (usersWithRole.length > 0) {
+    return c.json({ error: `Còn ${usersWithRole.length} người dùng có vai trò này, hãy chuyển vai trò trước` }, 400);
+  }
+
+  hisRoles.delete(roleId);
+  return c.json({ success: true });
+});
+
+// ─── Permissions list ───
+
+app.get('/api/his/permissions', (c) => {
+  const groups: Record<string, { key: string; label: string }[]> = {
+    'Bệnh nhân': [
+      { key: 'patients.read', label: 'Xem bệnh nhân' },
+      { key: 'patients.write', label: 'Thêm/sửa bệnh nhân' },
+      { key: 'patients.delete', label: 'Xóa bệnh nhân' },
+    ],
+    'Kê đơn': [
+      { key: 'prescriptions.read', label: 'Xem đơn thuốc' },
+      { key: 'prescriptions.write', label: 'Kê đơn thuốc' },
+    ],
+    'Khám bệnh': [
+      { key: 'encounters.read', label: 'Xem lượt khám' },
+      { key: 'encounters.write', label: 'Tạo/sửa lượt khám' },
+    ],
+    'Cảnh báo': [
+      { key: 'alerts.read', label: 'Xem cảnh báo' },
+    ],
+    'Knowledge Base': [
+      { key: 'knowledge.read', label: 'Tra cứu' },
+      { key: 'knowledge.write', label: 'Quản lý dữ liệu' },
+    ],
+    'AI Trợ lý': [
+      { key: 'chat.use', label: 'Sử dụng AI chat' },
+    ],
+    'Người dùng': [
+      { key: 'users.read', label: 'Xem danh sách' },
+      { key: 'users.write', label: 'Thêm/sửa người dùng' },
+      { key: 'users.delete', label: 'Xóa người dùng' },
+    ],
+    'Vai trò': [
+      { key: 'roles.read', label: 'Xem vai trò' },
+      { key: 'roles.write', label: 'Quản lý vai trò' },
+    ],
+    'Hệ thống': [
+      { key: 'system.admin', label: 'Toàn quyền quản trị' },
+    ],
+  };
+  return c.json({ permissions: groups, allKeys: ALL_PERMISSIONS });
+});
+
+// ============================================================
 // Start
 // ============================================================
 
@@ -730,5 +1222,6 @@ const PORT = Number(process.env.HIS_PORT) || 4000;
 serve({ fetch: app.fetch, port: PORT }, () => {
   console.log(`\n🏥 HIS Mini Server running at http://localhost:${PORT}`);
   console.log(`   FHIR R5 • Clinical Alert Engine • ${patients.size} patients • ${medications.size} medications`);
-  console.log(`   📚 Knowledge: ${knowledgeDrugs.length} drugs • ${knowledgeInteractions.length} interactions • ${knowledgeICD10.length} ICD-10 codes\n`);
+  console.log(`   📚 Knowledge: ${knowledgeDrugs.length} drugs • ${knowledgeInteractions.length} interactions • ${knowledgeICD10.length} ICD-10 codes`);
+  console.log(`   👥 Users: ${hisUsers.size} users • ${hisRoles.size} roles\n`);
 });

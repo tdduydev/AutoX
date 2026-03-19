@@ -9,10 +9,14 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./mongo": {
+            "types": "./dist/mongo.d.ts",
+            "import": "./dist/mongo.js"
         }
     },
     "scripts": {
-        "build": "tsc -b",
+        "build": "tsc -b && cp -r src/migrations dist/migrations",
         "dev": "tsc -b --watch",
         "generate": "drizzle-kit generate",
         "migrate": "drizzle-kit migrate",
@@ -21,6 +25,7 @@
     "dependencies": {
         "@xclaw/shared": "*",
         "drizzle-orm": "^0.39.0",
+        "mongodb": "^7.1.0",
         "postgres": "^3.4.0"
     },
     "devDependencies": {

@@ -49,6 +49,81 @@ export async function getMe() {
   return res.json();
 }
 
+// ─── RBAC ───────────────────────────────────────────────────
+
+export async function getRBACUsers() {
+  const res = await apiFetch('/api/rbac/users');
+  if (!res.ok) throw new Error('Failed to fetch users');
+  return res.json();
+}
+
+export async function getRBACRoles() {
+  const res = await apiFetch('/api/rbac/roles');
+  if (!res.ok) throw new Error('Failed to fetch roles');
+  return res.json();
+}
+
+export async function getRBACPermissions() {
+  const res = await apiFetch('/api/rbac/permissions');
+  if (!res.ok) throw new Error('Failed to fetch permissions');
+  return res.json();
+}
+
+export async function inviteUser(email: string, name: string, role: string) {
+  const res = await apiFetch('/auth/invite', {
+    method: 'POST',
+    body: JSON.stringify({ email, name, role }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to invite user');
+  }
+  return res.json();
+}
+
+export async function updateUserStatus(userId: string, status: string) {
+  const res = await apiFetch(`/api/rbac/users/${userId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error('Failed to update status');
+  return res.json();
+}
+
+export async function assignUserRole(userId: string, roleName: string) {
+  const res = await apiFetch(`/api/rbac/users/${userId}/roles`, {
+    method: 'POST',
+    body: JSON.stringify({ roleName }),
+  });
+  if (!res.ok) throw new Error('Failed to assign role');
+  return res.json();
+}
+
+export async function removeUserRole(userId: string, roleName: string) {
+  const res = await apiFetch(`/api/rbac/users/${userId}/roles/${roleName}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to remove role');
+  return res.json();
+}
+
+export async function createRole(name: string, description: string, permissionIds: string[]) {
+  const res = await apiFetch('/api/rbac/roles', {
+    method: 'POST',
+    body: JSON.stringify({ name, displayName: name.charAt(0).toUpperCase() + name.slice(1), description, permissionIds }),
+  });
+  if (!res.ok) throw new Error('Failed to create role');
+  return res.json();
+}
+
+export async function deleteRole(roleId: string) {
+  const res = await apiFetch(`/api/rbac/roles/${roleId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete role');
+  return res.json();
+}
+
 // ─── Health ─────────────────────────────────────────────────
 
 export async function getHealth() {

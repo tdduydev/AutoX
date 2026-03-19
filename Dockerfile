@@ -31,6 +31,7 @@ COPY . .
 # Build server-side packages only
 RUN npx tsc -b packages/shared && \
     npx tsc -b packages/db && \
+    cp -r packages/db/src/migrations packages/db/dist/migrations && \
     npx tsc -b packages/core && \
     npx tsc -b packages/integrations && \
     npx tsc -b packages/domains && \

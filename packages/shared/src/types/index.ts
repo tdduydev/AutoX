@@ -488,3 +488,67 @@ export interface DomainPackDefinition {
   recommendedIntegrations: string[];
   knowledgePacks?: string[];
 }
+
+// ─── RBAC Types ─────────────────────────────────────────────
+
+export type RBACResource =
+  | 'chat' | 'sessions' | 'knowledge' | 'workflows' | 'integrations'
+  | 'domains' | 'settings' | 'users' | 'roles' | 'tenants' | 'models'
+  | 'ml' | 'agents' | 'webhooks' | 'mcp';
+
+export type RBACAction = 'read' | 'write' | 'delete' | 'manage';
+
+export type PermissionKey = `${RBACResource}:${RBACAction}` | '*:*';
+
+export interface RoleDefinition {
+  id: string;
+  name: string;
+  displayName: string;
+  description?: string;
+  isSystem: boolean;
+  permissions: PermissionKey[];
+}
+
+export interface UserWithPermissions {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  tenantId: string;
+  avatarUrl?: string;
+  hasPassword: boolean;
+  permissions: PermissionKey[];
+  oauthProviders: string[];
+  lastLoginAt?: string;
+  createdAt: string;
+}
+
+// ─── OAuth2 Types ───────────────────────────────────────────
+
+export type OAuth2Provider = 'google' | 'github' | 'discord';
+
+export interface OAuth2Account {
+  id: string;
+  provider: OAuth2Provider;
+  providerAccountId: string;
+  connectedAt: string;
+}
+
+export interface OAuth2AuthorizeResponse {
+  url: string;
+}
+
+export interface OAuth2CallbackResponse {
+  token: string;
+  expiresIn: number;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    tenantId: string;
+    avatarUrl?: string;
+  };
+  provider: OAuth2Provider;
+}

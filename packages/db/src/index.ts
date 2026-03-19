@@ -1,6 +1,12 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import * as schema from './schema/index.js';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
 let client: ReturnType<typeof postgres> | null = null;
@@ -26,8 +32,30 @@ export async function closeDB() {
   }
 }
 
+export async function runMigrations(databaseUrl?: string) {
+  const url = databaseUrl || process.env.DATABASE_URL;
+  if (!url) throw new Error('DATABASE_URL is required for migrations');
+
+  const migrationClient = postgres(url, { max: 1 });
+  const migrationDb = drizzle(migrationClient);
+
+  const migrationsFolder = resolve(__dirname, 'migrations');
+  await migrate(migrationDb, { migrationsFolder });
+  await migrationClient.end();
+}
+
 export type DB = ReturnType<typeof getDB>;
 
 // Re-export schema and drizzle helpers
 export * from './schema/index.js';
 export { eq, and, or, desc, asc, sql, like, inArray } from 'drizzle-orm';
+export { seedInitialData } from './seed.js';
+
+// MongoDB exports
+export {
+  getMongo, connectMongo, closeMongo,
+  sessionsCollection, messagesCollection, memoryEntriesCollection, agentConfigsCollection,
+} from './mongo.js';
+export type {
+  MongoSession, MongoMessage, MongoMemoryEntry, MongoAgentConfig,
+} from './mongo.js';

@@ -4,11 +4,22 @@
 
 const API = '';
 
+// ─── Auth token storage ───
+let _authToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  _authToken = token;
+  if (token) sessionStorage.setItem('his_token', token);
+  else sessionStorage.removeItem('his_token');
+}
+export function getAuthToken() { return _authToken; }
+
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(init?.headers as Record<string, string>),
   };
+  if (_authToken) headers['Authorization'] = `Bearer ${_authToken}`;
   return fetch(`${API}${path}`, { ...init, headers });
 }
 
@@ -382,5 +393,116 @@ export async function updateKnowledgeCollection(id: string, data: { name?: strin
 
 export async function deleteKnowledgeCollection(id: string) {
   const res = await apiFetch(`/api/his/knowledge/collections/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return res.json();
+}
+
+// ============================================================
+// HIS Auth
+// ============================================================
+
+export async function hisLogin(email: string, password: string) {
+  const res = await fetch(`${API}/api/his/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  return res.json();
+}
+
+export async function hisLogout() {
+  const res = await apiFetch('/api/his/auth/logout', { method: 'POST' });
+  setAuthToken(null);
+  return res.json();
+}
+
+export async function hisGetMe() {
+  const res = await apiFetch('/api/his/auth/me');
+  return res.json();
+}
+
+export async function hisChangePassword(currentPassword: string, newPassword: string) {
+  const res = await apiFetch('/api/his/auth/password', {
+    method: 'PUT',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return res.json();
+}
+
+// ============================================================
+// User Management
+// ============================================================
+
+export async function getUsers(params?: {
+  q?: string; role?: string; status?: string; department?: string;
+  page?: number; limit?: number;
+}) {
+  const sp = new URLSearchParams();
+  if (params?.q) sp.set('q', params.q);
+  if (params?.role) sp.set('role', params.role);
+  if (params?.status) sp.set('status', params.status);
+  if (params?.department) sp.set('department', params.department);
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.limit) sp.set('limit', String(params.limit));
+  const res = await apiFetch(`/api/his/users?${sp.toString()}`);
+  return res.json();
+}
+
+export async function getUser(id: string) {
+  const res = await apiFetch(`/api/his/users/${encodeURIComponent(id)}`);
+  return res.json();
+}
+
+export async function createUser(data: {
+  name: string; email: string; password: string;
+  role?: string; department?: string; status?: string;
+}) {
+  const res = await apiFetch('/api/his/users', { method: 'POST', body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function updateUser(id: string, data: {
+  name?: string; email?: string; password?: string;
+  role?: string; department?: string; status?: string;
+}) {
+  const res = await apiFetch(`/api/his/users/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function deleteUser(id: string) {
+  const res = await apiFetch(`/api/his/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return res.json();
+}
+
+// ============================================================
+// Roles & Permissions
+// ============================================================
+
+export async function getRoles() {
+  const res = await apiFetch('/api/his/roles');
+  return res.json();
+}
+
+export async function getRole(id: string) {
+  const res = await apiFetch(`/api/his/roles/${encodeURIComponent(id)}`);
+  return res.json();
+}
+
+export async function createRole(data: { name: string; description?: string; permissions?: string[] }) {
+  const res = await apiFetch('/api/his/roles', { method: 'POST', body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function updateRole(id: string, data: { name?: string; description?: string; permissions?: string[] }) {
+  const res = await apiFetch(`/api/his/roles/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function deleteRole(id: string) {
+  const res = await apiFetch(`/api/his/roles/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return res.json();
+}
+
+export async function getPermissions() {
+  const res = await apiFetch('/api/his/permissions');
   return res.json();
 }

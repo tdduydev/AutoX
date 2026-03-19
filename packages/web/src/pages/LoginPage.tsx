@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { PawPrint, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useI18n } from '../i18n';
 
 export function LoginPage() {
     const { login } = useAuth();
+    const { t } = useI18n();
     const [email, setEmail] = useState('admin@xclaw.io');
     const [password, setPassword] = useState('password123');
     const [error, setError] = useState('');
@@ -16,7 +18,7 @@ export function LoginPage() {
         try {
             await login(email, password);
         } catch {
-            setError('Invalid credentials');
+            setError(t('auth.invalidCredentials'));
         } finally {
             setLoading(false);
         }
@@ -40,14 +42,14 @@ export function LoginPage() {
                     </div>
                     <h1 className="text-xl font-bold" style={{ color: 'var(--color-fg)' }}>xClaw</h1>
                     <p className="text-sm mt-1" style={{ color: 'var(--color-fg-muted)' }}>
-                        AI Agent Platform
+                        {t('auth.platform')}
                     </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--color-fg-muted)' }}>
-                            Email
+                            {t('auth.email')}
                         </label>
                         <input
                             type="email"
@@ -64,7 +66,7 @@ export function LoginPage() {
                     </div>
                     <div>
                         <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--color-fg-muted)' }}>
-                            Password
+                            {t('auth.password')}
                         </label>
                         <input
                             type="password"
@@ -92,7 +94,7 @@ export function LoginPage() {
                         className="w-full py-2.5 rounded-lg text-sm font-medium text-white transition-colors cursor-pointer disabled:opacity-50"
                         style={{ background: 'var(--color-primary)' }}
                     >
-                        {loading ? <Loader2 size={18} className="animate-spin mx-auto" /> : 'Sign In'}
+                        {loading ? <Loader2 size={18} className="animate-spin mx-auto" /> : t('auth.signIn')}
                     </button>
                 </form>
             </div>
