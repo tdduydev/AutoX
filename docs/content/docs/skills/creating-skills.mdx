@@ -1,0 +1,177 @@
+---
+title: Creating Skills
+description: Build custom AI agent skill packs for xClaw.
+---
+
+This guide walks you through creating a custom skill pack for xClaw.
+
+## Skill Structure
+
+A skill pack consists of a manifest definition with tools. Each tool has a name, description, parameter schema, and an executor function.
+
+## Quick Example
+
+```typescript
+import { defineSkill } from '@xclaw/core';
+
+export const weatherSkill = defineSkill({
+  id: 'weather',
+  name: 'Weather Service',
+  description: 'Get weather information for any location',
+  version: '1.0.0',
+  category: 'utility',
+  tools: [
+    {
+      name: 'get_weather',
+      description: 'Get current weather for a city',
+      parameters: {
+        type: 'object',
+        properties: {
+          city: {
+            type: 'string',
+            description: 'City name (e.g., "San Francisco")',
+          },
+          units: {
+            type: 'string',
+            enum: ['metric', 'imperial'],
+            description: 'Temperature units',
+          },
+        },
+        required: ['city'],
+      },
+      execute: async ({ city, units = 'metric' }) => {
+        const response = await fetch(
+          `https://api.weather.example.com/current?city=${city}&units=${units}`
+        );
+        const data = await response.json();
+        return {
+          temperature: data.temp,
+          description: data.description,
+          humidity: data.humidity,
+        };
+      },
+    },
+  ],
+});
+```
+
+## Skill Manifest
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | ✅ | Unique identifier for the skill |
+| `name` | string | ✅ | Display name |
+| `description` | string | ✅ | What the skill does |
+| `version` | string | ✅ | Semantic version |
+| `category` | string | ✅ | Category (programming, healthcare, analytics, etc.) |
+| `tools` | Tool[] | ✅ | Array of tool definitions |
+| `config` | ConfigField[] | ❌ | Optional configuration fields |
+
+## Tool Definition
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | ✅ | Tool name (snake_case recommended) |
+| `description` | string | ✅ | What the tool does (shown to LLM) |
+| `parameters` | JSONSchema | ✅ | JSON Schema for tool parameters |
+| `execute` | function | ✅ | Async function that runs the tool |
+| `requiresApproval` | boolean | ❌ | If true, requires user approval before execution |
+
+## Configuration Fields
+
+Skills can declare configuration fields that users can set through the UI:
+
+```typescript
+export const mySkill = defineSkill({
+  // ...
+  config: [
+    {
+      key: 'apiKey',
+      type: 'secret',
+      label: 'API Key',
+      description: 'Your API key for the service',
+      required: true,
+    },
+    {
+      key: 'maxResults',
+      type: 'number',
+      label: 'Max Results',
+      description: 'Maximum number of results to return',
+      defaultValue: 10,
+    },
+    {
+      key: 'language',
+      type: 'select',
+      label: 'Language',
+      options: ['en', 'vi', 'ja', 'ko'],
+      defaultValue: 'en',
+    },
+  ],
+});
+```
+
+### Config Field Types
+
+| Type | Description |
+|------|-------------|
+| `string` | Text input |
+| `number` | Numeric input |
+| `boolean` | Toggle switch |
+| `secret` | Masked text input (for API keys) |
+| `select` | Dropdown selection |
+
+## Registering a Skill
+
+### Built-in Registration
+
+Add your skill to the skill index:
+
+```typescript title="packages/skills/src/index.ts"
+import { weatherSkill } from './weather';
+
+export const skills = [
+  // ... existing skills
+  weatherSkill,
+];
+```
+
+### Runtime Registration
+
+Register skills dynamically at runtime:
+
+```typescript
+import { Agent } from '@xclaw/core';
+
+const agent = new Agent(config);
+agent.skillManager.register(weatherSkill);
+agent.skillManager.activate('weather');
+```
+
+## Plugin Distribution
+
+Package your skill as an npm module with a `xclaw.plugin.json` manifest:
+
+```json title="xclaw.plugin.json"
+{
+  "name": "@xclaw/skill-weather",
+  "version": "1.0.0",
+  "description": "Weather service skill",
+  "type": "skill",
+  "entry": "dist/index.js",
+  "config": [
+    { "key": "apiKey", "type": "secret", "required": true }
+  ],
+  "permissions": ["network"]
+}
+```
+
+Plugin types: `skill`, `channel`, `integration`, `theme`.
+
+## Best Practices
+
+1. **Descriptive tool names** — Use clear `snake_case` names like `get_weather`, `analyze_code`
+2. **Detailed descriptions** — The LLM uses descriptions to decide when to call tools
+3. **Complete parameter schemas** — Include descriptions for every parameter
+4. **Error handling** — Return meaningful error messages in catch blocks
+5. **Approval flags** — Mark destructive operations with `requiresApproval: true`
+6. **Timeouts** — Long-running operations should have reasonable timeouts

@@ -1,0 +1,153 @@
+---
+title: Workflow Engine
+description: Deep dive into the BFS-based workflow execution engine with 16 node types.
+---
+
+The Workflow Engine allows users to build complex AI automations using a visual drag-and-drop interface with 16 node types.
+
+## Overview
+
+![BFS Execution](/diagrams/bfs-execution.png)
+
+The engine uses **Breadth-First Search (BFS)** graph traversal starting from the trigger node. Each node is executed in order, with outputs passed to connected downstream nodes via template resolution.
+
+## Node Types
+
+### Trigger Nodes
+
+| Node | Description |
+|---|---|
+| **Manual** | Triggered by user action or API call |
+| **Cron** | Scheduled execution using cron expressions |
+| **Webhook** | Triggered by HTTP webhook |
+| **Message** | Triggered by incoming chat message |
+| **Event** | Triggered by internal EventBus events |
+
+### AI Nodes
+
+| Node | Description |
+|---|---|
+| **LLM Call** | Send a prompt to the configured LLM and get a response |
+
+### Action Nodes
+
+| Node | Description |
+|---|---|
+| **Tool Call** | Execute a registered tool by name |
+| **HTTP Request** | Make HTTP requests to external APIs |
+| **Run Code** | Execute JavaScript code in a sandboxed environment |
+| **Notification** | Send notifications via configured channels |
+
+### Control Flow Nodes
+
+| Node | Description |
+|---|---|
+| **If/Else** | Conditional branching based on expressions |
+| **Loop** | Iterate over arrays or repeat N times |
+| **Switch** | Multi-branch routing based on value matching |
+| **Wait** | Pause execution for a specified duration |
+| **Merge** | Combine outputs from multiple branches |
+
+### Data Nodes
+
+| Node | Description |
+|---|---|
+| **Transform** | Map, filter, or reshape data |
+| **Memory Read/Write** | Read from or write to the agent's memory |
+| **Sub-Workflow** | Execute another workflow as a nested call |
+
+### Output Nodes
+
+| Node | Description |
+|---|---|
+| **Output** | Define the workflow's final output |
+
+## Data Flow
+
+![Data Flow Nodes](/diagrams/data-flow-nodes.png)
+
+## Execution Process
+
+### 1. Graph Traversal
+
+```
+1. Find trigger node (entry point)
+2. Initialize BFS queue with trigger node
+3. While queue is not empty:
+   a. Dequeue current node
+   b. Resolve template variables from upstream outputs
+   c. Execute node handler
+   d. Store output in results map
+   e. Evaluate outgoing edges (conditional routing)
+   f. Enqueue connected downstream nodes
+```
+
+### 2. Template Resolution
+
+Nodes reference upstream outputs using the `nodeId.outputKey` syntax:
+
+```json
+{
+  "prompt": "Summarize this: {{trigger.data.text}}"
+}
+```
+
+The engine resolves these templates before executing each node, replacing placeholders with actual values from the results map.
+
+### 3. Conditional Edges
+
+Edges can have conditions that determine whether the downstream node should be executed:
+
+```typescript
+{
+  source: 'if_else_1',
+  target: 'action_true',
+  condition: {
+    field: 'if_else_1.result',
+    operator: 'equals',
+    value: true
+  }
+}
+```
+
+### 4. Error Handling
+
+- **Node failure**: Marks the node as failed, skips downstream nodes
+- **Timeout**: Each node has a configurable timeout (default 30s)
+- **Max iterations**: Loop nodes have a max iteration limit to prevent infinite loops
+
+## Custom Node Handlers
+
+Register custom node type handlers:
+
+```typescript
+import { WorkflowEngine } from '@xclaw/core';
+
+const engine = new WorkflowEngine(agent);
+
+engine.registerNodeHandler('my-custom-node', async (node, context) => {
+  // Access node config
+  const config = node.data.config;
+  
+  // Access upstream outputs
+  const input = context.getOutput('previous_node', 'result');
+  
+  // Return output
+  return { result: `Processed: ${input}` };
+});
+```
+
+## API Integration
+
+Workflows can be created, managed, and executed via the [REST API](/docs/api):
+
+```bash
+# Create a workflow
+curl -X POST http://localhost:18789/api/workflows \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Workflow", "nodes": [...], "edges": [...]}'
+
+# Execute a workflow
+curl -X POST http://localhost:18789/api/workflows/wf-123/execute \
+  -d '{"triggerData": {"key": "value"}}'
+```

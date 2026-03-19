@@ -1,0 +1,99 @@
+---
+title: WebSocket API
+description: Real-time WebSocket events and client-server communication.
+---
+
+xClaw uses WebSocket for real-time communication between the server and clients. The server bridges internal EventBus events to connected WebSocket clients.
+
+## Connection
+
+```
+ws://localhost:18789/ws
+```
+
+## Server → Client Events
+
+The server broadcasts internal events to all connected WebSocket clients:
+
+| Event Type | Payload | Description |
+|---|---|---|
+| `agent:response` | `{ sessionId, content, usage }` | Agent generated a response |
+| `tool:started` | `{ toolName, toolCallId }` | Tool execution started |
+| `tool:completed` | `{ toolCallId, result, duration }` | Tool execution completed |
+| `tool:failed` | `{ toolCallId, error }` | Tool execution failed |
+| `workflow:started` | `{ workflowId, executionId }` | Workflow execution started |
+| `workflow:completed` | `{ workflowId, executionId, status }` | Workflow execution finished |
+| `workflow:node:started` | `{ nodeId, nodeType, label }` | Workflow node started |
+| `skill:activated` | `{ skillId }` | Skill was activated |
+| `skill:deactivated` | `{ skillId }` | Skill was deactivated |
+
+### Message Format
+
+```json
+{
+  "type": "tool:completed",
+  "payload": {
+    "toolCallId": "tc-123",
+    "result": { "output": "..." },
+    "duration": 42
+  },
+  "source": "tool-registry",
+  "timestamp": "2026-03-16T10:00:00.123Z"
+}
+```
+
+## Client → Server Messages
+
+| Type | Fields | Description |
+|---|---|---|
+| `chat` | `{ sessionId, message }` | Send a chat message |
+| `workflow:execute` | `{ workflowId, triggerData? }` | Trigger workflow execution |
+
+### Example: Send Chat
+
+```json
+{
+  "type": "chat",
+  "sessionId": "session-123",
+  "message": "Run my tests"
+}
+```
+
+The response comes back as an `agent:response` event.
+
+## JavaScript Client Example
+
+```typescript
+const ws = new WebSocket('ws://localhost:18789/ws');
+
+ws.onopen = () => {
+  console.log('Connected to xClaw');
+  
+  // Send a chat message
+  ws.send(JSON.stringify({
+    type: 'chat',
+    sessionId: 'my-session',
+    message: 'Hello!'
+  }));
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  
+  switch (data.type) {
+    case 'agent:response':
+      console.log('Agent:', data.payload.content);
+      break;
+    case 'tool:started':
+      console.log('Tool started:', data.payload.toolName);
+      break;
+    case 'tool:completed':
+      console.log('Tool done:', data.payload.toolCallId);
+      break;
+  }
+};
+
+ws.onerror = (error) => {
+  console.error('WebSocket error:', error);
+};
+```

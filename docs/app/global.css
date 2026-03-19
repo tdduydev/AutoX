@@ -1,0 +1,300 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+/* ═══════════════════════════════════════════
+   LIGHT THEME (kept clean)
+   ═══════════════════════════════════════════ */
+:root {
+  --color-fd-primary: 195 100% 40%;
+  --color-fd-background: 220 20% 97%;
+  --color-fd-foreground: 222 47% 11%;
+  --color-fd-muted: 220 14% 93%;
+  --color-fd-muted-foreground: 215 16% 47%;
+  --color-fd-card: 0 0% 100%;
+  --color-fd-border: 220 13% 90%;
+  --color-fd-ring: 195 100% 40%;
+  --gradient-brand: linear-gradient(135deg, #06b6d4 0%, #7c3aed 50%, #4f46e5 100%);
+}
+
+/* ═══════════════════════════════════════════
+   DARK THEME — rich, deep, premium
+   ═══════════════════════════════════════════ */
+.dark {
+  --color-fd-primary: 195 100% 55%;
+  --color-fd-background: 230 25% 5%;
+  --color-fd-foreground: 210 40% 96%;
+  --color-fd-muted: 230 20% 10%;
+  --color-fd-muted-foreground: 215 20% 60%;
+  --color-fd-card: 230 25% 7%;
+  --color-fd-border: 230 15% 14%;
+  --color-fd-ring: 195 100% 55%;
+}
+
+/* ═══════════════════════════════════════════
+   HERO — animated mesh gradient
+   ═══════════════════════════════════════════ */
+.hero-gradient {
+  position: relative;
+  background: linear-gradient(to bottom, hsl(220 20% 97%), transparent);
+}
+
+.dark .hero-gradient {
+  background: linear-gradient(to bottom, hsl(230 25% 5%), transparent);
+}
+
+.hero-gradient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(6, 182, 212, 0.25), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 80% 30%, rgba(124, 58, 237, 0.15), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 60%, rgba(79, 70, 229, 0.12), transparent 50%);
+  z-index: 0;
+  animation: meshShift 12s ease-in-out infinite alternate;
+}
+
+.dark .hero-gradient::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(6, 182, 212, 0.18), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 80% 30%, rgba(124, 58, 237, 0.12), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 60%, rgba(79, 70, 229, 0.1), transparent 50%);
+}
+
+@keyframes meshShift {
+  0% { filter: hue-rotate(0deg); opacity: 1; }
+  100% { filter: hue-rotate(15deg); opacity: 0.85; }
+}
+
+/* ═══════════════════════════════════════════
+   GRADIENT TEXT
+   ═══════════════════════════════════════════ */
+.text-gradient {
+  background: linear-gradient(135deg, #06b6d4 0%, #7c3aed 50%, #4f46e5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ═══════════════════════════════════════════
+   GLASSMORPHIC CARDS
+   ═══════════════════════════════════════════ */
+.glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow:
+    0 20px 60px -15px rgba(6, 182, 212, 0.12),
+    0 0 30px -5px rgba(6, 182, 212, 0.08);
+}
+
+.dark .glass-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(6, 182, 212, 0.3);
+  box-shadow:
+    0 20px 60px -15px rgba(6, 182, 212, 0.15),
+    0 0 40px -5px rgba(6, 182, 212, 0.1);
+}
+
+/* Feature card (backward compat) */
+.feature-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid hsl(var(--color-fd-border));
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -12px rgba(6, 182, 212, 0.15);
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+.dark .feature-card:hover {
+  box-shadow: 0 20px 40px -12px rgba(6, 182, 212, 0.1);
+}
+
+/* ═══════════════════════════════════════════
+   GLASSMORPHIC TERMINAL
+   ═══════════════════════════════════════════ */
+.glass-terminal {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+}
+
+.dark .glass-terminal {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ═══════════════════════════════════════════
+   NEON ICON RING
+   ═══════════════════════════════════════════ */
+.icon-ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(124, 58, 237, 0.1));
+  transition: all 0.3s;
+}
+
+.dark .icon-ring {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(124, 58, 237, 0.15));
+}
+
+.glass-card:hover .icon-ring {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(124, 58, 237, 0.2));
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+}
+
+/* ═══════════════════════════════════════════
+   TECH PILL
+   ═══════════════════════════════════════════ */
+.tech-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.dark .tech-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tech-pill:hover {
+  transform: scale(1.08);
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+/* ═══════════════════════════════════════════
+   GLOW BUTTON
+   ═══════════════════════════════════════════ */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #06b6d4 0%, #7c3aed 50%, #4f46e5 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+  transition: all 0.3s;
+}
+
+.btn-glow:hover {
+  box-shadow:
+    0 0 30px rgba(6, 182, 212, 0.4),
+    0 0 60px rgba(124, 58, 237, 0.2);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.btn-glow:active {
+  transform: translateY(0) scale(0.98);
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ═══════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════ */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Stagger animation delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+
+/* ═══════════════════════════════════════════
+   GLOBAL POLISH
+   ═══════════════════════════════════════════ */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Code block glass */
+pre {
+  border: 1px solid hsl(var(--color-fd-border)) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Custom scrollbar for dark */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: hsl(230 25% 5%);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(230 15% 20%);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(230 15% 30%);
+}
+
+/* Section divider glow */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(6, 182, 212, 0.3), rgba(124, 58, 237, 0.3), transparent);
+}

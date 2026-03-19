@@ -1,0 +1,15 @@
+{
+  "title": "xClaw Documentation",
+  "pages": [
+    "---Getting Started---",
+    "getting-started",
+    "---Architecture---",
+    "architecture",
+    "---Skills---",
+    "skills",
+    "---API Reference---",
+    "api",
+    "---Agent Hub---",
+    "agent-hub"
+  ]
+}

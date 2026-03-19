@@ -1,0 +1,153 @@
+---
+title: Chat Flow & Streaming
+description: Deep dive into the tool-calling loop, streaming protocol, and real-time SSE events.
+---
+
+The chat system supports both synchronous (request/response) and streaming (SSE) modes with an iterative tool-calling loop.
+
+## Chat Request Flow
+
+<img src="/diagrams/chat-flow.png" alt="Chat Request Flow" className="rounded-xl border border-slate-700 my-4" />
+
+### The Tool-Calling Loop
+
+The `Agent.chat()` method implements a multi-turn tool-calling loop:
+
+```typescript
+async chat(sessionId: string, userMessage: string, ragContext?: string): Promise<string> {
+  // 1. Save user message to history
+  await this.memory.addMessage(sessionId, { role: 'user', content: userMessage });
+
+  // 2. Build messages: system prompt + RAG context + history
+  const messages = this.buildMessages(sessionId, userMessage, ragContext);
+
+  // 3. Tool-calling loop (max iterations from config)
+  while (iterations < this.config.maxToolIterations) {
+    const response = await this.llm.chat(messages, this.tools.getDefinitions());
+
+    if (!response.toolCalls?.length) {
+      // Final answer — save and return
+      await this.memory.addMessage(sessionId, { role: 'assistant', content: response.content });
+      await this.events.emit({ type: 'agent:response', payload: { sessionId, content: response.content } });
+      return response.content;
+    }
+
+    // Execute tools and feed results back into context
+    const results = await this.executeToolCalls(response.toolCalls);
+    messages.push({ role: 'assistant', content: response.content, toolCalls: response.toolCalls });
+    for (const result of results) {
+      messages.push({ role: 'tool', content: JSON.stringify(result.result), toolCallId: result.toolCallId });
+    }
+  }
+}
+```
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **Max iteration limit** | Prevents infinite tool loops (configurable via `maxToolIterations`) |
+| **Sequential tool execution** | Tools execute one-by-one, each emitting `tool:started` / `tool:completed` events |
+| **RAG context injection** | System prompt is augmented with knowledge base context when available |
+| **History window** | Last 20 messages loaded (balance between context and token cost) |
+
+## Streaming Architecture
+
+<img src="/diagrams/streaming-flow.png" alt="Streaming Flow" className="rounded-xl border border-slate-700 my-4" />
+
+### StreamEvent Types
+
+The `chatStream()` method returns an `AsyncGenerator<StreamEvent>` with 8 event types:
+
+| Event | Payload | When |
+|-------|---------|------|
+| `text-delta` | `{ delta: string }` | Each text chunk from LLM |
+| `tool-call-start` | `{ toolCallId, toolName }` | LLM requests a tool call |
+| `tool-call-args` | `{ toolCallId, argsJson }` | Streaming tool arguments |
+| `tool-call-end` | `{ toolCallId }` | Tool call definition complete |
+| `tool-result` | `{ toolCallId, result }` | Tool execution finished |
+| `meta` | `{ key, data }` | Metadata (model info, etc.) |
+| `finish` | `{ usage, finishReason }` | Stream complete |
+| `error` | `{ error: string }` | Error occurred |
+
+### SSE Transport
+
+The gateway serves streaming responses using Server-Sent Events:
+
+```
+POST /api/chat (with Accept: text/event-stream)
+
+→ Content-Type: text/event-stream
+→ data: {"type":"text-delta","delta":"Hello"}
+→ data: {"type":"text-delta","delta":" world"}
+→ data: {"type":"tool-call-start","toolCallId":"tc-1","toolName":"shell_exec"}
+→ data: {"type":"tool-call-args","toolCallId":"tc-1","argsJson":"{\"command\":\"ls\"}"}
+→ data: {"type":"tool-call-end","toolCallId":"tc-1"}
+→ data: {"type":"tool-result","toolCallId":"tc-1","result":{"output":"file1\nfile2"}}
+→ data: {"type":"text-delta","delta":"Found 2 files"}
+→ data: {"type":"finish","usage":{"promptTokens":50,"completionTokens":30},"finishReason":"stop"}
+```
+
+### Client-Side Handling
+
+```typescript
+const response = await fetch('/api/chat', {
+  method: 'POST',
+  body: JSON.stringify({ sessionId, message }),
+  headers: { Accept: 'text/event-stream' },
+});
+
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+
+  const lines = decoder.decode(value).split('\n');
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      const event = JSON.parse(line.slice(6));
+      handleStreamEvent(event);
+    }
+  }
+}
+```
+
+## LLM Router
+
+The `LLMRouter` supports 7 providers via an adapter pattern:
+
+```
+LLMRouter
+├── OpenAIAdapter     — gpt-4o, gpt-4o-mini
+├── AnthropicAdapter  — claude-3-haiku, claude-3-sonnet, claude-3-opus
+├── OllamaAdapter     — llama3, mistral, phi3 (OpenAI-compatible API)
+├── GoogleAdapter     — gemini-1.5-pro, gemini-1.5-flash
+├── GroqAdapter       — llama-3.1-70b, mixtral-8x7b
+├── MistralAdapter    — mistral-large, mistral-medium
+└── Custom            — registerAdapter() for any provider
+```
+
+Each adapter implements:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `chat` | `(messages, tools?) → LLMResponse` | Synchronous chat completion |
+| `chatStream` | `(messages, tools?) → AsyncGenerator<StreamEvent>` | Streaming chat |
+| `embed` | `(text) → number[]` | Text → embedding vector (optional) |
+
+## EventBus
+
+The `EventBus` enables decoupled communication across all components:
+
+| Event Pattern | Source | Consumers |
+|--------------|--------|-----------|
+| `agent:response` | Agent | Gateway (WS bridge), UI |
+| `tool:started` | Agent | Gateway, Tracer |
+| `tool:completed` | Agent | Gateway, Tracer |
+| `tool:failed` | Agent | Gateway, Tracer, Error Logger |
+| `workflow:*` | Graph Engine | Gateway, UI |
+| `skill:activated` | Skill Manager | Gateway, UI |
+
+Wildcard support: `events.on('tool:*', handler)` catches all tool events.

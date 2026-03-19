@@ -1,0 +1,154 @@
+---
+title: Memory & RAG
+description: Deep dive into the two-tier memory system and Retrieval-Augmented Generation engine.
+---
+
+xClaw provides a two-tier memory system and a RAG (Retrieval-Augmented Generation) engine for knowledge-enhanced AI responses.
+
+## Memory System Architecture
+
+<img src="/diagrams/memory-rag.png" alt="Memory & RAG Architecture" className="rounded-xl border border-slate-700 my-4" />
+
+### Two-Tier Memory
+
+| Tier | Storage | Purpose | Persistence |
+|------|---------|---------|-------------|
+| **Conversation History** | In-memory (per session) | Recent chat context | Session-scoped |
+| **Long-term Memory** | Vector store | Semantic knowledge | Persistent |
+
+### MemoryManager API
+
+```typescript
+class MemoryManager {
+  // Conversation History
+  addMessage(sessionId: string, message: ConversationMessage): Promise<void>;
+  loadHistory(sessionId: string, limit: number): Promise<void>;
+  getHistorySync(sessionId: string): ConversationMessage[];
+
+  // Long-term Memory
+  remember(content: string, type: MemoryType, tags: string[]): Promise<MemoryEntry>;
+  recall(query: string, limit: number): Promise<MemoryEntry[]>;
+  forget(id: string): Promise<void>;
+}
+```
+
+### Memory Entry Types
+
+| Type | Use Case | Example |
+|------|----------|---------|
+| `fact` | Stored knowledge | "The project uses PostgreSQL 16" |
+| `preference` | User preferences | "User prefers TypeScript with strict mode" |
+| `conversation` | Important exchanges | Summary of a key discussion |
+| `context` | Environmental context | "Working on the auth module" |
+| `skill-data` | Skill-specific data | Tool execution results for reference |
+
+### Vector Search
+
+Memory entries can have optional `embedding` vectors. The `recall()` method uses **cosine similarity** to find semantically relevant memories:
+
+```typescript
+// Cosine similarity for vector search
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+```
+
+### Built-in Memory Tools
+
+The LLM can manage its own memory via built-in tools:
+
+| Tool | Description |
+|------|-------------|
+| `memory_save` | Store a new memory entry with tags |
+| `memory_search` | Semantic search across stored memories |
+| `memory_delete` | Remove a memory entry by ID |
+
+## RAG Engine
+
+The RAG Engine provides knowledge retrieval to augment LLM responses with domain-specific context.
+
+### Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| **RAG Engine** | `rag/rag-engine.ts` | Orchestrates retrieval and context injection |
+| **Document Processor** | `rag/document-processor.ts` | Parse, chunk, and index documents |
+| **Embedding Provider** | `rag/embedding-provider.ts` | Generate text embeddings via LLM |
+| **Vector Store** | `rag/vector-store.ts` | Store and search embedding vectors |
+
+### RAG Flow
+
+```
+1. Document Ingestion
+   Document → Chunking → Embedding → Vector Store
+
+2. Query Time
+   User Query → Query Embedding → Vector Search → Top-K Chunks
+   → Inject into System Prompt → LLM Call
+
+3. Response
+   LLM generates answer using both query + retrieved context
+```
+
+### Context Injection
+
+The Agent automatically injects RAG context into the system prompt:
+
+```typescript
+// In Agent.buildMessages()
+let systemPrompt = this.config.systemPrompt;
+if (ragContext) {
+  systemPrompt = `${systemPrompt}
+
+## Knowledge Base Context
+The following information was retrieved from the knowledge base.
+Use it to answer accurately. Cite sources when possible.
+
+${ragContext}`;
+}
+```
+
+### Knowledge API
+
+Manage knowledge base via the Gateway:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/knowledge` | GET | List knowledge documents |
+| `/api/knowledge` | POST | Upload and index documents |
+| `/api/knowledge/:id` | DELETE | Remove a document |
+| `/api/search` | POST | Semantic search across knowledge |
+
+### Document Processing Pipeline
+
+```
+Input Document
+    ↓
+Text Extraction (PDF, Markdown, HTML, TXT)
+    ↓
+Chunking (512-token chunks with overlap)
+    ↓
+Embedding Generation (via LLM provider)
+    ↓
+Vector Storage (cosine similarity index)
+    ↓
+Ready for Retrieval
+```
+
+## Integration with Chat
+
+When a user sends a message, the RAG pipeline runs automatically:
+
+1. **Query the knowledge base** with the user's message
+2. **Retrieve top-K relevant chunks** (default: 5)
+3. **Inject context** into the system prompt
+4. **LLM generates** an answer using both the conversation and retrieved knowledge
+5. **Citations** are included when the LLM references knowledge base content
+
+This ensures the AI agent has access to domain-specific knowledge beyond its training data.

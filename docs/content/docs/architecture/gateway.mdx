@@ -1,0 +1,148 @@
+---
+title: Gateway & Routes
+description: Express API gateway with 13 route modules, WebSocket server, and authentication.
+---
+
+The Gateway is the API layer connecting clients to the Agent Core. It's built with Express 5 and includes 13 route modules.
+
+## Gateway Architecture
+
+<img src="/diagrams/gateway.png" alt="Gateway Architecture" className="rounded-xl border border-slate-700 my-4" />
+
+## Route Modules
+
+The gateway creates all routes via `createGateway(agent, config)`, sharing a `GatewayContext`:
+
+```typescript
+interface GatewayContext {
+  agent: Agent;        // Core agent instance
+  events: EventBus;    // Pub/sub event system
+  llm: LLMRouter;      // LLM provider router
+  tools: ToolRegistry; // Tool execution
+  memory: MemoryManager; // Memory system
+  rag: RAGEngine;      // Knowledge retrieval
+}
+```
+
+### API Routes
+
+| Module | Endpoint | Methods | Description |
+|--------|----------|---------|-------------|
+| **Chat** | `/api/chat` | POST | Send message (synchronous or streaming) |
+| **Auth** | `/api/auth` | POST | JWT authentication, login/register |
+| **Health** | `/api/health` | GET | Server status, uptime |
+| **Models** | `/api/models` | GET | List available LLM models |
+| **Search** | `/api/search` | POST | Full-text and semantic search |
+| **Knowledge** | `/api/knowledge` | GET, POST, DELETE | RAG knowledge base management |
+| **Medical** | `/api/medical` | POST | Healthcare-specific endpoints |
+| **Domains** | `/api/domains` | GET, POST, PUT | Domain pack management |
+| **Integrations** | `/api/integrations` | GET, POST | Third-party service connections |
+| **ML** | `/api/ml` | POST | Machine learning inference |
+| **Settings** | `/api/settings` | GET, PATCH | Agent configuration |
+| **MCP** | `/api/mcp` | POST | Model Context Protocol server |
+| **MCP Client** | `/api/mcp-client` | POST | Connect to external MCP servers |
+
+### Authentication Flow
+
+```
+Client → POST /api/auth/login { email, password }
+       ← { token: "jwt...", user: { id, name, role } }
+
+Client → GET /api/chat  (Authorization: Bearer jwt...)
+       ← Authenticated request proceeds
+```
+
+The `authMiddleware` validates JWT tokens and attaches user context to requests.
+
+## WebSocket Server
+
+The WebSocket server handles real-time bi-directional communication:
+
+### Message Types (14 total)
+
+| Type | Direction | Purpose |
+|------|-----------|---------|
+| `auth` | Client → Server | Authenticate WebSocket session |
+| `chat` | Client → Server | Send chat message |
+| `chat:stream` | Client → Server | Start streaming chat |
+| `chat:response` | Server → Client | Chat response content |
+| `tool:call` | Server → Client | Tool execution notification |
+| `tool:result` | Server → Client | Tool execution result |
+| `workflow:execute` | Client → Server | Trigger workflow execution |
+| `workflow:status` | Server → Client | Workflow execution status |
+| `skill:list` | Client → Server | Request skill list |
+| `skill:toggle` | Client → Server | Activate/deactivate skill |
+| `event` | Server → Client | General event broadcast |
+| `ping` | Client → Server | Keep-alive ping |
+| `pong` | Server → Client | Keep-alive response |
+| `error` | Server → Client | Error notification |
+
+### Event Bridging
+
+The gateway bridges internal `EventBus` events to WebSocket clients:
+
+```typescript
+// Gateway server subscribes to agent events
+agent.events.on('agent:response', async (event) => {
+  // Broadcast to all connected WebSocket clients
+  wss.clients.forEach(client => {
+    client.send(JSON.stringify({
+      type: 'chat:response',
+      payload: event.payload,
+      timestamp: event.timestamp,
+    }));
+  });
+});
+
+agent.events.on('tool:*', async (event) => {
+  wss.clients.forEach(client => {
+    client.send(JSON.stringify({ type: event.type, payload: event.payload }));
+  });
+});
+```
+
+## Channel Plugins
+
+External messaging platforms connect through the `ChannelPlugin` interface:
+
+| Channel | Library | Connection |
+|---------|---------|-----------|
+| **Telegram** | grammY | Webhook / polling |
+| **Discord** | discord.js | WebSocket gateway |
+
+### ChannelPlugin Interface
+
+```typescript
+interface ChannelPlugin {
+  id: string;
+  platform: ChatPlatform;  // 'telegram' | 'discord' | 'slack' | ...
+  name: string;
+  version: string;
+
+  initialize(config: Record<string, unknown>): Promise<void>;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  send(message: OutgoingMessage): Promise<void>;
+  onMessage(handler: (message: IncomingMessage) => Promise<void>): void;
+}
+```
+
+Each channel plugin receives incoming messages, routes them through the Agent, and sends responses back to the platform.
+
+## CORS & Security
+
+```typescript
+const config: GatewayConfig = {
+  port: 18789,
+  host: '0.0.0.0',
+  corsOrigins: ['http://localhost:3000'],  // Web UI
+  jwtSecret: process.env.JWT_SECRET,
+};
+```
+
+| Security Layer | Implementation |
+|---------------|----------------|
+| CORS | Configurable origin whitelist |
+| JWT Auth | HS256 signed tokens |
+| Rate Limiting | Per-endpoint rate limits |
+| Input Validation | Request body schema validation |

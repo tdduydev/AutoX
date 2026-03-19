@@ -1,0 +1,4 @@
+{
+  "title": "Architecture",
+  "pages": ["index", "chat-flow", "gateway", "memory-rag", "workflow-engine"]
+}

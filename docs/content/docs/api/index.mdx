@@ -1,0 +1,272 @@
+---
+title: REST API Reference
+description: Complete REST API endpoints for the xClaw server.
+---
+
+xClaw exposes a REST API for managing agents, skills, workflows, and memory. The server runs on port `18789` by default.
+
+## Base URL
+
+```
+http://localhost:18789
+```
+
+<Callout type="info">
+Currently no authentication is required (development mode). Authentication will be added in a future release.
+</Callout>
+
+---
+
+## Health Check
+
+```http
+GET /api/health
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "agent": "xClaw",
+  "uptime": 123.456
+}
+```
+
+---
+
+## Chat
+
+### Send a Message
+
+```http
+POST /api/chat
+```
+
+Sends a message to the AI agent and returns the response.
+
+**Request Body:**
+```json
+{
+  "sessionId": "optional-session-uuid",
+  "message": "Hello, analyze this code for me"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `sessionId` | string | No | Session ID for conversation continuity |
+| `message` | string | Yes | The user's message |
+
+**Response:**
+```json
+{
+  "sessionId": "abc-123-def",
+  "response": "I've analyzed the code. Here are my findings..."
+}
+```
+
+---
+
+## Skills
+
+### List All Skills
+
+```http
+GET /api/skills
+```
+
+Returns all registered skills (both active and inactive).
+
+### List Active Skills
+
+```http
+GET /api/skills/active
+```
+
+Returns only currently activated skills.
+
+### Activate a Skill
+
+```http
+POST /api/skills/:id/activate
+```
+
+| Parameter | Description |
+|---|---|
+| `id` | Skill ID (e.g., `programming`, `healthcare`) |
+
+**Optional Request Body:**
+```json
+{
+  "config": { "someOption": "value" }
+}
+```
+
+### Deactivate a Skill
+
+```http
+POST /api/skills/:id/deactivate
+```
+
+---
+
+## Tools
+
+### List All Tools
+
+```http
+GET /api/tools
+```
+
+Returns all tool definitions from active skills.
+
+### List by Category
+
+```http
+GET /api/tools/:category
+```
+
+| Parameter | Description |
+|---|---|
+| `category` | Tool category (e.g., `programming`, `healthcare`) |
+
+---
+
+## Workflows
+
+### List Workflows
+
+```http
+GET /api/workflows
+```
+
+### Get a Workflow
+
+```http
+GET /api/workflows/:id
+```
+
+### Create a Workflow
+
+```http
+POST /api/workflows
+```
+
+**Request Body:**
+```json
+{
+  "name": "My Workflow",
+  "description": "Does something useful",
+  "nodes": [
+    {
+      "id": "node_1",
+      "type": "trigger",
+      "position": { "x": 100, "y": 100 },
+      "data": {
+        "label": "Start",
+        "config": { "triggerType": "manual" }
+      }
+    }
+  ],
+  "edges": [],
+  "enabled": true
+}
+```
+
+### Update a Workflow
+
+```http
+PUT /api/workflows/:id
+```
+
+### Delete a Workflow
+
+```http
+DELETE /api/workflows/:id
+```
+
+### Execute a Workflow
+
+```http
+POST /api/workflows/:id/execute
+```
+
+**Request Body:**
+```json
+{
+  "triggerData": { "customKey": "customValue" }
+}
+```
+
+---
+
+## Agent Configuration
+
+### Get Config
+
+```http
+GET /api/agent/config
+```
+
+Returns the current agent configuration. API keys are masked.
+
+### Update Config
+
+```http
+PATCH /api/agent/config
+```
+
+**Request Body:** Partial config object with fields to update.
+```json
+{
+  "name": "My Agent",
+  "llm": { "model": "gpt-4o-mini" }
+}
+```
+
+---
+
+## Memory
+
+### Search Memory
+
+```http
+POST /api/memory/search
+```
+
+```json
+{
+  "query": "user preferences for code style",
+  "limit": 10
+}
+```
+
+### Save Memory
+
+```http
+POST /api/memory/save
+```
+
+```json
+{
+  "content": "The project uses PostgreSQL 16",
+  "type": "fact",
+  "tags": ["database", "tech-stack"]
+}
+```
+
+---
+
+## Error Handling
+
+All error responses follow this format:
+
+```json
+{ "error": "Human-readable error message" }
+```
+
+| Status Code | Meaning |
+|---|---|
+| `400` | Bad request (missing required fields) |
+| `404` | Resource not found |
+| `500` | Internal server error |
