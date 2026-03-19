@@ -1,0 +1,5 @@
+node_modules
+.next/cache
+.git
+.DS_Store
+npm-debug.log*
