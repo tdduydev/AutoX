@@ -1,75 +1,70 @@
 import { Hono } from 'hono';
+import { TenantService, getTenantLanguageInstruction, LANGUAGE_MAP } from './tenant.js';
+import type { TenantSettingsInfo } from './tenant.js';
 
-// ─── In-memory platform settings ────────────────────────────
-export interface PlatformSettings {
-  /** AI response language code, e.g. 'vi', 'en', 'ja', 'zh', 'ko', 'auto' */
-  aiLanguage: string;
-  /** Custom language instruction (overrides preset if non-empty) */
-  aiLanguageCustom: string;
-}
+// ─── Per-tenant settings (DB-backed via TenantService) ──────
 
-const settings: PlatformSettings = {
-  aiLanguage: 'auto',
-  aiLanguageCustom: '',
-};
-
-// Preset language map
-const LANGUAGE_MAP: Record<string, string> = {
-  vi: 'Vietnamese (Tiếng Việt)',
-  en: 'English',
-  ja: 'Japanese (日本語)',
-  ko: 'Korean (한국어)',
-  zh: 'Chinese Simplified (简体中文)',
-  'zh-tw': 'Chinese Traditional (繁體中文)',
-  fr: 'French (Français)',
-  de: 'German (Deutsch)',
-  es: 'Spanish (Español)',
-  pt: 'Portuguese (Português)',
-  it: 'Italian (Italiano)',
-  ru: 'Russian (Русский)',
-  th: 'Thai (ภาษาไทย)',
-  id: 'Indonesian (Bahasa Indonesia)',
-  ms: 'Malay (Bahasa Melayu)',
-  ar: 'Arabic (العربية)',
-  hi: 'Hindi (हिन्दी)',
-};
-
+/**
+ * @deprecated Use getTenantLanguageInstruction(settings) with per-tenant settings instead.
+ * Kept for backward compatibility during migration.
+ */
 export function getLanguageInstruction(): string {
-  if (settings.aiLanguage === 'auto') return '';
-  if (settings.aiLanguageCustom.trim()) return settings.aiLanguageCustom.trim();
-  const langName = LANGUAGE_MAP[settings.aiLanguage];
-  if (langName) return `You MUST respond in ${langName}. All your responses, explanations, and outputs must be written in ${langName}.`;
-  return '';
-}
-
-export function getSettings(): PlatformSettings {
-  return { ...settings };
+  return ''; // returns empty — callers should migrate to per-tenant version
 }
 
 export function createSettingsRoutes() {
   const app = new Hono();
 
-  // GET /settings — Get current platform settings
-  app.get('/', (c) => {
+  // GET /settings — Get current tenant's settings
+  app.get('/', async (c) => {
+    const tenantId = c.get('tenantId');
+    const settings = c.get('tenantSettings');
     return c.json({
-      ...settings,
+      aiLanguage: settings.aiLanguage,
+      aiLanguageCustom: settings.aiLanguageCustom,
+      agentName: settings.agentName,
+      enableWebSearch: settings.enableWebSearch,
+      enableRag: settings.enableRag,
+      enableWorkflows: settings.enableWorkflows,
       languages: Object.entries(LANGUAGE_MAP).map(([code, name]) => ({ code, name })),
     });
   });
 
-  // PUT /settings — Update platform settings
+  // PUT /settings — Update current tenant's settings
   app.put('/', async (c) => {
-    const body = await c.req.json<Partial<PlatformSettings>>();
-    if (body.aiLanguage !== undefined) {
-      const lang = String(body.aiLanguage).toLowerCase().trim();
-      if (lang === 'auto' || lang in LANGUAGE_MAP) {
-        settings.aiLanguage = lang;
+    const tenantId = c.get('tenantId');
+    const user = c.get('user');
+    if (user.role !== 'admin' && user.role !== 'owner') {
+      return c.json({ error: 'Admin access required' }, 403);
+    }
+
+    const body = await c.req.json<Partial<TenantSettingsInfo>>();
+    const allowedKeys: (keyof TenantSettingsInfo)[] = [
+      'aiLanguage', 'aiLanguageCustom', 'agentName', 'systemPrompt',
+      'enableWebSearch', 'enableRag', 'enableWorkflows',
+      'llmProvider', 'llmModel', 'llmApiKey', 'llmBaseUrl',
+      'llmTemperature', 'llmMaxTokens', 'tavilyApiKey',
+      'enabledDomains', 'enabledIntegrations', 'branding',
+    ];
+
+    const filtered: Record<string, unknown> = {};
+    for (const key of allowedKeys) {
+      if (key in body) {
+        filtered[key] = body[key];
       }
     }
-    if (body.aiLanguageCustom !== undefined) {
-      settings.aiLanguageCustom = String(body.aiLanguageCustom).slice(0, 500);
+
+    // Validate language
+    if (filtered.aiLanguage !== undefined) {
+      const lang = String(filtered.aiLanguage).toLowerCase().trim();
+      if (lang !== 'auto' && !(lang in LANGUAGE_MAP)) {
+        return c.json({ error: 'Invalid language code' }, 400);
+      }
+      filtered.aiLanguage = lang;
     }
-    return c.json({ ok: true, settings: { ...settings } });
+
+    await TenantService.updateSettings(tenantId, filtered as Partial<TenantSettingsInfo>);
+    return c.json({ ok: true });
   });
 
   return app;

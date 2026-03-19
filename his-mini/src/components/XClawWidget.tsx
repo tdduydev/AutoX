@@ -21,6 +21,26 @@ function buildSystemMsg(pc: PatientContext): ChatMessage {
     };
 }
 
+const STORAGE_PREFIX = 'xclaw-widget-';
+
+function saveChat(patientId: string, msgs: ChatMessage[], sid: string | undefined) {
+    try {
+        localStorage.setItem(`${STORAGE_PREFIX}${patientId}`, JSON.stringify({ messages: msgs, sessionId: sid }));
+    } catch { /* quota exceeded – ignore */ }
+}
+
+function loadChat(patientId: string): { messages: ChatMessage[]; sessionId: string | undefined } | null {
+    try {
+        const raw = localStorage.getItem(`${STORAGE_PREFIX}${patientId}`);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        return {
+            messages: (data.messages ?? []).map((m: ChatMessage) => ({ ...m, timestamp: new Date(m.timestamp) })),
+            sessionId: data.sessionId,
+        };
+    } catch { return null; }
+}
+
 export function XClawWidget({ patientContext }: { patientContext: PatientContext | null }) {
     const [open, setOpen] = useState(false);
     const [minimized, setMinimized] = useState(false);
@@ -42,12 +62,29 @@ export function XClawWidget({ patientContext }: { patientContext: PatientContext
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }, [messages, loading]);
 
-    // Patient context changed while widget is open
+    // Persist messages to localStorage whenever they change
+    useEffect(() => {
+        if (lastPatientId && messages.length > 0) {
+            saveChat(lastPatientId, messages, sessionId);
+        }
+    }, [messages, sessionId, lastPatientId]);
+
+    // Patient context changed while widget is open — restore or init
     useEffect(() => {
         if (patientContext && patientContext.id !== lastPatientId && open) {
+            // Save current patient's chat before switching
+            if (lastPatientId && messages.length > 0) {
+                saveChat(lastPatientId, messages, sessionId);
+            }
             setLastPatientId(patientContext.id);
-            setSessionId(`his-${patientContext.id}-${Date.now()}`);
-            setMessages([buildSystemMsg(patientContext)]);
+            const saved = loadChat(patientContext.id);
+            if (saved && saved.messages.length > 0) {
+                setMessages(saved.messages);
+                setSessionId(saved.sessionId);
+            } else {
+                setSessionId(`his-${patientContext.id}-${Date.now()}`);
+                setMessages([buildSystemMsg(patientContext)]);
+            }
         }
     }, [patientContext, open, lastPatientId]);
 
@@ -97,16 +134,27 @@ export function XClawWidget({ patientContext }: { patientContext: PatientContext
     };
 
     const clearChat = () => {
-        setSessionId(`his-${Date.now()}`);
-        setMessages(patientContext ? [buildSystemMsg(patientContext)] : []);
+        const newSid = `his-${Date.now()}`;
+        const newMsgs = patientContext ? [buildSystemMsg(patientContext)] : [];
+        setSessionId(newSid);
+        setMessages(newMsgs);
+        if (lastPatientId) {
+            saveChat(lastPatientId, newMsgs, newSid);
+        }
     };
 
     const handleOpen = () => {
         setOpen(true);
         if (patientContext && patientContext.id !== lastPatientId) {
             setLastPatientId(patientContext.id);
-            setSessionId(`his-${patientContext.id}-${Date.now()}`);
-            setMessages([buildSystemMsg(patientContext)]);
+            const saved = loadChat(patientContext.id);
+            if (saved && saved.messages.length > 0) {
+                setMessages(saved.messages);
+                setSessionId(saved.sessionId);
+            } else {
+                setSessionId(`his-${patientContext.id}-${Date.now()}`);
+                setMessages([buildSystemMsg(patientContext)]);
+            }
         }
     };
 

@@ -6,6 +6,9 @@ import type { StreamEvent } from '@xclaw/shared';
 import type { GatewayContext } from './gateway.js';
 import { getInstalledDomainIds } from './domains.js';
 import { getLanguageInstruction } from './settings.js';
+import { tavilyWebSearch } from '@xclaw/integrations';
+import { getTenantLanguageInstruction } from './tenant.js';
+import type { TenantSettingsInfo } from './tenant.js';
 
 // In-memory attachment store (per session)
 const attachmentStore = new Map<string, Array<{ id: string; name: string; mimeType: string; size: number; dataUrl: string }>>();
@@ -69,8 +72,10 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, ' ');
 }
 
-// Web search using Bing (no API key needed)
-async function webSearch(query: string, maxResults = 5): Promise<Array<{ title: string; url: string; snippet: string }>> {
+// Web search using Tavily API (falls back to Bing scraping if no API key)
+const TAVILY_API_KEY_GLOBAL = process.env.TAVILY_API_KEY || '';
+
+async function bingFallback(query: string, maxResults = 5): Promise<Array<{ title: string; url: string; snippet: string }>> {
   try {
     const encoded = encodeURIComponent(query);
     const res = await fetch(`https://www.bing.com/search?q=${encoded}&count=${maxResults}&setlang=vi&mkt=vi-VN&cc=VN`, {
@@ -88,7 +93,6 @@ async function webSearch(query: string, maxResults = 5): Promise<Array<{ title: 
     for (let i = 1; i < resultBlocks.length && results.length < maxResults; i++) {
       const block = resultBlocks[i];
 
-      // Extract real URL from Bing's base64-encoded u=a1... tracking parameter
       let url = '';
       const urlMatch = block.match(/u=a1([^&"]+)/);
       if (urlMatch) {
@@ -99,7 +103,6 @@ async function webSearch(query: string, maxResults = 5): Promise<Array<{ title: 
         if (hrefMatch) url = hrefMatch[1];
       }
 
-      // Extract title from <h2> tag (the actual page title)
       let title = '';
       const h2Match = block.match(/<h2[^>]*>([\s\S]*?)<\/h2>/);
       if (h2Match) {
@@ -110,7 +113,6 @@ async function webSearch(query: string, maxResults = 5): Promise<Array<{ title: 
         if (ariaMatch) title = decodeHtmlEntities(ariaMatch[1]);
       }
 
-      // Extract snippet from <p> tag inside b_caption
       const snippetMatch = block.match(/<p[^>]*>([\s\S]*?)<\/p>/);
       const snippet = snippetMatch
         ? decodeHtmlEntities(snippetMatch[1].replace(/<[^>]*>/g, '').trim()).slice(0, 300)
@@ -126,6 +128,17 @@ async function webSearch(query: string, maxResults = 5): Promise<Array<{ title: 
   }
 }
 
+async function webSearch(query: string, maxResults = 5, tenantSettings?: TenantSettingsInfo): Promise<Array<{ title: string; url: string; snippet: string }>> {
+  // Use tenant's Tavily key, or fall back to global env key
+  const apiKey = tenantSettings?.tavilyApiKey || TAVILY_API_KEY_GLOBAL;
+  if (apiKey) {
+    const results = await tavilyWebSearch(query, apiKey, maxResults);
+    if (results.length > 0) return results;
+    // Fallback to Bing if Tavily returns nothing
+  }
+  return bingFallback(query, maxResults);
+}
+
 // Wraps agent stream with meta events for debug info
 async function* wrapStreamWithMeta(
   ctx: GatewayContext,
@@ -134,6 +147,7 @@ async function* wrapStreamWithMeta(
   message: string,
   ragContext: string,
   enableWebSearch: boolean,
+  tenantSettings?: TenantSettingsInfo,
 ): AsyncGenerator<StreamEvent> {
   const timing: Record<string, number> = {};
 
@@ -148,7 +162,7 @@ async function* wrapStreamWithMeta(
   let searchResults: Array<{ title: string; url: string; snippet: string }> = [];
   if (enableWebSearch) {
     const searchStart = Date.now();
-    searchResults = await webSearch(message);
+    searchResults = await webSearch(message, 5, tenantSettings);
     timing.searchMs = Date.now() - searchStart;
 
     yield { type: 'meta', key: 'search', data: { results: searchResults, query: message } };
@@ -290,14 +304,15 @@ export function createChatRoutes(ctx: GatewayContext) {
       fullMessage = `[System instruction — Domain specialist mode]\n${domainPersona}\n\n[User message]\n${fullMessage}`;
     }
 
-    // Inject language instruction
-    const langInstruction = getLanguageInstruction();
+    // Inject per-tenant language instruction
+    const tSettings = c.get('tenantSettings');
+    const langInstruction = tSettings ? getTenantLanguageInstruction(tSettings) : getLanguageInstruction();
     if (langInstruction) {
       fullMessage = `[Language instruction]\n${langInstruction}\n\n${fullMessage}`;
     }
 
     if (stream) {
-      const generator = wrapStreamWithMeta(ctx, sid, fullMessage, message, ragContext, enableWebSearch);
+      const generator = wrapStreamWithMeta(ctx, sid, fullMessage, message, ragContext, enableWebSearch, tSettings);
       const sseStream = streamToSSE(generator);
 
       return new Response(sseStream, {
@@ -344,8 +359,9 @@ export function createChatRoutes(ctx: GatewayContext) {
       }
     }
 
-    // Inject language instruction
-    const streamLangInstruction = getLanguageInstruction();
+    // Inject per-tenant language instruction
+    const streamTSettings = c.get('tenantSettings');
+    const streamLangInstruction = streamTSettings ? getTenantLanguageInstruction(streamTSettings) : getLanguageInstruction();
     if (streamLangInstruction) {
       streamMessage = `[Language instruction]\n${streamLangInstruction}\n\n${streamMessage}`;
     }
@@ -361,7 +377,7 @@ export function createChatRoutes(ctx: GatewayContext) {
       // RAG retrieval failure is non-fatal
     }
 
-    const generator = wrapStreamWithMeta(ctx, sid, streamMessage, message, ragContext, enableWebSearch);
+    const generator = wrapStreamWithMeta(ctx, sid, streamMessage, message, ragContext, enableWebSearch, streamTSettings);
     const sseStream = streamToSSE(generator);
 
     return new Response(sseStream, {

@@ -55,7 +55,7 @@ services:
       context: .
       dockerfile: packages/web/Dockerfile
     ports:
-      - "3000:80"
+      - "3001:80"
     depends_on:
       - xclaw
 

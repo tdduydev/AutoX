@@ -28,5 +28,6 @@ export { telegramApiIntegration } from './messaging/telegram-api.js';
 export { slackApiIntegration } from './messaging/slack-api.js';
 export { imessageIntegration } from './messaging/imessage.js';
 export { braveSearchIntegration } from './search/brave-search.js';
+export { tavilySearchIntegration, tavilyWebSearch } from './search/tavily-search.js';
 export { huggingfaceIntegration } from './ai/huggingface.js';
 export { wandbIntegration } from './ai/wandb.js';

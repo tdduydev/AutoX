@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Users, Pill, AlertTriangle, LayoutDashboard, MessageSquare, Activity, Stethoscope } from 'lucide-react';
+import { Users, Pill, AlertTriangle, LayoutDashboard, MessageSquare, Activity, Stethoscope, BookOpen } from 'lucide-react';
 import { DashboardPage } from './pages/DashboardPage';
 import { PatientsPage } from './pages/PatientsPage';
 import { PrescribePage } from './pages/PrescribePage';
 import { AlertsPage } from './pages/AlertsPage';
 import { ChatbotPage } from './pages/ChatbotPage';
 import { EncounterPage } from './pages/EncounterPage';
+import { KnowledgePage } from './pages/KnowledgePage';
 import { XClawWidget } from './components/XClawWidget';
 
 export interface PatientContext {
@@ -17,7 +18,7 @@ export interface PatientContext {
     prescriptions: string[];
 }
 
-type Page = 'dashboard' | 'patients' | 'encounter' | 'prescribe' | 'alerts' | 'chatbot';
+type Page = 'dashboard' | 'patients' | 'encounter' | 'prescribe' | 'alerts' | 'knowledge' | 'chatbot';
 
 const NAV: { id: Page; label: string; icon: typeof Users }[] = [
     { id: 'dashboard', label: 'Tổng quan', icon: LayoutDashboard },
@@ -25,6 +26,7 @@ const NAV: { id: Page; label: string; icon: typeof Users }[] = [
     { id: 'encounter', label: 'Khám bệnh (SOAP)', icon: Stethoscope },
     { id: 'prescribe', label: 'Kê đơn thuốc', icon: Pill },
     { id: 'alerts', label: 'Cảnh báo lâm sàng', icon: AlertTriangle },
+    { id: 'knowledge', label: 'Knowledge Base', icon: BookOpen },
     { id: 'chatbot', label: 'AI Trợ lý', icon: MessageSquare },
 ];
 
@@ -86,6 +88,7 @@ export function App() {
                 {page === 'encounter' && <EncounterPage />}
                 {page === 'prescribe' && <PrescribePage />}
                 {page === 'alerts' && <AlertsPage />}
+                {page === 'knowledge' && <KnowledgePage />}
                 {page === 'chatbot' && <ChatbotPage />}
             </main>
 

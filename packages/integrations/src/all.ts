@@ -7,6 +7,7 @@ import { telegramApiIntegration } from './messaging/telegram-api.js';
 import { slackApiIntegration } from './messaging/slack-api.js';
 import { imessageIntegration } from './messaging/imessage.js';
 import { braveSearchIntegration } from './search/brave-search.js';
+import { tavilySearchIntegration } from './search/tavily-search.js';
 import { huggingfaceIntegration } from './ai/huggingface.js';
 import { wandbIntegration } from './ai/wandb.js';
 
@@ -32,6 +33,7 @@ export const allIntegrations: IntegrationDefinition[] = [
 
   // Search
   braveSearchIntegration,
+  tavilySearchIntegration,
 
   // AI / ML
   huggingfaceIntegration,

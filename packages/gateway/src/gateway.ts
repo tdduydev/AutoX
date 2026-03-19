@@ -19,6 +19,7 @@ import { createDomainRoutes } from './domains.js';
 import { createMLRoutes } from './ml.js';
 import { createSettingsRoutes } from './settings.js';
 import { createMCPRoutes } from './mcp.js';
+import { tenantMiddleware, createTenantRoutes } from './tenant.js';
 
 export interface GatewayContext {
   agent: Agent;
@@ -48,6 +49,7 @@ export function createGateway(ctx: GatewayContext) {
   // Protected routes
   const api = new Hono();
   api.use('*', authMiddleware(ctx.config.jwtSecret));
+  api.use('*', tenantMiddleware());
   api.route('/chat', createChatRoutes(ctx));
   api.route('/knowledge', createKnowledgeRoutes(ctx));
   api.route('/models', createModelsRoutes(ctx));
@@ -63,6 +65,7 @@ export function createGateway(ctx: GatewayContext) {
     api.route('/ml', createMLRoutes(ctx.mlEngine));
   }
   api.route('/settings', createSettingsRoutes());
+  api.route('/tenants', createTenantRoutes());
   api.route('/mcp', createMCPRoutes(ctx.domainPacks, ctx.agent));
   app.route('/api', api);
 

@@ -15,6 +15,7 @@ import { IntegrationRegistry, allIntegrations } from '@xclaw/integrations';
 import { allDomainPacks } from '@xclaw/domains';
 import { MLEngine } from '@xclaw/ml';
 import type { AgentConfig, GatewayConfig } from '@xclaw/shared';
+import { loadKnowledgePacks } from './knowledge-loader.js';
 
 dotenv.config();
 
@@ -115,6 +116,12 @@ async function main() {
     topK: 5,
     scoreThreshold: 0.1,
   });
+
+  // Auto-load knowledge packs into RAG
+  const knowledgeCount = await loadKnowledgePacks(rag);
+  if (knowledgeCount > 0) {
+    console.log(`   Knowledge: ${knowledgeCount} documents loaded from knowledge packs`);
+  }
 
   // Integration Registry
   const integrationRegistry = new IntegrationRegistry();

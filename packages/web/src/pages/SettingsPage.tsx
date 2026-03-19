@@ -118,8 +118,8 @@ function OverviewTab({ health, models, domains, activeModel }: { health: any; mo
                 <StatusCard
                     icon={Server}
                     label="Server"
-                    value={health?.status === 'healthy' ? 'Online' : 'Offline'}
-                    status={health?.status === 'healthy' ? 'success' : 'error'}
+                    value={health?.status === 'ok' ? 'Online' : 'Offline'}
+                    status={health?.status === 'ok' ? 'success' : 'error'}
                     detail={health ? `v${health.version}` : ''}
                 />
                 <StatusCard

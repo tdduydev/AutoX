@@ -259,3 +259,128 @@ P: ${e.plan || 'N/A'}`).join('\n\n') : 'Chưa có lượt khám'}
 
   return chatXClaw(token, prompt, sessionId, 'healthcare');
 }
+
+// ============================================================
+// Chat History & Rating
+// ============================================================
+
+export async function getChatSessions() {
+  const res = await apiFetch('/api/his/chat/sessions');
+  return res.json();
+}
+
+export async function createChatSession(id?: string, title?: string) {
+  const res = await apiFetch('/api/his/chat/sessions', {
+    method: 'POST', body: JSON.stringify({ id, title }),
+  });
+  return res.json();
+}
+
+export async function deleteChatSession(id: string) {
+  const res = await apiFetch(`/api/his/chat/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return res.json();
+}
+
+export async function getChatMessages(sessionId: string) {
+  const res = await apiFetch(`/api/his/chat/sessions/${encodeURIComponent(sessionId)}/messages`);
+  return res.json();
+}
+
+export async function saveChatMessage(sessionId: string, data: { role: string; content: string; title?: string }) {
+  const res = await apiFetch(`/api/his/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
+    method: 'POST', body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function rateChatMessage(messageId: string, rating: number, note?: string) {
+  const res = await apiFetch(`/api/his/chat/messages/${encodeURIComponent(messageId)}/rating`, {
+    method: 'PUT', body: JSON.stringify({ rating, note }),
+  });
+  return res.json();
+}
+
+export async function getChatContext(sessionId: string, limit?: number) {
+  const url = limit
+    ? `/api/his/chat/sessions/${encodeURIComponent(sessionId)}/context?limit=${limit}`
+    : `/api/his/chat/sessions/${encodeURIComponent(sessionId)}/context`;
+  const res = await apiFetch(url);
+  return res.json();
+}
+
+export async function getChatStats() {
+  const res = await apiFetch('/api/his/chat/stats');
+  return res.json();
+}
+
+// ============================================================
+// Knowledge Packs
+// ============================================================
+
+export async function getKnowledgeStats() {
+  const res = await apiFetch('/api/his/knowledge/stats');
+  return res.json();
+}
+
+// ── Knowledge: Drugs (DataTable AJAX) ──
+export async function getKnowledgeDrugs(params?: {
+  q?: string; page?: number; limit?: number;
+  group?: string; bhyt?: string; collectionId?: string;
+  sortBy?: string; sortDir?: string;
+}) {
+  const sp = new URLSearchParams();
+  if (params?.q) sp.set('q', params.q);
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.limit) sp.set('limit', String(params.limit));
+  if (params?.group) sp.set('group', params.group);
+  if (params?.bhyt) sp.set('bhyt', params.bhyt);
+  if (params?.collectionId) sp.set('collectionId', params.collectionId);
+  if (params?.sortBy) sp.set('sortBy', params.sortBy);
+  if (params?.sortDir) sp.set('sortDir', params.sortDir);
+  const res = await apiFetch(`/api/his/knowledge/drugs?${sp.toString()}`);
+  return res.json();
+}
+
+// ── Knowledge: Interactions ──
+export async function getKnowledgeInteractions(params?: { q?: string; page?: number; limit?: number; severity?: string }) {
+  const sp = new URLSearchParams();
+  if (params?.q) sp.set('q', params.q);
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.limit) sp.set('limit', String(params.limit));
+  if (params?.severity) sp.set('severity', params.severity);
+  const res = await apiFetch(`/api/his/knowledge/interactions?${sp.toString()}`);
+  return res.json();
+}
+
+// ── Knowledge: ICD-10 ──
+export async function getKnowledgeICD10(params?: { q?: string; page?: number; limit?: number; chapter?: string }) {
+  const sp = new URLSearchParams();
+  if (params?.q) sp.set('q', params.q);
+  if (params?.page) sp.set('page', String(params.page));
+  if (params?.limit) sp.set('limit', String(params.limit));
+  if (params?.chapter) sp.set('chapter', params.chapter);
+  const res = await apiFetch(`/api/his/knowledge/icd10?${sp.toString()}`);
+  return res.json();
+}
+
+// ── Knowledge: Collections ──
+export async function getKnowledgeCollections(type?: string) {
+  const url = type ? `/api/his/knowledge/collections?type=${encodeURIComponent(type)}` : '/api/his/knowledge/collections';
+  const res = await apiFetch(url);
+  return res.json();
+}
+
+export async function createKnowledgeCollection(data: { name: string; description?: string; type: string; itemIds?: string[] }) {
+  const res = await apiFetch('/api/his/knowledge/collections', { method: 'POST', body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function updateKnowledgeCollection(id: string, data: { name?: string; description?: string; itemIds?: string[] }) {
+  const res = await apiFetch(`/api/his/knowledge/collections/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) });
+  return res.json();
+}
+
+export async function deleteKnowledgeCollection(id: string) {
+  const res = await apiFetch(`/api/his/knowledge/collections/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return res.json();
+}

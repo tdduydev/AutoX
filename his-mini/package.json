@@ -16,6 +16,7 @@
         "@tailwindcss/vite": "^4.2.1",
         "hono": "^4.7.0",
         "lucide-react": "^0.577.0",
+        "mermaid": "^11.13.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "react-router-dom": "^7.13.1",

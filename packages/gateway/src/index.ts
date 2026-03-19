@@ -7,3 +7,5 @@ export { createKnowledgeRoutes } from './knowledge.js';
 export { createModelsRoutes } from './models.js';
 export { createMedicalRoutes } from './medical.js';
 export { createSearchRoutes } from './search.js';
+export { TenantService, tenantMiddleware, createTenantRoutes, getTenantLanguageInstruction } from './tenant.js';
+export type { TenantInfo, TenantSettingsInfo } from './tenant.js';
