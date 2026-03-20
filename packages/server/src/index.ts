@@ -19,6 +19,7 @@ import { allDomainPacks } from '@xclaw-ai/domains';
 import { MLEngine } from '@xclaw-ai/ml';
 import { PluginManager } from '@xclaw-ai/core';
 import type { AgentConfig, GatewayConfig } from '@xclaw-ai/shared';
+import { TelegramChannel } from '@xclaw-ai/channel-telegram';
 import { loadKnowledgePacks } from './knowledge-loader.js';
 import { runMigrations, seedInitialData, connectMongo, getMongo, mongoMonitoringStore } from '@xclaw-ai/db';
 
@@ -42,6 +43,8 @@ const {
   REPLICATE_API_KEY = '',
   TOGETHER_API_KEY = '',
   COMFYUI_URL = 'http://localhost:8188',
+  TELEGRAM_BOT_TOKEN = '',
+  TELEGRAM_ALLOWED_CHAT_IDS = '',
 } = process.env;
 
 // Auto-detect default model based on provider
@@ -198,6 +201,42 @@ async function main() {
 
   // Plugins are loaded from external submodule (xclaw-plugins)
   console.log(`   Plugins:   ${pluginManager.listActive().length} loaded`);
+
+  // ─── Telegram Channel ────────────────────────────────────
+  let telegramChannel: TelegramChannel | undefined;
+  if (TELEGRAM_BOT_TOKEN) {
+    try {
+      telegramChannel = new TelegramChannel();
+      await telegramChannel.initialize({
+        botToken: TELEGRAM_BOT_TOKEN,
+      });
+
+      // Handle incoming Telegram messages using the Agent
+      telegramChannel.onMessage(async (incoming) => {
+        const sessionId = `tg-${incoming.channelId}-${incoming.userId}`;
+        try {
+          const response = await agent.chat(sessionId, incoming.content);
+          await telegramChannel!.send({
+            platform: 'telegram',
+            channelId: incoming.channelId,
+            content: response,
+            replyTo: incoming.metadata?.messageId ? String(incoming.metadata.messageId) : undefined,
+          });
+        } catch (err) {
+          console.error('Telegram agent error:', err instanceof Error ? err.message : err);
+          await telegramChannel!.send({
+            platform: 'telegram',
+            channelId: incoming.channelId,
+            content: '❌ Xin lỗi, có lỗi xảy ra khi xử lý yêu cầu.',
+          });
+        }
+      });
+
+      await telegramChannel.start();
+    } catch (err) {
+      console.warn('⚠️  Telegram channel skipped:', (err as Error).message);
+    }
+  }
 
   // Gateway config
   const gatewayConfig: GatewayConfig = {

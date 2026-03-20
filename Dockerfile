@@ -38,6 +38,7 @@ RUN npx tsc -b packages/shared && \
     npx tsc -b packages/ml && \
     npx tsc -b packages/skills && \
     npx tsc -b packages/skill-hub && \
+    npx tsc -b packages/channels/telegram && \
     npx tsc -b packages/gateway && \
     npx tsc -b packages/server
 
@@ -63,6 +64,8 @@ COPY --from=builder /app/packages/skills/dist ./packages/skills/dist
 COPY --from=builder /app/packages/skills/package.json ./packages/skills/
 COPY --from=builder /app/packages/skill-hub/dist ./packages/skill-hub/dist
 COPY --from=builder /app/packages/skill-hub/package.json ./packages/skill-hub/
+COPY --from=builder /app/packages/channels/telegram/dist ./packages/channels/telegram/dist
+COPY --from=builder /app/packages/channels/telegram/package.json ./packages/channels/telegram/
 COPY --from=builder /app/packages/gateway/dist ./packages/gateway/dist
 COPY --from=builder /app/packages/gateway/package.json ./packages/gateway/
 COPY --from=builder /app/packages/server/dist ./packages/server/dist

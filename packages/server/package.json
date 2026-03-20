@@ -19,6 +19,7 @@
         "@xclaw-ai/domains": "*",
         "@xclaw-ai/ml": "*",
         "@xclaw-ai/skills": "*",
+        "@xclaw-ai/channel-telegram": "*",
         "@hono/node-server": "^1.14.0",
         "dotenv": "^16.4.0"
     }
