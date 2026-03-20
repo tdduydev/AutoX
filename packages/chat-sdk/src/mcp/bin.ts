@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // ============================================================
-// @xclaw/chat-sdk MCP Server — Standalone entry point
+// @xclaw-ai/chat-sdk MCP Server — Standalone entry point
 // ============================================================
 //
-// Run:  XCLAW_BASE_URL=https://... XCLAW_TOKEN=... npx @xclaw/chat-sdk mcp
+// Run:  XCLAW_BASE_URL=https://... XCLAW_TOKEN=... npx @xclaw-ai/chat-sdk mcp
 //       node dist/mcp/bin.js
 //
 
@@ -16,7 +16,7 @@ const token = process.env['XCLAW_TOKEN'];
 
 if (!baseUrl) {
     console.error('Error: XCLAW_BASE_URL environment variable is required');
-    console.error('Example: XCLAW_BASE_URL=https://api.xclaw.io XCLAW_TOKEN=... npx @xclaw/chat-sdk mcp');
+    console.error('Example: XCLAW_BASE_URL=https://api.xclaw.io XCLAW_TOKEN=... npx @xclaw-ai/chat-sdk mcp');
     process.exit(1);
 }
 

@@ -1,18 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
-import { streamToSSE } from '@xclaw/core';
-import { ChatRequestSchema } from '@xclaw/shared';
-import type { StreamEvent } from '@xclaw/shared';
+import { streamToSSE } from '@xclaw-ai/core';
+import { ChatRequestSchema } from '@xclaw-ai/shared';
+import type { StreamEvent } from '@xclaw-ai/shared';
 import type { GatewayContext } from './gateway.js';
 import { getInstalledDomainIds } from './domains.js';
 import { getLanguageInstruction } from './settings.js';
-import { tavilyWebSearch } from '@xclaw/integrations';
+import { tavilyWebSearch } from '@xclaw-ai/integrations';
 import { getTenantLanguageInstruction } from './tenant.js';
 import type { TenantSettingsInfo } from './tenant.js';
 import {
   sessionsCollection, messagesCollection,
   type MongoSession, type MongoMessage,
-} from '@xclaw/db';
+} from '@xclaw-ai/db';
 
 // In-memory attachment store (per session) — attachments are ephemeral
 const attachmentStore = new Map<string, Array<{ id: string; name: string; mimeType: string; size: number; dataUrl: string }>>();

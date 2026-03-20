@@ -12,7 +12,7 @@ A skill pack consists of a manifest definition with tools. Each tool has a name,
 ## Quick Example
 
 ```typescript
-import { defineSkill } from '@xclaw/core';
+import { defineSkill } from '@xclaw-ai/core';
 
 export const weatherSkill = defineSkill({
   id: 'weather',
@@ -140,7 +140,7 @@ export const skills = [
 Register skills dynamically at runtime:
 
 ```typescript
-import { Agent } from '@xclaw/core';
+import { Agent } from '@xclaw-ai/core';
 
 const agent = new Agent(config);
 agent.skillManager.register(weatherSkill);
@@ -153,7 +153,7 @@ Package your skill as an npm module with a `xclaw.plugin.json` manifest:
 
 ```json title="xclaw.plugin.json"
 {
-  "name": "@xclaw/skill-weather",
+  "name": "@xclaw-ai/skill-weather",
   "version": "1.0.0",
   "description": "Weather service skill",
   "type": "skill",

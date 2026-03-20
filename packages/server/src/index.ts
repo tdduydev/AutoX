@@ -12,15 +12,15 @@ import {
   WorkflowEngine,
   MonitoringService,
   ImageGenService,
-} from '@xclaw/core';
-import { createGateway } from '@xclaw/gateway';
-import { IntegrationRegistry, allIntegrations } from '@xclaw/integrations';
-import { allDomainPacks } from '@xclaw/domains';
-import { MLEngine } from '@xclaw/ml';
-import { PluginManager } from '@xclaw/core';
-import type { AgentConfig, GatewayConfig } from '@xclaw/shared';
+} from '@xclaw-ai/core';
+import { createGateway } from '@xclaw-ai/gateway';
+import { IntegrationRegistry, allIntegrations } from '@xclaw-ai/integrations';
+import { allDomainPacks } from '@xclaw-ai/domains';
+import { MLEngine } from '@xclaw-ai/ml';
+import { PluginManager } from '@xclaw-ai/core';
+import type { AgentConfig, GatewayConfig } from '@xclaw-ai/shared';
 import { loadKnowledgePacks } from './knowledge-loader.js';
-import { runMigrations, seedInitialData, connectMongo, getMongo, mongoMonitoringStore } from '@xclaw/db';
+import { runMigrations, seedInitialData, connectMongo, getMongo, mongoMonitoringStore } from '@xclaw-ai/db';
 
 dotenv.config();
 

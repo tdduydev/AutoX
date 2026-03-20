@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   Workflow, WorkflowNode, WorkflowEdge, WorkflowExecution,
   NodeExecutionResult, WorkflowNodeType, ToolCall, SandboxConfig,
-} from '@xclaw/shared';
+} from '@xclaw-ai/shared';
 import type { ToolRegistry } from '../tools/tool-registry.js';
 import type { LLMAdapter } from '../llm/llm-router.js';
 import type { LLMRouter } from '../llm/llm-router.js';

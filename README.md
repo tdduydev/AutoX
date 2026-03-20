@@ -140,17 +140,17 @@ The server auto-detects Ollama at `http://localhost:11434`.
 ```
 xClaw/
 ├── packages/
-│   ├── shared/          # @xclaw/shared — Foundation types
-│   ├── core/            # @xclaw/core — Agent engine, LLM, RAG, workflow, monitoring
-│   ├── db/              # @xclaw/db — Drizzle ORM (PG) + MongoDB driver
-│   ├── gateway/         # @xclaw/gateway — Hono HTTP server, REST API, auth
-│   ├── server/          # @xclaw/server — Entry point, startup orchestration
-│   ├── integrations/    # @xclaw/integrations — 11 service connectors
-│   ├── domains/         # @xclaw/domains — 13 industry domain packs
-│   ├── skills/          # @xclaw/skills — Built-in skills (defineSkill)
-│   ├── skill-hub/       # @xclaw/skill-hub — Marketplace, MCP adapters
-│   ├── ml/              # @xclaw/ml — 12 ML algorithms, AutoML
-│   ├── cli/             # @xclaw/cli — CLI (commander.js)
+│   ├── shared/          # @xclaw-ai/shared — Foundation types
+│   ├── core/            # @xclaw-ai/core — Agent engine, LLM, RAG, workflow, monitoring
+│   ├── db/              # @xclaw-ai/db — Drizzle ORM (PG) + MongoDB driver
+│   ├── gateway/         # @xclaw-ai/gateway — Hono HTTP server, REST API, auth
+│   ├── server/          # @xclaw-ai/server — Entry point, startup orchestration
+│   ├── integrations/    # @xclaw-ai/integrations — 11 service connectors
+│   ├── domains/         # @xclaw-ai/domains — 13 industry domain packs
+│   ├── skills/          # @xclaw-ai/skills — Built-in skills (defineSkill)
+│   ├── skill-hub/       # @xclaw-ai/skill-hub — Marketplace, MCP adapters
+│   ├── ml/              # @xclaw-ai/ml — 12 ML algorithms, AutoML
+│   ├── cli/             # @xclaw-ai/cli — CLI (commander.js)
 │   ├── web/             # React + Tailwind frontend
 │   └── channels/        # Channel plugins
 │       ├── telegram/    # Telegram bot

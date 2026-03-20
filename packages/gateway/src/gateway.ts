@@ -1,12 +1,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import type { Agent, RagEngine, WorkflowEngine, MonitoringService, PluginManager } from '@xclaw/core';
-import type { OllamaAdapter } from '@xclaw/core';
-import type { GatewayConfig } from '@xclaw/shared';
-import type { IntegrationRegistry } from '@xclaw/integrations';
-import type { DomainPack } from '@xclaw/domains';
-import type { MLEngine } from '@xclaw/ml';
+import type { Agent, RagEngine, WorkflowEngine, MonitoringService, PluginManager } from '@xclaw-ai/core';
+import type { OllamaAdapter } from '@xclaw-ai/core';
+import type { GatewayConfig } from '@xclaw-ai/shared';
+import type { IntegrationRegistry } from '@xclaw-ai/integrations';
+import type { DomainPack } from '@xclaw-ai/domains';
+import type { MLEngine } from '@xclaw-ai/ml';
 import { authMiddleware, createAuthRoutes } from './auth.js';
 import { createChatRoutes } from './chat.js';
 import { createHealthRoutes } from './health.js';

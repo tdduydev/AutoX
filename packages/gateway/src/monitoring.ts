@@ -3,7 +3,7 @@
 // ============================================================
 
 import { Hono } from 'hono';
-import type { MonitoringService } from '@xclaw/core';
+import type { MonitoringService } from '@xclaw-ai/core';
 
 export function createMonitoringRoutes(monitoring: MonitoringService) {
   const app = new Hono();
@@ -50,7 +50,7 @@ export function createMonitoringRoutes(monitoring: MonitoringService) {
       const { level, source, search, from, to, limit, offset } = c.req.query();
 
       const result = await monitoring.getSystemLogs({
-        level: (level as import('@xclaw/shared').LogLevel) || undefined,
+        level: (level as import('@xclaw-ai/shared').LogLevel) || undefined,
         source: source || undefined,
         search: search || undefined,
         from: from ? new Date(from) : undefined,

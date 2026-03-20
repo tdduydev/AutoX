@@ -10,7 +10,7 @@ import type {
   PluginContext,
   PluginRegistryEntry,
   PluginStatus,
-} from '@xclaw/shared';
+} from '@xclaw-ai/shared';
 
 export interface PluginManagerDeps {
   /** MongoDB db instance for creating plugin collections */

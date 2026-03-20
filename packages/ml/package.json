@@ -1,5 +1,5 @@
 {
-    "name": "@xclaw/ml",
+    "name": "@xclaw-ai/ml",
     "version": "2.1.0",
     "description": "xClaw ML/AutoML Engine — Dataset management, model training, AutoML pipelines, and model registry",
     "type": "module",
@@ -16,7 +16,7 @@
         "dev": "tsc -b --watch"
     },
     "dependencies": {
-        "@xclaw/shared": "*",
+        "@xclaw-ai/shared": "*",
         "zod": "^3.23.0"
     }
 }

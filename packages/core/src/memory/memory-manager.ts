@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { MemoryEntry, ConversationMessage } from '@xclaw/shared';
+import type { MemoryEntry, ConversationMessage } from '@xclaw-ai/shared';
 
 export interface MemoryStore {
   getHistory(sessionId: string, limit?: number): Promise<ConversationMessage[]>;

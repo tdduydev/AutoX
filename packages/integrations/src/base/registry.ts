@@ -6,7 +6,7 @@ import type {
   IntegrationContext,
   ActionResult,
 } from './types.js';
-import type { ToolDefinition, ToolCall, ToolResult } from '@xclaw/shared';
+import type { ToolDefinition, ToolCall, ToolResult } from '@xclaw-ai/shared';
 
 /**
  * IntegrationRegistry — Manages all integration definitions and connections.

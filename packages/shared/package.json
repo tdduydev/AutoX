@@ -1,5 +1,5 @@
 {
-    "name": "@xclaw/shared",
+    "name": "@xclaw-ai/shared",
     "version": "2.0.0",
     "description": "xClaw shared types, schemas, and constants",
     "type": "module",

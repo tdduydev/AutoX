@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import * as jose from 'jose';
-import { getDB, users, tenants, oauthAccounts, eq, and } from '@xclaw/db';
+import { getDB, users, tenants, oauthAccounts, eq, and } from '@xclaw-ai/db';
 import type { GatewayContext } from './gateway.js';
 import { seedDefaultRoles, assignRoleToUser, getUserPermissions } from './rbac.js';
 
@@ -189,7 +189,7 @@ export function createAuthRoutes(ctx: GatewayContext) {
     });
 
     // Create default settings
-    const { tenantSettings } = await import('@xclaw/db');
+    const { tenantSettings } = await import('@xclaw-ai/db');
     await db.insert(tenantSettings).values({
       id: crypto.randomUUID(), tenantId,
       createdAt: now, updatedAt: now,

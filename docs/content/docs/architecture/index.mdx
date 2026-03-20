@@ -26,19 +26,19 @@ The monorepo contains 14 npm workspace packages:
 
 | Package | Purpose | Key Dependencies |
 |---------|---------|-----------------|
-| `@xclaw/shared` | Type definitions (491 lines), constants, schemas | None |
-| `@xclaw/db` | Database layer | `@xclaw/shared` |
-| `@xclaw/core` | Agent engine: LLM, memory, tools, RAG, tracing, streaming | `@xclaw/shared` |
-| `@xclaw/integrations` | Third-party service integrations | `@xclaw/shared`, `@xclaw/db` |
-| `@xclaw/domains` | Domain-specific logic packs | `@xclaw/shared`, `@xclaw/db` |
-| `@xclaw/ml` | Machine learning inference | `@xclaw/shared`, `@xclaw/core` |
-| `@xclaw/skills` | AI agent skill packs (tools) | `@xclaw/shared`, `@xclaw/core` |
-| `@xclaw/skill-hub` | Skill marketplace registry | `@xclaw/shared`, `@xclaw/core` |
-| `@xclaw/gateway` | Express + WebSocket API server | `@xclaw/core`, all providers |
-| `@xclaw/channels/*` | Telegram (grammY), Discord (discord.js) | `@xclaw/gateway` |
-| `@xclaw/cli` | Command-line interface | `@xclaw/core` |
-| `@xclaw/server` | Server entry point | `@xclaw/gateway` |
-| `@xclaw/web` | React frontend | Standalone (API client) |
+| `@xclaw-ai/shared` | Type definitions (491 lines), constants, schemas | None |
+| `@xclaw-ai/db` | Database layer | `@xclaw-ai/shared` |
+| `@xclaw-ai/core` | Agent engine: LLM, memory, tools, RAG, tracing, streaming | `@xclaw-ai/shared` |
+| `@xclaw-ai/integrations` | Third-party service integrations | `@xclaw-ai/shared`, `@xclaw-ai/db` |
+| `@xclaw-ai/domains` | Domain-specific logic packs | `@xclaw-ai/shared`, `@xclaw-ai/db` |
+| `@xclaw-ai/ml` | Machine learning inference | `@xclaw-ai/shared`, `@xclaw-ai/core` |
+| `@xclaw-ai/skills` | AI agent skill packs (tools) | `@xclaw-ai/shared`, `@xclaw-ai/core` |
+| `@xclaw-ai/skill-hub` | Skill marketplace registry | `@xclaw-ai/shared`, `@xclaw-ai/core` |
+| `@xclaw-ai/gateway` | Express + WebSocket API server | `@xclaw-ai/core`, all providers |
+| `@xclaw-ai/channels/*` | Telegram (grammY), Discord (discord.js) | `@xclaw-ai/gateway` |
+| `@xclaw-ai/cli` | Command-line interface | `@xclaw-ai/core` |
+| `@xclaw-ai/server` | Server entry point | `@xclaw-ai/gateway` |
+| `@xclaw-ai/web` | React frontend | Standalone (API client) |
 
 ## Agent Core Components
 
@@ -67,7 +67,7 @@ The `Agent` class is the central orchestrator. It wires up 6 core subsystems + 3
 
 ## Type System
 
-All 491 lines of shared types are in `@xclaw/shared`. Key type categories:
+All 491 lines of shared types are in `@xclaw-ai/shared`. Key type categories:
 
 | Category | Types | Description |
 |----------|-------|-------------|

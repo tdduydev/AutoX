@@ -4,7 +4,7 @@
  */
 import { readdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import type { RagEngine } from '@xclaw/core';
+import type { RagEngine } from '@xclaw-ai/core';
 
 interface KnowledgePack {
   _meta: {

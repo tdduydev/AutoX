@@ -3,7 +3,7 @@ import { HTTPException } from 'hono/http-exception';
 import {
   getDB, roles, permissions, rolePermissions, userRoles, users,
   eq, and, inArray,
-} from '@xclaw/db';
+} from '@xclaw-ai/db';
 
 // ─── Permission Constants ──────────────────────────────────
 

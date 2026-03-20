@@ -1,4 +1,4 @@
-import type { SkillManifest, ToolDefinition } from '@xclaw/shared';
+import type { SkillManifest, ToolDefinition } from '@xclaw-ai/shared';
 import type { ToolHandler } from '../tools/tool-registry.js';
 
 export interface SkillDefinition {

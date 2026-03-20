@@ -1,5 +1,5 @@
 {
-    "name": "@xclaw/channel-telegram",
+    "name": "@xclaw-ai/channel-telegram",
     "version": "2.0.0",
     "description": "xClaw Telegram channel plugin",
     "type": "module",
@@ -10,6 +10,6 @@
         "dev": "tsc -b --watch"
     },
     "dependencies": {
-        "@xclaw/shared": "*"
+        "@xclaw-ai/shared": "*"
     }
 }

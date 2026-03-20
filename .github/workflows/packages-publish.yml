@@ -1,0 +1,187 @@
+name: Packages · Build & Publish npm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/*/src/**"
+      - "packages/*/package.json"
+      - "packages/channels/*/src/**"
+      - "packages/channels/*/package.json"
+      - ".github/workflows/packages-publish.yml"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: false
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      packages:
+        description: "Comma-separated package dirs to publish (empty = auto-detect changed)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  # Build order respects dependency graph
+  BUILD_ORDER: >-
+    packages/shared
+    packages/db
+    packages/core
+    packages/integrations
+    packages/domains
+    packages/ml
+    packages/skills
+    packages/skill-hub
+    packages/gateway
+    packages/channels/telegram
+    packages/channels/discord
+    packages/cli
+    packages/chat-sdk
+  # Packages that should NOT be published (private or server-only)
+  SKIP_PUBLISH: "packages/server packages/web"
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.detect.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed packages
+        id: detect
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.packages }}" ]]; then
+            # Manual: use specified packages
+            CHANGED=$(echo "${{ inputs.packages }}" | tr ',' '\n' | xargs -I{} echo "{}" | jq -R . | jq -s .)
+          else
+            # Auto-detect from changed files
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD)
+            CHANGED="[]"
+            for pkg_dir in $BUILD_ORDER; do
+              if echo "$CHANGED_FILES" | grep -q "^${pkg_dir}/"; then
+                CHANGED=$(echo "$CHANGED" | jq --arg d "$pkg_dir" '. + [$d]')
+              fi
+            done
+          fi
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "Changed packages: $CHANGED"
+
+  build-and-publish:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.changed != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine version bump type
+        id: bump
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "type=${{ inputs.bump }}" >> "$GITHUB_OUTPUT"
+          else
+            COMMIT_MSG=$(git log -1 --pretty=%B)
+            if echo "$COMMIT_MSG" | grep -qiE '^\s*(feat|feature)(\(.+\))?!:|BREAKING CHANGE'; then
+              echo "type=major" >> "$GITHUB_OUTPUT"
+            elif echo "$COMMIT_MSG" | grep -qiE '^\s*(feat|feature)(\(.+\))?:'; then
+              echo "type=minor" >> "$GITHUB_OUTPUT"
+            else
+              echo "type=patch" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Build all packages (dependency order)
+        run: |
+          for pkg_dir in $BUILD_ORDER; do
+            if [[ -f "$pkg_dir/package.json" ]]; then
+              PKG_NAME=$(node -p "require('./$pkg_dir/package.json').name")
+              echo "::group::Building $PKG_NAME"
+              npm run build --workspace "$pkg_dir" --if-present
+              echo "::endgroup::"
+            fi
+          done
+
+      - name: Bump version & publish changed packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          CHANGED='${{ needs.detect-changes.outputs.changed }}'
+          BUMP_TYPE="${{ steps.bump.outputs.type }}"
+          PUBLISHED=""
+
+          for pkg_dir in $(echo "$CHANGED" | jq -r '.[]'); do
+            # Skip private/non-publishable packages
+            if echo "$SKIP_PUBLISH" | grep -qw "$pkg_dir"; then
+              echo "⏭️  Skipping $pkg_dir (not publishable)"
+              continue
+            fi
+
+            PKG_NAME=$(node -p "require('./$pkg_dir/package.json').name")
+            IS_PRIVATE=$(node -p "require('./$pkg_dir/package.json').private || false")
+
+            if [[ "$IS_PRIVATE" == "true" ]]; then
+              echo "⏭️  Skipping $PKG_NAME (private)"
+              continue
+            fi
+
+            echo "::group::Publishing $PKG_NAME"
+
+            # Bump version
+            cd "$pkg_dir"
+            OLD_VERSION=$(node -p "require('./package.json').version")
+            npm version "$BUMP_TYPE" --no-git-tag-version
+            NEW_VERSION=$(node -p "require('./package.json').version")
+            echo "  📦 $PKG_NAME: $OLD_VERSION → $NEW_VERSION"
+            cd "$GITHUB_WORKSPACE"
+
+            # Check if version already exists
+            if npm view "${PKG_NAME}@${NEW_VERSION}" --registry https://registry.npmjs.org >/dev/null 2>&1; then
+              echo "  ⚠️  $PKG_NAME@$NEW_VERSION already exists, skipping"
+            else
+              npm publish --workspace "$pkg_dir" --access public --registry https://registry.npmjs.org
+              echo "  ✅ Published $PKG_NAME@$NEW_VERSION"
+              PUBLISHED="$PUBLISHED $PKG_NAME@$NEW_VERSION"
+            fi
+
+            echo "::endgroup::"
+          done
+
+          if [[ -n "$PUBLISHED" ]]; then
+            echo "PUBLISHED=$PUBLISHED" >> "$GITHUB_ENV"
+          fi
+
+      - name: Commit version bumps & tag
+        if: env.PUBLISHED != ''
+        run: |
+          git add packages/*/package.json packages/channels/*/package.json
+          COMMIT_MSG="chore: release$(echo "$PUBLISHED" | tr ' ' '\n' | sed 's/^/ /')"
+          git commit -m "$COMMIT_MSG [skip ci]" || echo "Nothing to commit"
+          git push origin HEAD

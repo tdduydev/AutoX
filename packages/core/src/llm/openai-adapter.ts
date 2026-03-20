@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import type { LLMMessage, LLMResponse, ToolDefinition, StreamEvent, ToolCall } from '@xclaw/shared';
+import type { LLMMessage, LLMResponse, ToolDefinition, StreamEvent, ToolCall } from '@xclaw-ai/shared';
 import type { LLMAdapter } from './llm-router.js';
 
 export class OpenAIAdapter implements LLMAdapter {

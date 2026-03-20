@@ -6,7 +6,7 @@ xClaw is a TypeScript monorepo (npm workspaces) for a general-purpose multi-indu
 
 ## Monorepo Structure
 
-- `packages/shared` — Foundation types (`@xclaw/shared`), imported by every other package
+- `packages/shared` — Foundation types (`@xclaw-ai/shared`), imported by every other package
 - `packages/core` — Agent engine, SkillManager, ToolRegistry, LLM, memory, workflow
 - `packages/db` — Dual-database layer: Drizzle ORM (PostgreSQL) + MongoDB driver
 - `packages/skills` — Built-in skills using `defineSkill()` helper
@@ -44,8 +44,8 @@ Plugins are **not** inside `packages/`. They live in external repos linked as gi
 
 ## Coding Patterns
 
-- Define shared types/interfaces in `@xclaw/shared`, import with `import type { ... }`
-- Skills use `defineSkill()` from `@xclaw/core`
+- Define shared types/interfaces in `@xclaw-ai/shared`, import with `import type { ... }`
+- Skills use `defineSkill()` from `@xclaw-ai/core`
 - Gateway routes use Hono with `try/catch` and `err instanceof Error ? err.message : 'Failed'`
 - State management: Zustand stores in `packages/web/src/stores/`
 - Seed data must be **idempotent** — always check existence before inserting

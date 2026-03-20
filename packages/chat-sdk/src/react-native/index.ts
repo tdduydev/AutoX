@@ -1,5 +1,5 @@
 // ============================================================
-// @xclaw/chat-sdk/react-native — React Native Compatibility
+// @xclaw-ai/chat-sdk/react-native — React Native Compatibility
 // ============================================================
 //
 // React Native's fetch doesn't support ReadableStream natively.
@@ -7,7 +7,7 @@
 // re-exports all React hooks (they work identically).
 //
 // Usage:
-//   import { XClawProvider, useChat, createReactNativeConfig } from '@xclaw/chat-sdk/react-native';
+//   import { XClawProvider, useChat, createReactNativeConfig } from '@xclaw-ai/chat-sdk/react-native';
 //
 //   const config = createReactNativeConfig({ baseUrl: 'https://api.xclaw.io', token: '...' });
 //   <XClawProvider config={config}><App /></XClawProvider>
@@ -55,7 +55,7 @@ export function parseSSELines(raw: string): Array<{ event?: string; data: string
  *
  * @example
  * ```tsx
- * import { createReactNativeConfig } from '@xclaw/chat-sdk/react-native';
+ * import { createReactNativeConfig } from '@xclaw-ai/chat-sdk/react-native';
  *
  * const config = createReactNativeConfig({
  *   baseUrl: 'https://api.xclaw.io',

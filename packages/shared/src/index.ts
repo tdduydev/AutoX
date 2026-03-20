@@ -1,5 +1,5 @@
 // ============================================================
-// @xclaw/shared — Foundation types + Zod schemas
+// @xclaw-ai/shared — Foundation types + Zod schemas
 // ============================================================
 
 export * from './types/index.js';

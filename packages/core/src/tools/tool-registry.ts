@@ -1,4 +1,4 @@
-import type { ToolDefinition, ToolCall, ToolResult } from '@xclaw/shared';
+import type { ToolDefinition, ToolCall, ToolResult } from '@xclaw-ai/shared';
 
 export type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 

@@ -1,5 +1,5 @@
 {
-    "name": "@xclaw/integrations",
+    "name": "@xclaw-ai/integrations",
     "version": "2.1.0",
     "description": "xClaw Integration Layer — Connect to external services (Gmail, Telegram, GitHub, Notion, etc.)",
     "type": "module",
@@ -16,7 +16,7 @@
         "dev": "tsc -b --watch"
     },
     "dependencies": {
-        "@xclaw/shared": "*",
+        "@xclaw-ai/shared": "*",
         "zod": "^3.24.0"
     }
 }

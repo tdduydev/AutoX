@@ -5,8 +5,8 @@
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import type { ToolDefinition, ToolParameter } from '@xclaw/shared';
-import type { ToolRegistry } from '@xclaw/core';
+import type { ToolDefinition, ToolParameter } from '@xclaw-ai/shared';
+import type { ToolRegistry } from '@xclaw-ai/core';
 
 export interface MCPServerConfig {
   id: string;

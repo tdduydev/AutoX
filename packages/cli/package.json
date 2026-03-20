@@ -1,5 +1,5 @@
 {
-    "name": "@xclaw/cli",
+    "name": "@xclaw-ai/cli",
     "version": "2.0.0",
     "description": "xClaw CLI",
     "type": "module",
@@ -11,6 +11,6 @@
         "dev": "tsx src/index.ts"
     },
     "dependencies": {
-        "@xclaw/shared": "*"
+        "@xclaw-ai/shared": "*"
     }
 }

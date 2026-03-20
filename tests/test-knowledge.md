@@ -8,13 +8,13 @@ xClaw is a multi-industry AI Agent Platform developed by xDev Asia. The platform
 
 xClaw uses a monorepo architecture with the following packages:
 
-- **@xclaw/core**: Agent engine, LLM adapters (OpenAI, Anthropic, Ollama, Google), streaming
-- **@xclaw/shared**: TypeScript types, Zod schemas, constants
-- **@xclaw/gateway**: Hono-based REST API server with JWT authentication
-- **@xclaw/server**: Application bootstrap and configuration
-- **@xclaw/web**: React 19 frontend with Tailwind CSS
-- **@xclaw/ml**: Machine Learning and AutoML engine
-- **@xclaw/skill-hub**: Skill marketplace and management
+- **@xclaw-ai/core**: Agent engine, LLM adapters (OpenAI, Anthropic, Ollama, Google), streaming
+- **@xclaw-ai/shared**: TypeScript types, Zod schemas, constants
+- **@xclaw-ai/gateway**: Hono-based REST API server with JWT authentication
+- **@xclaw-ai/server**: Application bootstrap and configuration
+- **@xclaw-ai/web**: React 19 frontend with Tailwind CSS
+- **@xclaw-ai/ml**: Machine Learning and AutoML engine
+- **@xclaw-ai/skill-hub**: Skill marketplace and management
 
 ## Key Features
 

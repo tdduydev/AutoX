@@ -6,7 +6,7 @@ import type {
   ToolCall,
   ToolResult,
   StreamEvent,
-} from '@xclaw/shared';
+} from '@xclaw-ai/shared';
 import { EventBus } from './event-bus.js';
 import { LLMRouter } from '../llm/llm-router.js';
 import { MemoryManager } from '../memory/memory-manager.js';

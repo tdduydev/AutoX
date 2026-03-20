@@ -1,4 +1,4 @@
-import type { AgentEvent, EventHandler } from '@xclaw/shared';
+import type { AgentEvent, EventHandler } from '@xclaw-ai/shared';
 
 type WildcardPattern = string;
 

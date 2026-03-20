@@ -4,9 +4,9 @@
 
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
-import { getDB, workflows, workflowExecutions, eq, and, desc } from '@xclaw/db';
-import type { WorkflowEngine, ValidationError } from '@xclaw/core';
-import type { Workflow, WorkflowNode, WorkflowEdge } from '@xclaw/shared';
+import { getDB, workflows, workflowExecutions, eq, and, desc } from '@xclaw-ai/db';
+import type { WorkflowEngine, ValidationError } from '@xclaw-ai/core';
+import type { Workflow, WorkflowNode, WorkflowEdge } from '@xclaw-ai/shared';
 
 // Normalize API-format nodes/edges to full WorkflowNode/WorkflowEdge shapes
 function normalizeNode(raw: any): WorkflowNode {

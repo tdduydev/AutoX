@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import type { IntegrationRegistry } from '@xclaw/integrations';
+import type { IntegrationRegistry } from '@xclaw-ai/integrations';
 
 export function createIntegrationRoutes(registry: IntegrationRegistry) {
   const app = new Hono();

@@ -1,5 +1,5 @@
 {
-    "name": "@xclaw/skill-hub",
+    "name": "@xclaw-ai/skill-hub",
     "version": "2.0.0",
     "description": "xClaw Skill Hub — skill registry and marketplace",
     "type": "module",
@@ -16,7 +16,7 @@
         "dev": "tsc -b --watch"
     },
     "dependencies": {
-        "@xclaw/shared": "*",
-        "@xclaw/core": "*"
+        "@xclaw-ai/shared": "*",
+        "@xclaw-ai/core": "*"
     }
 }

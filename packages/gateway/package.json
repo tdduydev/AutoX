@@ -1,5 +1,5 @@
 {
-    "name": "@xclaw/gateway",
+    "name": "@xclaw-ai/gateway",
     "version": "2.0.0",
     "description": "xClaw gateway — Hono HTTP/WS/SSE server + MCP Server + Auth",
     "type": "module",
@@ -19,12 +19,12 @@
         "@hono/node-server": "^1.14.0",
         "@hono/node-ws": "^1.1.0",
         "@modelcontextprotocol/sdk": "^1.27.1",
-        "@xclaw/core": "*",
-        "@xclaw/db": "*",
-        "@xclaw/domains": "*",
-        "@xclaw/integrations": "*",
-        "@xclaw/ml": "*",
-        "@xclaw/shared": "*",
+        "@xclaw-ai/core": "*",
+        "@xclaw-ai/db": "*",
+        "@xclaw-ai/domains": "*",
+        "@xclaw-ai/integrations": "*",
+        "@xclaw-ai/ml": "*",
+        "@xclaw-ai/shared": "*",
         "hono": "^4.7.0",
         "jose": "^6.0.0"
     }

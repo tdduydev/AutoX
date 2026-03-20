@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import { HTTPException } from 'hono/http-exception';
-import { getDB, tenants, tenantSettings, users, eq, and } from '@xclaw/db';
+import { getDB, tenants, tenantSettings, users, eq, and } from '@xclaw-ai/db';
 
 // ─── Types ──────────────────────────────────────────────────
 

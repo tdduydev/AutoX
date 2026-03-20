@@ -1,4 +1,4 @@
-import type { LLMConfig, LLMMessage, LLMResponse, ToolDefinition, StreamEvent } from '@xclaw/shared';
+import type { LLMConfig, LLMMessage, LLMResponse, ToolDefinition, StreamEvent } from '@xclaw-ai/shared';
 
 export interface LLMAdapter {
   readonly provider: string;

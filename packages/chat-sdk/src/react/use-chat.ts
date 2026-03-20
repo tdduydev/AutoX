@@ -1,5 +1,5 @@
 // ============================================================
-// @xclaw/chat-sdk/react — useChat Hook
+// @xclaw-ai/chat-sdk/react — useChat Hook
 // ============================================================
 
 import { useState, useCallback, useRef } from 'react';

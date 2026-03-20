@@ -1,5 +1,5 @@
 // ============================================================
-// @xclaw/chat-sdk/react — Barrel Export
+// @xclaw-ai/chat-sdk/react — Barrel Export
 // ============================================================
 
 export { XClawProvider, useXClawClient } from './provider.js';

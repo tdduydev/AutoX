@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { LLMMessage, LLMResponse, ToolDefinition, StreamEvent, ToolCall, TokenUsage } from '@xclaw/shared';
+import type { LLMMessage, LLMResponse, ToolDefinition, StreamEvent, ToolCall, TokenUsage } from '@xclaw-ai/shared';
 import type { LLMAdapter } from './llm-router.js';
 
 export class AnthropicAdapter implements LLMAdapter {

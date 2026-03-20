@@ -1,15 +1,15 @@
 // ============================================================
-// @xclaw/chat-sdk/mcp — MCP Server for xClaw Chat SDK
+// @xclaw-ai/chat-sdk/mcp — MCP Server for xClaw Chat SDK
 // ============================================================
 //
 // Exposes xClaw Chat SDK as MCP tools so any AI agent (Claude,
 // Copilot, etc.) can interact with xClaw programmatically.
 //
 // Usage:
-//   XCLAW_BASE_URL=https://api.xclaw.io XCLAW_TOKEN=... npx @xclaw/chat-sdk mcp
+//   XCLAW_BASE_URL=https://api.xclaw.io XCLAW_TOKEN=... npx @xclaw-ai/chat-sdk mcp
 //
 //   Or in MCP config:
-//   { "command": "npx", "args": ["@xclaw/chat-sdk", "mcp"], "env": { ... } }
+//   { "command": "npx", "args": ["@xclaw-ai/chat-sdk", "mcp"], "env": { ... } }
 //
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -206,7 +206,7 @@ export function createMcpServer(client: XClawClient): McpServer {
     return server;
 }
 
-const SDK_DOCS = `# @xclaw/chat-sdk — API Reference
+const SDK_DOCS = `# @xclaw-ai/chat-sdk — API Reference
 
 ## Available MCP Tools
 

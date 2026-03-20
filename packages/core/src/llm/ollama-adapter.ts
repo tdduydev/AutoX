@@ -3,7 +3,7 @@
 // Uses Ollama REST API directly (not through OpenAI compat layer)
 // ============================================================
 
-import type { LLMMessage, LLMResponse, ToolDefinition, StreamEvent, ToolCall } from '@xclaw/shared';
+import type { LLMMessage, LLMResponse, ToolDefinition, StreamEvent, ToolCall } from '@xclaw-ai/shared';
 import type { LLMAdapter } from './llm-router.js';
 
 export interface OllamaModel {

@@ -1,5 +1,5 @@
 // ============================================================
-// @xclaw/chat-sdk/react — useSessions Hook
+// @xclaw-ai/chat-sdk/react — useSessions Hook
 // ============================================================
 
 import { useState, useCallback, useEffect } from 'react';

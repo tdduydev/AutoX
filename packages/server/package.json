@@ -1,5 +1,5 @@
 {
-    "name": "@xclaw/server",
+    "name": "@xclaw-ai/server",
     "version": "2.0.0",
     "private": true,
     "description": "xClaw server entry point — bootstraps Gateway + Agent + Skills",
@@ -11,14 +11,14 @@
         "start": "node dist/index.js"
     },
     "dependencies": {
-        "@xclaw/shared": "*",
-        "@xclaw/core": "*",
-        "@xclaw/db": "*",
-        "@xclaw/gateway": "*",
-        "@xclaw/integrations": "*",
-        "@xclaw/domains": "*",
-        "@xclaw/ml": "*",
-        "@xclaw/skills": "*",
+        "@xclaw-ai/shared": "*",
+        "@xclaw-ai/core": "*",
+        "@xclaw-ai/db": "*",
+        "@xclaw-ai/gateway": "*",
+        "@xclaw-ai/integrations": "*",
+        "@xclaw-ai/domains": "*",
+        "@xclaw-ai/ml": "*",
+        "@xclaw-ai/skills": "*",
         "@hono/node-server": "^1.14.0",
         "dotenv": "^16.4.0"
     }

@@ -1,4 +1,4 @@
-// @xclaw/ml — ML/AutoML Engine
+// @xclaw-ai/ml — ML/AutoML Engine
 // Dataset management, model training, AutoML pipelines, model registry
 
 export { MLEngine } from './engine.js';

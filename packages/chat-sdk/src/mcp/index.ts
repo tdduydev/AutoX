@@ -1,5 +1,5 @@
 // ============================================================
-// @xclaw/chat-sdk/mcp — Entry Point & Barrel Export
+// @xclaw-ai/chat-sdk/mcp — Entry Point & Barrel Export
 // ============================================================
 
 export { createMcpServer } from './server.js';

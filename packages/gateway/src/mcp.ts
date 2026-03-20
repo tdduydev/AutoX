@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import type { DomainPack } from '@xclaw/domains';
-import type { Agent } from '@xclaw/core';
+import type { DomainPack } from '@xclaw-ai/domains';
+import type { Agent } from '@xclaw-ai/core';
 import { MCPClientManager, type MCPServerConfig } from './mcp-client.js';
 
 // ─── MCP Server Registry ────────────────────────────────────
