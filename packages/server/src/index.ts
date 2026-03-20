@@ -9,14 +9,18 @@ import {
   RagEngine,
   OpenAIEmbeddingProvider,
   LocalEmbeddingProvider,
+  WorkflowEngine,
+  MonitoringService,
+  ImageGenService,
 } from '@xclaw/core';
 import { createGateway } from '@xclaw/gateway';
 import { IntegrationRegistry, allIntegrations } from '@xclaw/integrations';
 import { allDomainPacks } from '@xclaw/domains';
 import { MLEngine } from '@xclaw/ml';
+import { PluginManager } from '@xclaw/core';
 import type { AgentConfig, GatewayConfig } from '@xclaw/shared';
 import { loadKnowledgePacks } from './knowledge-loader.js';
-import { runMigrations, seedInitialData, connectMongo } from '@xclaw/db';
+import { runMigrations, seedInitialData, connectMongo, getMongo, mongoMonitoringStore } from '@xclaw/db';
 
 dotenv.config();
 
@@ -33,6 +37,11 @@ const {
   OLLAMA_BASE_URL = 'http://localhost:11434/v1',
   AGENT_NAME = 'xClaw Assistant',
   AGENT_SYSTEM_PROMPT = '',
+  IMAGE_GEN_PROVIDER = 'placeholder',
+  GEMINI_API_KEY = '',
+  REPLICATE_API_KEY = '',
+  TOGETHER_API_KEY = '',
+  COMFYUI_URL = 'http://localhost:8188',
 } = process.env;
 
 // Auto-detect default model based on provider
@@ -157,6 +166,39 @@ async function main() {
   const mlEngine = new MLEngine();
   console.log(`   ML Engine: ${mlEngine.listAlgorithms().length} algorithms available`);
 
+  // Workflow Engine
+  const workflowEngine = new WorkflowEngine(agent.tools, agent.llm, agent.events);
+  console.log('   Workflow:  engine ready (16 node types)');
+
+  // Monitoring Service
+  const monitoring = new MonitoringService(agent.events);
+  monitoring.setStore(mongoMonitoringStore as any);
+  console.log('   Monitoring: audit logs + system logs + metrics active');
+
+  // Plugin Manager
+  const imageGen = new ImageGenService({
+    provider: IMAGE_GEN_PROVIDER as 'gemini' | 'replicate' | 'together' | 'comfyui' | 'placeholder',
+    apiKey: IMAGE_GEN_PROVIDER === 'gemini' ? GEMINI_API_KEY
+      : IMAGE_GEN_PROVIDER === 'replicate' ? REPLICATE_API_KEY
+      : TOGETHER_API_KEY,
+    baseUrl: IMAGE_GEN_PROVIDER === 'comfyui' ? COMFYUI_URL : undefined,
+  });
+  console.log(`   ImageGen:  ${IMAGE_GEN_PROVIDER} provider`);
+
+  const pluginManager = new PluginManager({
+    getMongoDb: () => {
+      try { return getMongo(); } catch { return null; }
+    },
+    llm: agent.llm,
+    tools: agent.tools,
+    events: agent.events,
+    rag,
+    imageGen,
+  });
+
+  // Plugins are loaded from external submodule (xclaw-plugins)
+  console.log(`   Plugins:   ${pluginManager.listActive().length} loaded`);
+
   // Gateway config
   const gatewayConfig: GatewayConfig = {
     port: parseInt(PORT, 10),
@@ -174,6 +216,9 @@ async function main() {
     integrationRegistry,
     domainPacks: allDomainPacks,
     mlEngine,
+    workflowEngine,
+    monitoring,
+    pluginManager,
   });
 
   // Start server

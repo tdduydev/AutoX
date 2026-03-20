@@ -20,6 +20,7 @@ import { DomainDetailPage } from './pages/DomainDetailPage';
 import { DomainWorkspacePage } from './pages/DomainWorkspacePage';
 import { MLPage } from './pages/MLPage';
 import { MCPPage } from './pages/MCPPage';
+import { PluginPage } from './pages/PluginPage';
 import { EmbedChatPage } from './pages/EmbedChatPage';
 
 function ProtectedRoutes() {
@@ -42,6 +43,7 @@ function ProtectedRoutes() {
                 <Route path="domains/:id/workspace" element={<DomainWorkspacePage />} />
                 <Route path="ml" element={<MLPage />} />
                 <Route path="mcp" element={<MCPPage />} />
+                <Route path="plugins/:pluginId/*" element={<PluginPage />} />
                 <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<SettingsOverviewPage />} />
                     <Route path="users" element={<SettingsUsersPage />} />

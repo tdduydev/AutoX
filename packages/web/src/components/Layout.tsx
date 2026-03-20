@@ -17,16 +17,55 @@ import {
     Menu,
     X,
     Plug,
+    Palette,
+    ShoppingBag,
+    Shirt,
+    TrendingUp,
+    Printer,
+    Pill,
+    FileCode,
+    ClipboardList,
+    FileText,
+    Users,
+    AlertTriangle,
+    type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '../i18n';
-import { getDomains } from '../lib/api';
+import { getDomains, getPluginPages } from '../lib/api';
+
+const PLUGIN_ICON_MAP: Record<string, LucideIcon> = {
+    'palette': Palette,
+    'shopping-bag': ShoppingBag,
+    'shirt': Shirt,
+    'trending-up': TrendingUp,
+    'printer': Printer,
+    'pill': Pill,
+    'file-code': FileCode,
+    'clipboard-list': ClipboardList,
+    'file-text': FileText,
+    'users': Users,
+    'alert-triangle': AlertTriangle,
+};
 
 interface DomainInfo {
     id: string;
     name: string;
     icon: string;
     skillCount: number;
+}
+
+interface PluginPageGroup {
+    pluginId: string;
+    pluginName: string;
+    pluginIcon: string;
+    pages: Array<{
+        path: string;
+        title: string;
+        icon: string;
+        sidebar?: boolean;
+        sidebarGroup?: string;
+    }>;
 }
 
 const MAIN_NAV = [
@@ -53,11 +92,18 @@ export function Layout() {
     const [domains, setDomains] = useState<DomainInfo[]>([]);
     const [domainsOpen, setDomainsOpen] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
+    const [pluginPages, setPluginPages] = useState<PluginPageGroup[]>([]);
+    const [pluginGroupsOpen, setPluginGroupsOpen] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         getDomains()
             .then((data) => {
                 if (data.domains) setDomains(data.domains);
+            })
+            .catch(() => { });
+        getPluginPages()
+            .then((data) => {
+                if (data.pages) setPluginPages(data.pages);
             })
             .catch(() => { });
     }, []);
@@ -180,6 +226,69 @@ export function Layout() {
                             <SidebarLink key={item.to} to={item.to} icon={item.icon} label={t(item.key)} collapsed={collapsed} />
                         ))}
                     </NavSection>
+
+                    {/* Plugin Pages */}
+                    {pluginPages.length > 0 && pluginPages.map((group) => {
+                        const sidebarPages = group.pages.filter((p) => p.sidebar !== false);
+                        if (sidebarPages.length === 0) return null;
+                        const groupLabel = sidebarPages[0]?.sidebarGroup || group.pluginName;
+                        const isOpen = pluginGroupsOpen[group.pluginId] ?? false;
+                        return (
+                            <NavSection key={group.pluginId} label={`${group.pluginIcon} ${groupLabel}`} collapsed={collapsed}>
+                                {!collapsed ? (
+                                    <>
+                                        <button
+                                            onClick={() => setPluginGroupsOpen((prev) => ({ ...prev, [group.pluginId]: !prev[group.pluginId] }))}
+                                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                                            style={{ color: 'var(--color-fg-muted)' }}
+                                        >
+                                            <span className="text-sm">{group.pluginIcon}</span>
+                                            <span className="flex-1 text-left">{group.pluginName}</span>
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded-full"
+                                                style={{ background: 'var(--color-bg-soft)', color: 'var(--color-fg-muted)' }}>
+                                                {sidebarPages.length}
+                                            </span>
+                                            <ChevronDown
+                                                size={12}
+                                                className="transition-transform"
+                                                style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                                            />
+                                        </button>
+                                        {isOpen && (
+                                            <div className="ml-1 space-y-0.5 animate-fade-in">
+                                                {sidebarPages.map((page) => (
+                                                    <NavLink
+                                                        key={page.path}
+                                                        to={`/plugins/${group.pluginId}/${page.path}`}
+                                                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors"
+                                                        style={({ isActive }) => ({
+                                                            background: isActive ? 'var(--color-primary-soft)' : 'transparent',
+                                                            color: isActive ? 'var(--color-primary-light)' : 'var(--color-fg-muted)',
+                                                        })}
+                                                    >
+                                                        {(() => {
+                                                            const IconComp = PLUGIN_ICON_MAP[page.icon];
+                                                            return IconComp ? <IconComp size={15} /> : <span className="text-sm w-5 text-center">{page.icon}</span>;
+                                                        })()}
+                                                        <span className="truncate">{page.title}</span>
+                                                    </NavLink>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <NavLink
+                                        to={`/plugins/${group.pluginId}`}
+                                        className="flex items-center justify-center py-2 rounded-lg text-sm transition-colors"
+                                        style={{ color: 'var(--color-fg-muted)' }}
+                                        title={group.pluginName}
+                                    >
+                                        {group.pluginIcon}
+                                    </NavLink>
+                                )}
+                            </NavSection>
+                        );
+                    })}
 
                     <NavSection label={t('nav.system')} collapsed={collapsed}>
                         <SidebarLink to="/settings" icon={Settings} label={t('nav.settings')} collapsed={collapsed} />

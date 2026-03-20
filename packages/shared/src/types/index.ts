@@ -552,3 +552,209 @@ export interface OAuth2CallbackResponse {
   };
   provider: OAuth2Provider;
 }
+
+// ─── Monitoring & Logging Types ─────────────────────────────
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+
+export type AuditAction =
+  | 'user.login' | 'user.logout' | 'user.create' | 'user.update' | 'user.delete'
+  | 'tenant.create' | 'tenant.update' | 'tenant.delete'
+  | 'workflow.create' | 'workflow.update' | 'workflow.delete' | 'workflow.execute'
+  | 'role.create' | 'role.update' | 'role.delete' | 'role.assign'
+  | 'settings.update'
+  | 'integration.connect' | 'integration.disconnect'
+  | 'agent.config.update'
+  | 'knowledge.upload' | 'knowledge.delete'
+  | 'mcp.connect' | 'mcp.disconnect'
+  | string;
+
+export interface AuditLogEntry {
+  id: string;
+  tenantId: string;
+  userId: string;
+  action: AuditAction;
+  resource: string;
+  resourceId?: string;
+  details?: Record<string, unknown>;
+  ip?: string;
+  userAgent?: string;
+  timestamp: string;
+}
+
+export interface SystemLogEntry {
+  id: string;
+  level: LogLevel;
+  source: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+  error?: { name: string; message: string; stack?: string };
+  timestamp: string;
+}
+
+export interface SystemMetrics {
+  uptime: number;
+  memoryUsage: { heapUsed: number; heapTotal: number; rss: number; external: number };
+  cpuUsage: { user: number; system: number };
+  activeConnections: number;
+  requestsPerMinute: number;
+  llmCalls: { total: number; failed: number; avgLatency: number };
+  workflowExecutions: { total: number; running: number; failed: number };
+  timestamp: string;
+}
+
+// ─── Sandbox Config ─────────────────────────────────────────
+
+export interface SandboxConfig {
+  timeoutMs: number;
+  memoryLimitMb?: number;
+}
+
+// ─── xClaw Plugin System ────────────────────────────────────
+
+export type PluginType = 'domain' | 'integration' | 'full-stack';
+
+export type PluginStatus = 'registered' | 'active' | 'inactive' | 'error';
+
+/**
+ * XClawPlugin — The universal plugin interface for extending xClaw.
+ *
+ * A plugin can provide:
+ * - Domain pack (agent persona + skills + tools)
+ * - API routes (Hono sub-app mounted at /api/plugins/:pluginId)
+ * - MongoDB collections (plugin-scoped data)
+ * - Frontend pages (declared via `pages` manifest)
+ * - Config schema (user-configurable settings)
+ *
+ * Each plugin is a self-contained package that registers with the core PluginManager.
+ */
+export interface XClawPlugin {
+  /** Unique plugin identifier, e.g. 'shirtgen', 'his-mini' */
+  id: string;
+  /** Display name */
+  name: string;
+  /** Semantic version */
+  version: string;
+  /** Description */
+  description: string;
+  /** Author name or org */
+  author: string;
+  /** Icon (emoji or URL) */
+  icon: string;
+  /** Plugin type */
+  type: PluginType;
+
+  /** Domain pack (if plugin provides domain-specific AI) */
+  domain?: PluginDomainConfig;
+
+  /** API routes factory — returns a Hono sub-app */
+  createRoutes?: (ctx: PluginContext) => unknown;
+
+  /** MongoDB collection declarations (auto-created with indexes) */
+  collections?: PluginCollectionConfig[];
+
+  /** Frontend page declarations */
+  pages?: PluginPageConfig[];
+
+  /** Configuration schema */
+  configSchema?: PluginConfigField[];
+
+  /** Lifecycle hooks */
+  onActivate?: (ctx: PluginContext) => Promise<void>;
+  onDeactivate?: (ctx: PluginContext) => Promise<void>;
+
+  /** Dependencies on other plugins */
+  dependencies?: string[];
+}
+
+export interface PluginDomainConfig {
+  /** Agent persona / system prompt for this domain */
+  agentPersona: string;
+  /** Skills provided by this domain */
+  skills: PluginSkillConfig[];
+  /** Recommended integration IDs */
+  recommendedIntegrations?: string[];
+  /** Knowledge pack IDs */
+  knowledgePacks?: string[];
+}
+
+export interface PluginSkillConfig {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  category: string;
+  tools: PluginToolConfig[];
+}
+
+export interface PluginToolConfig {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+  execute: (params: Record<string, unknown>, ctx: PluginContext) => Promise<ActionResult>;
+}
+
+export interface PluginCollectionConfig {
+  /** Collection name (will be prefixed: plugin_{pluginId}_{name}) */
+  name: string;
+  /** MongoDB indexes */
+  indexes?: Array<{
+    fields: Record<string, 1 | -1>;
+    options?: { unique?: boolean; sparse?: boolean; expireAfterSeconds?: number };
+  }>;
+}
+
+export interface PluginPageConfig {
+  /** Route path (relative to /plugins/:pluginId/) */
+  path: string;
+  /** Page title */
+  title: string;
+  /** Icon (emoji or lucide icon name) */
+  icon: string;
+  /** Show in sidebar? */
+  sidebar?: boolean;
+  /** Sidebar group label */
+  sidebarGroup?: string;
+}
+
+export interface PluginConfigField {
+  key: string;
+  label: string;
+  type: 'string' | 'number' | 'boolean' | 'select' | 'secret' | 'url';
+  description: string;
+  required?: boolean;
+  default?: unknown;
+  options?: { label: string; value: string }[];
+}
+
+/**
+ * PluginContext — Provided to plugins during lifecycle and route creation.
+ * Gives access to core platform services.
+ */
+export interface PluginContext {
+  /** Plugin's own config values */
+  config: Record<string, unknown>;
+  /** Plugin's MongoDB collection accessor */
+  getCollection: (name: string) => unknown;
+  /** Access to the Agent's LLM router */
+  llm: unknown;
+  /** Access to the Agent's tool registry */
+  tools: unknown;
+  /** Access to the Agent's event bus */
+  events: unknown;
+  /** Access to RAG engine */
+  rag: unknown;
+  /** Access to image generation service */
+  imageGen?: unknown;
+  /** Tenant ID from request context */
+  tenantId?: string;
+  /** User ID from request context */
+  userId?: string;
+}
+
+export interface PluginRegistryEntry {
+  plugin: XClawPlugin;
+  status: PluginStatus;
+  activatedAt?: string;
+  error?: string;
+}

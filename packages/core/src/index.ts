@@ -31,6 +31,12 @@ export type { SkillDefinition } from './skills/skill-manager.js';
 
 // Graph / Workflow
 export { GraphEngine } from './graph/graph-engine.js';
+export { WorkflowEngine, validateWorkflow } from './workflow/workflow-engine.js';
+export type { ValidationError } from './workflow/workflow-engine.js';
+
+// Monitoring
+export { MonitoringService } from './monitoring/monitoring-service.js';
+export type { MonitoringStore, MongoAuditLog as MonitoringAuditLog, MongoSystemLog as MonitoringSystemLog, AuditLogFilter, SystemLogFilter } from './monitoring/monitoring-service.js';
 
 // RAG
 export { RagEngine } from './rag/rag-engine.js';
@@ -44,3 +50,11 @@ export type { VectorStore, VectorSearchResult } from './rag/vector-store.js';
 
 // Tracing
 export { Tracer } from './tracing/tracer.js';
+
+// Plugins
+export { PluginManager } from './plugins/plugin-manager.js';
+export type { PluginManagerDeps } from './plugins/plugin-manager.js';
+
+// Image Generation
+export { ImageGenService, IMAGE_MODELS } from './image/image-gen.js';
+export type { ImageGenConfig, ImageGenRequest, ImageGenResult, GeneratedImage } from './image/image-gen.js';

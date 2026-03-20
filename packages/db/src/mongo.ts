@@ -55,6 +55,29 @@ export interface MongoAgentConfig {
   updatedAt: Date;
 }
 
+export interface MongoAuditLog {
+  _id: string;
+  tenantId: string;
+  userId: string;
+  action: string;
+  resource: string;
+  resourceId?: string;
+  details?: Record<string, any>;
+  ip?: string;
+  userAgent?: string;
+  createdAt: Date;
+}
+
+export interface MongoSystemLog {
+  _id: string;
+  level: string;
+  source: string;
+  message: string;
+  metadata?: Record<string, any>;
+  error?: { name: string; message: string; stack?: string };
+  createdAt: Date;
+}
+
 // ─── Connection ────────────────────────────────────────────
 
 let mongoClient: MongoClient | null = null;
@@ -115,6 +138,14 @@ export function agentConfigsCollection(db?: Db): Collection<MongoAgentConfig> {
   return (db || getMongo()).collection<MongoAgentConfig>('agent_configs');
 }
 
+export function auditLogsCollection(db?: Db): Collection<MongoAuditLog> {
+  return (db || getMongo()).collection<MongoAuditLog>('audit_logs');
+}
+
+export function systemLogsCollection(db?: Db): Collection<MongoSystemLog> {
+  return (db || getMongo()).collection<MongoSystemLog>('system_logs');
+}
+
 // ─── Indexes ───────────────────────────────────────────────
 
 async function ensureIndexes(db: Db) {
@@ -134,4 +165,21 @@ async function ensureIndexes(db: Db) {
   const agentConfigs = agentConfigsCollection(db);
   await agentConfigs.createIndex({ tenantId: 1 });
   await agentConfigs.createIndex({ tenantId: 1, isDefault: 1 });
+
+  // Audit logs
+  const auditLogs = auditLogsCollection(db);
+  await auditLogs.createIndex({ tenantId: 1, createdAt: -1 });
+  await auditLogs.createIndex({ userId: 1, createdAt: -1 });
+  await auditLogs.createIndex({ action: 1 });
+  await auditLogs.createIndex({ resource: 1 });
+  // TTL: auto-delete audit logs after 90 days
+  await auditLogs.createIndex({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });
+
+  // System logs
+  const systemLogs = systemLogsCollection(db);
+  await systemLogs.createIndex({ level: 1, createdAt: -1 });
+  await systemLogs.createIndex({ source: 1, createdAt: -1 });
+  await systemLogs.createIndex({ message: 'text' });
+  // TTL: auto-delete system logs after 30 days
+  await systemLogs.createIndex({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 3600 });
 }

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import type { Agent, RagEngine } from '@xclaw/core';
+import type { Agent, RagEngine, WorkflowEngine, MonitoringService, PluginManager } from '@xclaw/core';
 import type { OllamaAdapter } from '@xclaw/core';
 import type { GatewayConfig } from '@xclaw/shared';
 import type { IntegrationRegistry } from '@xclaw/integrations';
@@ -22,6 +22,9 @@ import { createMCPRoutes } from './mcp.js';
 import { tenantMiddleware, createTenantRoutes } from './tenant.js';
 import { createRBACRoutes } from './rbac.js';
 import { createOAuth2Routes } from './oauth2.js';
+import { createWorkflowRoutes } from './workflows.js';
+import { createMonitoringRoutes } from './monitoring.js';
+import { createPluginRoutes } from './plugins.js';
 
 export interface GatewayContext {
   agent: Agent;
@@ -31,6 +34,9 @@ export interface GatewayContext {
   integrationRegistry?: IntegrationRegistry;
   domainPacks?: DomainPack[];
   mlEngine?: MLEngine;
+  workflowEngine?: WorkflowEngine;
+  monitoring?: MonitoringService;
+  pluginManager?: PluginManager;
 }
 
 export function createGateway(ctx: GatewayContext) {
@@ -71,6 +77,15 @@ export function createGateway(ctx: GatewayContext) {
   api.route('/tenants', createTenantRoutes());
   api.route('/mcp', createMCPRoutes(ctx.domainPacks, ctx.agent));
   api.route('/rbac', createRBACRoutes());
+  if (ctx.workflowEngine) {
+    api.route('/workflows', createWorkflowRoutes(ctx.workflowEngine));
+  }
+  if (ctx.monitoring) {
+    api.route('/monitoring', createMonitoringRoutes(ctx.monitoring));
+  }
+  if (ctx.pluginManager) {
+    api.route('/plugins', createPluginRoutes(ctx.pluginManager));
+  }
   app.route('/api', api);
 
   return app;

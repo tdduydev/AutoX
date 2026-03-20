@@ -865,3 +865,142 @@ export async function getMCPInfo() {
   if (!res.ok) throw new Error('Failed to fetch MCP info');
   return res.json();
 }
+
+// ─── Plugins ──────────────────────────────────────────────────
+
+export async function getPlugins() {
+  const res = await apiFetch('/api/plugins');
+  if (!res.ok) throw new Error('Failed to fetch plugins');
+  return res.json();
+}
+
+export async function getPluginPages(): Promise<{
+  ok: boolean;
+  pages: Array<{
+    pluginId: string;
+    pluginName: string;
+    pluginIcon: string;
+    pages: Array<{
+      path: string;
+      title: string;
+      icon: string;
+      sidebar?: boolean;
+      sidebarGroup?: string;
+    }>;
+  }>;
+}> {
+  const res = await apiFetch('/api/plugins/registry/pages');
+  if (!res.ok) throw new Error('Failed to fetch plugin pages');
+  return res.json();
+}
+
+// ─── ShirtGen Plugin ────────────────────────────────────────
+
+export async function shirtgenGetDesigns(params?: { limit?: number; skip?: number; status?: string }) {
+  const q = new URLSearchParams();
+  if (params?.limit) q.set('limit', String(params.limit));
+  if (params?.skip) q.set('skip', String(params.skip));
+  if (params?.status) q.set('status', params.status);
+  const res = await apiFetch(`/api/plugins/shirtgen/api/designs?${q}`);
+  if (!res.ok) throw new Error('Failed to fetch designs');
+  return res.json();
+}
+
+export async function shirtgenGetDesign(id: string) {
+  const res = await apiFetch(`/api/plugins/shirtgen/api/designs/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch design');
+  return res.json();
+}
+
+export async function shirtgenGenerate(prompt: string, options?: { style?: string; count?: number; width?: number; height?: number }) {
+  const res = await apiFetch('/api/plugins/shirtgen/api/generate', {
+    method: 'POST',
+    body: JSON.stringify({ prompt, options }),
+  });
+  if (!res.ok) throw new Error('Generation failed');
+  return res.json();
+}
+
+export async function shirtgenGetTrending() {
+  const res = await apiFetch('/api/plugins/shirtgen/api/trending');
+  if (!res.ok) throw new Error('Failed to fetch trending');
+  return res.json();
+}
+
+export async function shirtgenGetImageModels() {
+  const res = await apiFetch('/api/plugins/shirtgen/api/image-models');
+  if (!res.ok) throw new Error('Failed to fetch image models');
+  return res.json();
+}
+
+export async function shirtgenUpdateDesign(id: string, data: Record<string, unknown>) {
+  const res = await apiFetch(`/api/plugins/shirtgen/api/designs/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update design');
+  return res.json();
+}
+
+// ─── Healthcare Plugin ──────────────────────────────────────
+
+export async function healthcareGetPatients(params?: { limit?: number; skip?: number }) {
+  const q = new URLSearchParams();
+  if (params?.limit) q.set('limit', String(params.limit));
+  if (params?.skip) q.set('skip', String(params.skip));
+  const res = await apiFetch(`/api/plugins/healthcare/api/patients?${q}`);
+  if (!res.ok) throw new Error('Failed to fetch patients');
+  return res.json();
+}
+
+export async function healthcareGetClinicalNotes(patientId?: string) {
+  const q = patientId ? `?patientId=${encodeURIComponent(patientId)}` : '';
+  const res = await apiFetch(`/api/plugins/healthcare/api/clinical-notes${q}`);
+  if (!res.ok) throw new Error('Failed to fetch clinical notes');
+  return res.json();
+}
+
+export async function healthcareCheckDrugInteraction(drugs: string[]) {
+  const res = await apiFetch('/api/plugins/healthcare/api/drug-interaction', {
+    method: 'POST',
+    body: JSON.stringify({ drugs }),
+  });
+  if (!res.ok) throw new Error('Failed to check drug interactions');
+  return res.json();
+}
+
+export async function healthcareLookupIcd10(query: string) {
+  const res = await apiFetch('/api/plugins/healthcare/api/icd10', {
+    method: 'POST',
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) throw new Error('Failed to lookup ICD-10');
+  return res.json();
+}
+
+export async function healthcareGetIcd10Categories() {
+  const res = await apiFetch('/api/plugins/healthcare/api/icd10/categories');
+  if (!res.ok) throw new Error('Failed to fetch ICD-10 categories');
+  return res.json();
+}
+
+export async function healthcareCheckClinicalAlert(text: string) {
+  const res = await apiFetch('/api/plugins/healthcare/api/clinical-alert', {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error('Failed to check clinical alerts');
+  return res.json();
+}
+
+export async function healthcareGetTemplates() {
+  const res = await apiFetch('/api/plugins/healthcare/api/templates');
+  if (!res.ok) throw new Error('Failed to fetch templates');
+  return res.json();
+}
+
+export async function healthcareGetStats() {
+  const res = await apiFetch('/api/plugins/healthcare/api/stats');
+  if (!res.ok) throw new Error('Failed to fetch healthcare stats');
+  return res.json();
+}

@@ -55,7 +55,12 @@ export { seedInitialData } from './seed.js';
 export {
   getMongo, connectMongo, closeMongo,
   sessionsCollection, messagesCollection, memoryEntriesCollection, agentConfigsCollection,
+  auditLogsCollection, systemLogsCollection,
 } from './mongo.js';
 export type {
   MongoSession, MongoMessage, MongoMemoryEntry, MongoAgentConfig,
+  MongoAuditLog, MongoSystemLog,
 } from './mongo.js';
+
+// Monitoring store
+export { mongoMonitoringStore } from './monitoring-store.js';
