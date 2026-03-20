@@ -24,7 +24,7 @@ xClaw is a TypeScript monorepo (npm workspaces) for a general-purpose multi-indu
 ### Git Submodules
 
 - `xclaw-plugins/` — Official plugins (ShirtGen.AI, Healthcare) → [xdev-asia-labs/xclaw-plugins](https://github.com/xdev-asia-labs/xclaw-plugins)
-- `his-mini/` — HIS-Mini demo integration app → [xdev-asia-labs/xclaw-demo-integration-app](https://github.com/xdev-asia-labs/xclaw-demo-integration-app)
+- `xclaw-demo-integration-app/` — HIS-Mini demo integration app → [xdev-asia-labs/xclaw-demo-integration-app](https://github.com/xdev-asia-labs/xclaw-demo-integration-app)
 
 Plugins are **not** inside `packages/`. They live in external repos linked as git submodules. Clone with `git clone --recurse-submodules`.
 

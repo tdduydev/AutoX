@@ -156,7 +156,7 @@ xClaw/
 │       ├── telegram/    # Telegram bot
 │       └── discord/     # Discord bot
 ├── xclaw-plugins/       # [submodule] Official plugins (ShirtGen, Healthcare)
-├── his-mini/            # [submodule] HIS-Mini demo integration app
+├── xclaw-demo-integration-app/  # [submodule] HIS-Mini demo integration app
 ├── data/
 │   └── knowledge-packs/ # Data-only plugin packages (drug DB, ICD-10, etc.)
 ├── docs/                # Documentation site (Fumadocs + Next.js)
@@ -170,7 +170,7 @@ xClaw/
 | Submodule | Path | Repository | Description |
 |-----------|------|------------|-------------|
 | **xclaw-plugins** | `xclaw-plugins/` | [xdev-asia-labs/xclaw-plugins](https://github.com/xdev-asia-labs/xclaw-plugins) | Official plugin packages (ShirtGen.AI, Healthcare) |
-| **his-mini** | `his-mini/` | [xdev-asia-labs/xclaw-demo-integration-app](https://github.com/xdev-asia-labs/xclaw-demo-integration-app) | HIS-Mini demo — Hospital Information System integration app |
+| **xclaw-demo-integration-app** | `xclaw-demo-integration-app/` | [xdev-asia-labs/xclaw-demo-integration-app](https://github.com/xdev-asia-labs/xclaw-demo-integration-app) | HIS-Mini demo — Hospital Information System integration app |
 
 ## Features
 

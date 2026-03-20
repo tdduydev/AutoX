@@ -1,6 +1,6 @@
 [submodule "xclaw-plugins"]
 	path = xclaw-plugins
 	url = https://github.com/xdev-asia-labs/xclaw-plugins.git
-[submodule "his-mini"]
-	path = his-mini
+[submodule "xclaw-demo-integration-app"]
+	path = xclaw-demo-integration-app
 	url = https://github.com/xdev-asia-labs/xclaw-demo-integration-app.git
