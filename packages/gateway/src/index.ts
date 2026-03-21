@@ -1,5 +1,6 @@
 export { createGateway } from './gateway.js';
 export type { GatewayContext } from './gateway.js';
+export { AgentManager } from './agent-manager.js';
 export { authMiddleware, createAuthRoutes } from './auth.js';
 export { createChatRoutes } from './chat.js';
 export { createHealthRoutes } from './health.js';

@@ -14,6 +14,7 @@ import {
   ImageGenService,
 } from '@xclaw-ai/core';
 import { createGateway } from '@xclaw-ai/gateway';
+import { AgentManager } from '@xclaw-ai/gateway';
 import { IntegrationRegistry, allIntegrations } from '@xclaw-ai/integrations';
 import { allDomainPacks } from '@xclaw-ai/domains';
 import { MLEngine } from '@xclaw-ai/ml';
@@ -21,7 +22,7 @@ import { PluginManager } from '@xclaw-ai/core';
 import type { AgentConfig, GatewayConfig } from '@xclaw-ai/shared';
 import { TelegramChannel } from '@xclaw-ai/channel-telegram';
 import { loadKnowledgePacks } from './knowledge-loader.js';
-import { runMigrations, seedInitialData, connectMongo, getMongo, mongoMonitoringStore, sessionsCollection, messagesCollection } from '@xclaw-ai/db';
+import { runMigrations, seedInitialData, connectMongo, getMongo, mongoMonitoringStore, sessionsCollection, messagesCollection, agentConfigsCollection, channelConnectionsCollection } from '@xclaw-ai/db';
 
 dotenv.config();
 
@@ -87,6 +88,39 @@ async function main() {
     console.warn('⚠️  Seed skipped (DB may not be ready):', (err as Error).message);
   }
 
+  // Seed default agent config in MongoDB (idempotent)
+  try {
+    const configs = agentConfigsCollection();
+    const existing = await configs.findOne({ tenantId: 'default', isDefault: true });
+    if (!existing) {
+      const now = new Date();
+      await configs.insertOne({
+        _id: 'default-agent',
+        tenantId: 'default',
+        name: AGENT_NAME,
+        persona: AGENT_NAME,
+        systemPrompt: SYSTEM_PROMPT,
+        llmConfig: {
+          provider: LLM_PROVIDER,
+          model: LLM_MODEL,
+          apiKey: LLM_PROVIDER === 'openai' ? OPENAI_API_KEY : ANTHROPIC_API_KEY,
+          baseUrl: LLM_PROVIDER === 'ollama' ? OLLAMA_BASE_URL : undefined,
+        },
+        enabledSkills: [],
+        memoryConfig: { enabled: true, maxEntries: 1000 },
+        securityConfig: { requireApprovalForShell: true, requireApprovalForNetwork: false },
+        maxToolIterations: 10,
+        toolTimeout: 30000,
+        isDefault: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      console.log('   AgentConfig: default agent config seeded');
+    }
+  } catch (err) {
+    console.warn('⚠️  Agent config seed skipped:', (err as Error).message);
+  }
+
   // Agent config
   const agentConfig: AgentConfig = {
     id: 'default-agent',
@@ -136,6 +170,27 @@ async function main() {
   }
   if (ANTHROPIC_API_KEY) {
     agent.llm.registerAdapter(
+      new AnthropicAdapter({
+        apiKey: ANTHROPIC_API_KEY,
+        model: LLM_PROVIDER === 'anthropic' ? LLM_MODEL : 'claude-sonnet-4-20250514',
+      }),
+    );
+  }
+
+  // AgentManager — manages multiple agent configs from MongoDB
+  const agentManager = new AgentManager(agent);
+
+  // Register adapters for dynamic agents
+  if (LLM_PROVIDER === 'ollama' && ollamaAdapter) {
+    agentManager.registerAdapter(ollamaAdapter);
+  }
+  if (OPENAI_API_KEY && LLM_PROVIDER !== 'ollama') {
+    agentManager.registerAdapter(
+      new OpenAIAdapter({ apiKey: OPENAI_API_KEY, model: LLM_MODEL }),
+    );
+  }
+  if (ANTHROPIC_API_KEY) {
+    agentManager.registerAdapter(
       new AnthropicAdapter({
         apiKey: ANTHROPIC_API_KEY,
         model: LLM_PROVIDER === 'anthropic' ? LLM_MODEL : 'claude-sonnet-4-20250514',
@@ -215,6 +270,15 @@ async function main() {
       telegramChannel.onMessage(async (incoming) => {
         const sessionId = `tg-${incoming.channelId}-${incoming.userId}`;
         try {
+          // Resolve agent — look up linked channel connection's agentConfigId, else default
+          const channelConn = await channelConnectionsCollection().findOne({
+            channelType: 'telegram',
+            status: 'active',
+          });
+          const channelAgent = channelConn?.agentConfigId
+            ? await agentManager.getAgent(channelConn.agentConfigId, 'default')
+            : await agentManager.getDefaultForTenant('default');
+
           // Save session (idempotent)
           const sessions = sessionsCollection();
           const existingSession = await sessions.findOne({ _id: sessionId });
@@ -244,7 +308,7 @@ async function main() {
             createdAt: now,
           });
 
-          const response = await agent.chat(sessionId, incoming.content);
+          const response = await channelAgent.chat(sessionId, incoming.content);
 
           // Save assistant response
           await messages.insertOne({
@@ -288,6 +352,7 @@ async function main() {
   // Create Hono app
   const app = createGateway({
     agent,
+    agentManager,
     rag,
     config: gatewayConfig,
     ollamaAdapter,

@@ -7,6 +7,7 @@ import type { GatewayConfig } from '@xclaw-ai/shared';
 import type { IntegrationRegistry } from '@xclaw-ai/integrations';
 import type { DomainPack } from '@xclaw-ai/domains';
 import type { MLEngine } from '@xclaw-ai/ml';
+import type { AgentManager } from './agent-manager.js';
 import { authMiddleware, createAuthRoutes } from './auth.js';
 import { createChatRoutes } from './chat.js';
 import { createHealthRoutes } from './health.js';
@@ -29,6 +30,7 @@ import { createAgentsRoutes } from './agents.js';
 
 export interface GatewayContext {
   agent: Agent;
+  agentManager?: AgentManager;
   rag: RagEngine;
   config: GatewayConfig;
   ollamaAdapter?: OllamaAdapter;
@@ -87,7 +89,7 @@ export function createGateway(ctx: GatewayContext) {
   if (ctx.pluginManager) {
     api.route('/plugins', createPluginRoutes(ctx.pluginManager));
   }
-  api.route('/agents', createAgentsRoutes());
+  api.route('/agents', createAgentsRoutes(ctx));
   app.route('/api', api);
 
   return app;

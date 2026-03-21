@@ -6,6 +6,13 @@
 
 export type LLMProvider = 'openai' | 'anthropic' | 'ollama' | 'google' | 'groq' | 'mistral' | 'custom';
 
+export interface LLMCapabilities {
+  vision?: boolean;
+  audio?: boolean;
+  streaming?: boolean;
+  functionCalling?: boolean;
+}
+
 export interface LLMConfig {
   provider: LLMProvider;
   model: string;
@@ -13,6 +20,7 @@ export interface LLMConfig {
   baseUrl?: string;
   temperature?: number;
   maxTokens?: number;
+  capabilities?: LLMCapabilities;
 }
 
 export interface LLMMessage {
@@ -296,6 +304,7 @@ export interface Attachment {
 export interface AgentConfig {
   id: string;
   name: string;
+  description?: string;
   persona: string;
   systemPrompt: string;
   llm: LLMConfig;
@@ -311,6 +320,7 @@ export interface AgentConfig {
   };
   maxToolIterations: number;
   toolTimeout: number;
+  isDefault?: boolean;
 }
 
 // ─── Event Bus ──────────────────────────────────────────────

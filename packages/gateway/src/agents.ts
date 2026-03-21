@@ -4,8 +4,11 @@ import {
   channelConnectionsCollection,
   sessionsCollection,
   messagesCollection,
+  agentConfigsCollection,
   type MongoChannelConnection,
+  type MongoAgentConfig,
 } from '@xclaw-ai/db';
+import type { GatewayContext } from './gateway.js';
 
 // Helper to extract user info from Hono context
 function getUserCtx(c: any) {
@@ -18,8 +21,151 @@ function getUserCtx(c: any) {
 
 // ─── Agents / Channel Connections Routes ────────────────────
 
-export function createAgentsRoutes() {
+export function createAgentsRoutes(ctx?: GatewayContext) {
   const app = new Hono();
+
+  // ─── Agent Configs (AI Agent CRUD) ────────────────────────
+
+  // List all agent configs for the tenant
+  app.get('/configs', async (c) => {
+    try {
+      const { tenantId } = getUserCtx(c);
+      const configs = agentConfigsCollection();
+      const list = await configs.find({ tenantId }).sort({ updatedAt: -1 }).toArray();
+      return c.json({ ok: true, configs: list });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
+    }
+  });
+
+  // Get a single agent config
+  app.get('/configs/:id', async (c) => {
+    try {
+      const { tenantId } = getUserCtx(c);
+      const id = c.req.param('id');
+      const configs = agentConfigsCollection();
+      const config = await configs.findOne({ _id: id, tenantId });
+      if (!config) return c.json({ error: 'Agent config not found' }, 404);
+      return c.json({ ok: true, config });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
+    }
+  });
+
+  // Create a new agent config
+  app.post('/configs', async (c) => {
+    try {
+      const { tenantId } = getUserCtx(c);
+      const body = await c.req.json();
+
+      const { name, persona, systemPrompt, llmConfig, enabledSkills } = body;
+      if (!name || typeof name !== 'string') {
+        return c.json({ error: 'name is required' }, 400);
+      }
+
+      const now = new Date();
+      const configs = agentConfigsCollection();
+
+      // If this is the first config or marked as default, handle isDefault
+      const existingCount = await configs.countDocuments({ tenantId });
+      const isDefault = body.isDefault === true || existingCount === 0;
+
+      if (isDefault) {
+        await configs.updateMany({ tenantId, isDefault: true }, { $set: { isDefault: false } });
+      }
+
+      const config: MongoAgentConfig = {
+        _id: randomUUID(),
+        tenantId,
+        name,
+        persona: persona || '',
+        systemPrompt: systemPrompt || '',
+        llmConfig: llmConfig || { provider: 'openai', model: 'gpt-4o' },
+        enabledSkills: enabledSkills || [],
+        memoryConfig: body.memoryConfig || { enabled: true, maxEntries: 100 },
+        securityConfig: body.securityConfig || { requireApprovalForShell: true, requireApprovalForNetwork: false },
+        maxToolIterations: body.maxToolIterations ?? 10,
+        toolTimeout: body.toolTimeout ?? 30000,
+        isDefault,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      await configs.insertOne(config);
+      return c.json({ ok: true, config }, 201);
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
+    }
+  });
+
+  // Update an agent config
+  app.put('/configs/:id', async (c) => {
+    try {
+      const { tenantId } = getUserCtx(c);
+      const id = c.req.param('id');
+      const body = await c.req.json();
+
+      const configs = agentConfigsCollection();
+      const existing = await configs.findOne({ _id: id, tenantId });
+      if (!existing) return c.json({ error: 'Agent config not found' }, 404);
+
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      if (body.name !== undefined) updates.name = body.name;
+      if (body.persona !== undefined) updates.persona = body.persona;
+      if (body.systemPrompt !== undefined) updates.systemPrompt = body.systemPrompt;
+      if (body.llmConfig !== undefined) updates.llmConfig = body.llmConfig;
+      if (body.enabledSkills !== undefined) updates.enabledSkills = body.enabledSkills;
+      if (body.memoryConfig !== undefined) updates.memoryConfig = body.memoryConfig;
+      if (body.securityConfig !== undefined) updates.securityConfig = body.securityConfig;
+      if (body.maxToolIterations !== undefined) updates.maxToolIterations = body.maxToolIterations;
+      if (body.toolTimeout !== undefined) updates.toolTimeout = body.toolTimeout;
+
+      // Handle isDefault toggle
+      if (body.isDefault === true) {
+        await configs.updateMany({ tenantId, isDefault: true }, { $set: { isDefault: false } });
+        updates.isDefault = true;
+      }
+
+      await configs.updateOne({ _id: id }, { $set: updates });
+      const updated = await configs.findOne({ _id: id });
+
+      // Invalidate cached agent instance
+      ctx?.agentManager?.invalidate(id);
+
+      return c.json({ ok: true, config: updated });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
+    }
+  });
+
+  // Delete an agent config
+  app.delete('/configs/:id', async (c) => {
+    try {
+      const { tenantId } = getUserCtx(c);
+      const id = c.req.param('id');
+
+      const configs = agentConfigsCollection();
+      const existing = await configs.findOne({ _id: id, tenantId });
+      if (!existing) return c.json({ error: 'Agent config not found' }, 404);
+
+      await configs.deleteOne({ _id: id, tenantId });
+
+      // Invalidate cached agent instance
+      ctx?.agentManager?.invalidate(id);
+
+      // If we deleted the default, set the newest remaining as default
+      if (existing.isDefault) {
+        const newest = await configs.findOne({ tenantId }, { sort: { updatedAt: -1 } });
+        if (newest) {
+          await configs.updateOne({ _id: newest._id }, { $set: { isDefault: true } });
+        }
+      }
+
+      return c.json({ ok: true });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
+    }
+  });
 
   // ─── Channel Connections ──────────────────────────────────
 
@@ -82,6 +228,7 @@ export function createAgentsRoutes() {
         name,
         config,
         status: 'inactive',
+        agentConfigId: body.agentConfigId || undefined,
         createdAt: now,
         updatedAt: now,
       };
@@ -109,6 +256,7 @@ export function createAgentsRoutes() {
 
       const updates: Record<string, any> = { updatedAt: new Date() };
       if (name) updates.name = name;
+      if (body.agentConfigId !== undefined) updates.agentConfigId = body.agentConfigId || undefined;
       if (config) {
         const validation = validateChannelConfig(existing.channelType, config);
         if (!validation.ok) return c.json({ error: validation.error }, 400);

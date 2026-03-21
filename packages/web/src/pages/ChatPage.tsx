@@ -13,6 +13,7 @@ import {
     streamChat, sendChat, uploadChatAttachment, getModels, setActiveModel, getInstalledDomains,
     saveSearchToKnowledge, submitChatFeedback,
     getConversations, getConversation, deleteConversation, renameConversation, saveChatMessage,
+    getAgentConfigs,
 } from '../lib/api';
 
 interface ChatAttachment {
@@ -89,6 +90,8 @@ export function ChatPage() {
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [debugMode, setDebugMode] = useState(false);
     const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+    const [agentConfigs, setAgentConfigs] = useState<Array<{ _id: string; name: string; isDefault: boolean; llmConfig?: any }>>([]);
+    const [activeAgentConfigId, setActiveAgentConfigId] = useState<string | undefined>(undefined);
     const [conversations, setConversations] = useState<ConversationSummary[]>([]);
     const isComposingRef = useRef(false);
     const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -139,6 +142,15 @@ export function ChatPage() {
                 if (data.domains) setDomains(data.domains.map((d: any) => ({
                     id: d.id, name: d.name, icon: d.icon, description: d.description,
                 })));
+            })
+            .catch(() => { });
+        getAgentConfigs()
+            .then((data) => {
+                if (data.configs) {
+                    setAgentConfigs(data.configs);
+                    const def = data.configs.find((c: any) => c.isDefault);
+                    if (def) setActiveAgentConfigId(def._id);
+                }
             })
             .catch(() => { });
     }, []);
@@ -272,7 +284,7 @@ export function ChatPage() {
             let fullContent = '';
             const debug: DebugInfo = {};
 
-            for await (const event of streamChat(userMsg.content, sessionId, webSearchEnabled, activeDomain)) {
+            for await (const event of streamChat(userMsg.content, sessionId, webSearchEnabled, activeDomain, activeAgentConfigId)) {
                 if (event.type === 'text-delta') {
                     fullContent += event.delta;
                     setMessages((prev) =>
@@ -298,7 +310,7 @@ export function ChatPage() {
             );
         } catch {
             try {
-                const res = await sendChat(userMsg.content, sessionId, activeDomain);
+                const res = await sendChat(userMsg.content, sessionId, activeDomain, activeAgentConfigId);
                 setMessages((prev) =>
                     prev.map((m) => m.id === assistantMsg.id ? { ...m, content: res.content, streaming: false } : m),
                 );
@@ -357,7 +369,7 @@ export function ChatPage() {
             let fullContent = '';
             const debug: DebugInfo = {};
 
-            for await (const event of streamChat(text, sessionId, webSearchEnabled, activeDomain)) {
+            for await (const event of streamChat(text, sessionId, webSearchEnabled, activeDomain, activeAgentConfigId)) {
                 if (event.type === 'text-delta') {
                     fullContent += event.delta;
                     setMessages((prev) =>
@@ -393,7 +405,7 @@ export function ChatPage() {
             }
         } catch {
             try {
-                const res = await sendChat(text, sessionId, activeDomain);
+                const res = await sendChat(text, sessionId, activeDomain, activeAgentConfigId);
                 setMessages((prev) =>
                     prev.map((m) => m.id === assistantMsg.id ? { ...m, content: res.content, streaming: false } : m),
                 );
@@ -650,6 +662,37 @@ export function ChatPage() {
                                                             <div className="text-xs font-medium truncate">{d.name}</div>
                                                         </div>
                                                         {d.id === activeDomain && <Check size={14} style={{ color: 'var(--color-primary)' }} />}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                    {/* Agent Config Section */}
+                                    {agentConfigs.length > 0 && (
+                                        <>
+                                            <div className="px-3 py-2 border-t border-b" style={{ borderColor: 'var(--color-border)' }}>
+                                                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-fg-muted)' }}>Agent</p>
+                                            </div>
+                                            <div className="py-1 max-h-44 overflow-y-auto">
+                                                {agentConfigs.map((ac) => (
+                                                    <button
+                                                        key={ac._id}
+                                                        onClick={() => { setActiveAgentConfigId(ac._id); }}
+                                                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer"
+                                                        style={{
+                                                            color: ac._id === activeAgentConfigId ? 'var(--color-primary-light)' : 'var(--color-fg)',
+                                                            background: ac._id === activeAgentConfigId ? 'var(--color-primary-soft)' : 'transparent',
+                                                        }}
+                                                    >
+                                                        <PawPrint size={12} />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-xs font-medium truncate">{ac.name}</div>
+                                                            <div className="text-[10px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                                                {ac.llmConfig?.provider || 'openai'} · {ac.llmConfig?.model || 'default'}
+                                                            </div>
+                                                        </div>
+                                                        {ac._id === activeAgentConfigId && <Check size={14} style={{ color: 'var(--color-primary)' }} />}
+                                                        {ac.isDefault && <span className="text-[9px] px-1 py-0.5 rounded" style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}>default</span>}
                                                     </button>
                                                 ))}
                                             </div>

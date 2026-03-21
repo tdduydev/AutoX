@@ -19,7 +19,7 @@ const attachmentStore = new Map<string, Array<{ id: string; name: string; mimeTy
 
 // ─── MongoDB-backed Conversation Store ──────────────────────
 
-async function getOrCreateSession(sessionId: string, tenantId: string, userId: string, firstMessage?: string): Promise<MongoSession> {
+async function getOrCreateSession(sessionId: string, tenantId: string, userId: string, firstMessage?: string, agentConfigId?: string): Promise<MongoSession> {
   const sessions = sessionsCollection();
   const existing = await sessions.findOne({ _id: sessionId });
   if (existing) return existing;
@@ -31,6 +31,7 @@ async function getOrCreateSession(sessionId: string, tenantId: string, userId: s
     userId,
     platform: 'web',
     title: firstMessage ? firstMessage.slice(0, 60) + (firstMessage.length > 60 ? '...' : '') : 'New Chat',
+    agentConfigId,
     createdAt: now,
     updatedAt: now,
   };
@@ -131,6 +132,7 @@ async function webSearch(query: string, maxResults = 5, tenantSettings?: TenantS
 
 // Wraps agent stream with meta events for debug info
 async function* wrapStreamWithMeta(
+  agent: import('@xclaw-ai/core').Agent,
   ctx: GatewayContext,
   sid: string,
   fullMessage: string,
@@ -168,7 +170,7 @@ async function* wrapStreamWithMeta(
 
   // Stream from agent
   const llmStart = Date.now();
-  const generator = ctx.agent.chatStream(sid, fullMessage, ragContext);
+  const generator = agent.chatStream(sid, fullMessage, ragContext);
 
   for await (const event of generator) {
     if (event.type === 'finish') {
@@ -240,11 +242,16 @@ export function createChatRoutes(ctx: GatewayContext) {
       return c.json({ error: parsed.error.flatten() }, 400);
     }
 
-    const { message, sessionId, stream, webSearch: enableWebSearch, domainId } = parsed.data;
+    const { message, sessionId, stream, webSearch: enableWebSearch, domainId, agentConfigId } = parsed.data;
     const sid = sessionId || randomUUID();
     const user = c.get('user');
     const tenantId = user?.tenantId || 'default';
     const userId = user?.sub || 'anonymous';
+
+    // Resolve agent from config ID or use default
+    const activeAgent = ctx.agentManager
+      ? await ctx.agentManager.getAgent(agentConfigId, tenantId)
+      : ctx.agent;
 
     // Resolve domain persona if a domain is selected and installed
     let domainPersona = '';
@@ -259,7 +266,7 @@ export function createChatRoutes(ctx: GatewayContext) {
     }
 
     // Track conversation — save user message to MongoDB
-    await getOrCreateSession(sid, tenantId, userId, message);
+    await getOrCreateSession(sid, tenantId, userId, message, agentConfigId);
     await addMessage(sid, 'user', message);
 
     // Build message with attachment context
@@ -300,7 +307,7 @@ export function createChatRoutes(ctx: GatewayContext) {
     }
 
     if (stream) {
-      const generator = wrapStreamWithMeta(ctx, sid, fullMessage, message, ragContext, enableWebSearch, tSettings);
+      const generator = wrapStreamWithMeta(activeAgent, ctx, sid, fullMessage, message, ragContext, enableWebSearch, tSettings);
       const sseStream = streamToSSE(generator);
 
       return new Response(sseStream, {
@@ -312,7 +319,7 @@ export function createChatRoutes(ctx: GatewayContext) {
       });
     }
 
-    const response = await ctx.agent.chat(sid, fullMessage, ragContext);
+    const response = await activeAgent.chat(sid, fullMessage, ragContext);
     // Track assistant response in MongoDB
     await addMessage(sid, 'assistant', response);
     return c.json({ sessionId: sid, content: response });
@@ -327,8 +334,15 @@ export function createChatRoutes(ctx: GatewayContext) {
       return c.json({ error: parsed.error.flatten() }, 400);
     }
 
-    const { message, sessionId, webSearch: enableWebSearch, domainId: streamDomainId } = parsed.data;
+    const { message, sessionId, webSearch: enableWebSearch, domainId: streamDomainId, agentConfigId: streamAgentConfigId } = parsed.data;
     const sid = sessionId || randomUUID();
+
+    // Resolve agent from config ID or use default
+    const streamUser = c.get('user');
+    const streamTenantId = streamUser?.tenantId || 'default';
+    const streamActiveAgent = ctx.agentManager
+      ? await ctx.agentManager.getAgent(streamAgentConfigId, streamTenantId)
+      : ctx.agent;
 
     // Resolve domain persona
     let streamMessage = message;
@@ -360,7 +374,7 @@ export function createChatRoutes(ctx: GatewayContext) {
       // RAG retrieval failure is non-fatal
     }
 
-    const generator = wrapStreamWithMeta(ctx, sid, streamMessage, message, ragContext, enableWebSearch, streamTSettings);
+    const generator = wrapStreamWithMeta(streamActiveAgent, ctx, sid, streamMessage, message, ragContext, enableWebSearch, streamTSettings);
     const sseStream = streamToSSE(generator);
 
     return new Response(sseStream, {

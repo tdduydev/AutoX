@@ -23,6 +23,7 @@ import { MCPPage } from './pages/MCPPage';
 import { PluginPage } from './pages/PluginPage';
 import { EmbedChatPage } from './pages/EmbedChatPage';
 import { AgentsPage } from './pages/AgentsPage';
+import { ChannelsPage } from './pages/ChannelsPage';
 import { WorkflowsPage } from './pages/WorkflowsPage';
 
 function ProtectedRoutes() {
@@ -46,6 +47,7 @@ function ProtectedRoutes() {
                 <Route path="ml" element={<MLPage />} />
                 <Route path="mcp" element={<MCPPage />} />
                 <Route path="agents" element={<AgentsPage />} />
+                <Route path="channels" element={<ChannelsPage />} />
                 <Route path="workflows" element={<WorkflowsPage />} />
                 <Route path="plugins/:pluginId/*" element={<PluginPage />} />
                 <Route path="settings" element={<SettingsLayout />}>

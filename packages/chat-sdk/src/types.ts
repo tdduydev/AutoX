@@ -86,6 +86,7 @@ export interface ChatRequest {
     stream?: boolean;
     webSearch?: boolean;
     domainId?: string;
+    agentConfigId?: string;
     attachmentIds?: string[];
 }
 

@@ -8,6 +8,7 @@ export interface MongoSession {
   userId: string;
   platform: string;
   title: string | null;
+  agentConfigId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -86,6 +87,7 @@ export interface MongoChannelConnection {
   name: string;
   config: Record<string, any>; // e.g. { botToken, allowedChatIds }
   status: 'active' | 'inactive' | 'error';
+  agentConfigId?: string;
   lastConnectedAt?: Date;
   metadata?: Record<string, any>; // e.g. { botUsername, botId }
   createdAt: Date;

@@ -19,6 +19,7 @@ import {
     Plug,
     Bot,
     Workflow,
+    Radio,
     Palette,
     ShoppingBag,
     Shirt,
@@ -82,6 +83,7 @@ const KNOWLEDGE_NAV = [
 
 const AGENTS_NAV = [
     { to: '/agents', icon: Bot, label: 'Agents' },
+    { to: '/channels', icon: Radio, label: 'Channels' },
     { to: '/workflows', icon: Workflow, label: 'Workflows' },
 ];
 

@@ -143,11 +143,11 @@ export async function getHealth() {
 
 // ─── Chat (via @xclaw-ai/chat-sdk) ──────────────────────────
 
-export async function sendChat(message: string, sessionId: string, domainId?: string) {
-  return xclaw.chat(message, { sessionId, domainId });
+export async function sendChat(message: string, sessionId: string, domainId?: string, agentConfigId?: string) {
+  return xclaw.chat(message, { sessionId, domainId, agentConfigId });
 }
 
-export async function* streamChat(message: string, sessionId: string, webSearch = false, domainId?: string): AsyncGenerator<StreamEvent> {
+export async function* streamChat(message: string, sessionId: string, webSearch = false, domainId?: string, agentConfigId?: string): AsyncGenerator<StreamEvent> {
   const events: StreamEvent[] = [];
   let resolve: (() => void) | null = null;
   let done = false;
@@ -187,7 +187,7 @@ export async function* streamChat(message: string, sessionId: string, webSearch 
       events.push({ type: 'tool-result', toolCallId, result });
       resolve?.();
     },
-  }, { sessionId, webSearch, domainId });
+  }, { sessionId, webSearch, domainId, agentConfigId });
 
   while (!done || events.length > 0) {
     if (events.length > 0) {
@@ -986,6 +986,61 @@ export async function healthcareGetStats() {
 
 // ─── Agents / Channel Connections ───────────────────────────
 
+// Agent Config CRUD
+export async function getAgentConfigs() {
+  const res = await apiFetch('/api/agents/configs');
+  if (!res.ok) throw new Error('Failed to fetch agent configs');
+  return res.json();
+}
+
+export async function getAgentConfig(id: string) {
+  const res = await apiFetch(`/api/agents/configs/${encodeURIComponent(id)}`);
+  if (!res.ok) throw new Error('Failed to fetch agent config');
+  return res.json();
+}
+
+export async function createAgentConfig(data: {
+  name: string;
+  persona?: string;
+  systemPrompt?: string;
+  llmConfig?: Record<string, any>;
+  enabledSkills?: string[];
+  memoryConfig?: Record<string, any>;
+  securityConfig?: Record<string, any>;
+  maxToolIterations?: number;
+  toolTimeout?: number;
+  isDefault?: boolean;
+}) {
+  const res = await apiFetch('/api/agents/configs', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to create agent config' }));
+    throw new Error(err.error || 'Failed to create agent config');
+  }
+  return res.json();
+}
+
+export async function updateAgentConfig(id: string, data: Record<string, any>) {
+  const res = await apiFetch(`/api/agents/configs/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update agent config');
+  return res.json();
+}
+
+export async function deleteAgentConfig(id: string) {
+  const res = await apiFetch(`/api/agents/configs/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete agent config');
+  return res.json();
+}
+
+// Channel Connections
+
 export async function getChannelTypes() {
   const res = await apiFetch('/api/agents/channel-types');
   if (!res.ok) throw new Error('Failed to fetch channel types');
@@ -998,7 +1053,7 @@ export async function getChannels() {
   return res.json();
 }
 
-export async function createChannel(data: { channelType: string; name: string; config: Record<string, string> }) {
+export async function createChannel(data: { channelType: string; name: string; config: Record<string, string>; agentConfigId?: string }) {
   const res = await apiFetch('/api/agents/channels', {
     method: 'POST',
     body: JSON.stringify(data),

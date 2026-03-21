@@ -1,200 +1,278 @@
 import { useState, useEffect } from 'react';
 import {
-    Bot, Plus, Trash2, Power, PowerOff, TestTube, RefreshCw,
-    MessageSquare, ChevronRight, X, Eye, EyeOff, Send,
+    Bot, Plus, Trash2, Edit3, Star, RefreshCw, X,
+    Image, Mic, Zap, Shield, BrainCircuit, Save, ChevronDown,
 } from 'lucide-react';
 import {
-    getChannelTypes, getChannels, createChannel, deleteChannel,
-    testChannel, activateChannel, deactivateChannel,
-    getAgentSessions, getSessionMessages,
+    getAgentConfigs, createAgentConfig, updateAgentConfig, deleteAgentConfig,
 } from '../lib/api';
 
-interface ChannelTypeInfo {
-    id: string;
-    name: string;
-    icon: string;
-    description: string;
-    configFields: Array<{ key: string; label: string; type: string; required: boolean; placeholder?: string }>;
-    setupGuide: string;
-}
-
-interface ChannelConnection {
+interface AgentConfigData {
     _id: string;
-    channelType: string;
     name: string;
-    config: Record<string, any>;
-    status: string;
-    lastConnectedAt?: string;
-    metadata?: Record<string, any>;
+    persona: string;
+    systemPrompt: string;
+    llmConfig: {
+        provider: string;
+        model: string;
+        temperature?: number;
+        maxTokens?: number;
+        capabilities?: {
+            vision?: boolean;
+            audio?: boolean;
+            streaming?: boolean;
+            functionCalling?: boolean;
+        };
+    };
+    enabledSkills: string[];
+    memoryConfig: { enabled: boolean; maxEntries: number };
+    securityConfig: { requireApprovalForShell: boolean; requireApprovalForNetwork: boolean };
+    maxToolIterations: number;
+    toolTimeout: number;
+    isDefault: boolean;
     createdAt: string;
     updatedAt: string;
 }
 
-interface SessionInfo {
-    _id: string;
-    platform: string;
-    userId: string;
-    title: string;
-    createdAt: string;
-    updatedAt: string;
-}
+const PROVIDERS = [
+    { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo', 'o1', 'o1-mini'] },
+    { id: 'anthropic', name: 'Anthropic', models: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'] },
+    { id: 'google', name: 'Google', models: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash'] },
+    { id: 'groq', name: 'Groq', models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'] },
+    { id: 'mistral', name: 'Mistral', models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest'] },
+    { id: 'ollama', name: 'Ollama (Local)', models: ['llama3', 'mistral', 'codellama', 'phi3', 'gemma'] },
+    { id: 'custom', name: 'Custom', models: [] },
+];
 
-interface MessageInfo {
-    _id: string;
-    sessionId: string;
-    role: string;
-    content: string;
-    createdAt: string;
-    metadata?: Record<string, any>;
+const MODEL_CAPABILITIES: Record<string, { vision?: boolean; audio?: boolean; streaming?: boolean; functionCalling?: boolean }> = {
+    'gpt-4o': { vision: true, audio: true, streaming: true, functionCalling: true },
+    'gpt-4o-mini': { vision: true, streaming: true, functionCalling: true },
+    'gpt-4-turbo': { vision: true, streaming: true, functionCalling: true },
+    'gpt-3.5-turbo': { streaming: true, functionCalling: true },
+    'o1': { vision: true, functionCalling: true },
+    'o1-mini': { functionCalling: true },
+    'claude-sonnet-4-20250514': { vision: true, streaming: true, functionCalling: true },
+    'claude-3-5-haiku-20241022': { vision: true, streaming: true, functionCalling: true },
+    'claude-3-opus-20240229': { vision: true, streaming: true, functionCalling: true },
+    'gemini-2.0-flash': { vision: true, audio: true, streaming: true, functionCalling: true },
+    'gemini-2.0-flash-lite': { vision: true, streaming: true, functionCalling: true },
+    'gemini-1.5-pro': { vision: true, audio: true, streaming: true, functionCalling: true },
+    'gemini-1.5-flash': { vision: true, streaming: true, functionCalling: true },
+    'llama-3.3-70b-versatile': { streaming: true, functionCalling: true },
+    'llama-3.1-8b-instant': { streaming: true },
+    'mixtral-8x7b-32768': { streaming: true },
+    'mistral-large-latest': { streaming: true, functionCalling: true },
+};
+
+type FormData = {
+    name: string;
+    persona: string;
+    systemPrompt: string;
+    provider: string;
+    model: string;
+    customModel: string;
+    temperature: number;
+    maxTokens: number;
+    capabilities: { vision: boolean; audio: boolean; streaming: boolean; functionCalling: boolean };
+    memoryEnabled: boolean;
+    memoryMaxEntries: number;
+    requireApprovalForShell: boolean;
+    requireApprovalForNetwork: boolean;
+    maxToolIterations: number;
+    toolTimeout: number;
+    isDefault: boolean;
+};
+
+const DEFAULT_FORM: FormData = {
+    name: '',
+    persona: '',
+    systemPrompt: '',
+    provider: 'openai',
+    model: 'gpt-4o',
+    customModel: '',
+    temperature: 0.7,
+    maxTokens: 4096,
+    capabilities: { vision: true, audio: true, streaming: true, functionCalling: true },
+    memoryEnabled: true,
+    memoryMaxEntries: 100,
+    requireApprovalForShell: true,
+    requireApprovalForNetwork: false,
+    maxToolIterations: 10,
+    toolTimeout: 30000,
+    isDefault: false,
+};
+
+function CapabilityBadge({ icon: Icon, label, active }: { icon: typeof Image; label: string; active: boolean }) {
+    return (
+        <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
+            style={{
+                background: active ? 'rgba(34,197,94,0.15)' : 'rgba(156,163,175,0.1)',
+                color: active ? '#22c55e' : '#6b7280',
+            }}
+        >
+            <Icon size={11} />
+            {label}
+        </span>
+    );
 }
 
 export function AgentsPage() {
-    const [channelTypes, setChannelTypes] = useState<ChannelTypeInfo[]>([]);
-    const [channels, setChannels] = useState<ChannelConnection[]>([]);
+    const [configs, setConfigs] = useState<AgentConfigData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // Modal states
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [selectedType, setSelectedType] = useState<ChannelTypeInfo | null>(null);
-    const [addForm, setAddForm] = useState<{ name: string; config: Record<string, string> }>({ name: '', config: {} });
-    const [adding, setAdding] = useState(false);
+    // Modal
+    const [showModal, setShowModal] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [form, setForm] = useState<FormData>({ ...DEFAULT_FORM });
+    const [saving, setSaving] = useState(false);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
 
-    // Sessions / Chat history
-    const [tab, setTab] = useState<'channels' | 'history'>('channels');
-    const [sessions, setSessions] = useState<SessionInfo[]>([]);
-    const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
-    const [messages, setMessages] = useState<MessageInfo[]>([]);
-    const [loadingSessions, setLoadingSessions] = useState(false);
-    const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
-
-    useEffect(() => {
-        loadData();
-    }, []);
+    useEffect(() => { loadData(); }, []);
 
     async function loadData() {
         setLoading(true);
         try {
-            const [typesRes, channelsRes] = await Promise.all([
-                getChannelTypes(),
-                getChannels(),
-            ]);
-            setChannelTypes(typesRes.types || []);
-            setChannels(channelsRes.channels || []);
+            const res = await getAgentConfigs();
+            setConfigs(res.configs || []);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load data');
+            setError(err instanceof Error ? err.message : 'Failed to load agent configs');
         } finally {
             setLoading(false);
         }
     }
 
-    async function loadSessions() {
-        setLoadingSessions(true);
-        try {
-            const res = await getAgentSessions();
-            setSessions(res.sessions || []);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load sessions');
-        } finally {
-            setLoadingSessions(false);
-        }
+    function openCreate() {
+        setEditingId(null);
+        setForm({ ...DEFAULT_FORM });
+        setAdvancedOpen(false);
+        setShowModal(true);
     }
 
-    async function loadMessages(session: SessionInfo) {
-        setSelectedSession(session);
-        try {
-            const res = await getSessionMessages(session._id);
-            setMessages(res.messages || []);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load messages');
-        }
+    function openEdit(config: AgentConfigData) {
+        setEditingId(config._id);
+        const caps = config.llmConfig.capabilities || MODEL_CAPABILITIES[config.llmConfig.model] || {};
+        setForm({
+            name: config.name,
+            persona: config.persona,
+            systemPrompt: config.systemPrompt,
+            provider: config.llmConfig.provider || 'openai',
+            model: config.llmConfig.model || 'gpt-4o',
+            customModel: '',
+            temperature: config.llmConfig.temperature ?? 0.7,
+            maxTokens: config.llmConfig.maxTokens ?? 4096,
+            capabilities: {
+                vision: caps.vision ?? false,
+                audio: caps.audio ?? false,
+                streaming: caps.streaming ?? true,
+                functionCalling: caps.functionCalling ?? true,
+            },
+            memoryEnabled: config.memoryConfig?.enabled ?? true,
+            memoryMaxEntries: config.memoryConfig?.maxEntries ?? 100,
+            requireApprovalForShell: config.securityConfig?.requireApprovalForShell ?? true,
+            requireApprovalForNetwork: config.securityConfig?.requireApprovalForNetwork ?? false,
+            maxToolIterations: config.maxToolIterations ?? 10,
+            toolTimeout: config.toolTimeout ?? 30000,
+            isDefault: config.isDefault,
+        });
+        setAdvancedOpen(false);
+        setShowModal(true);
     }
 
-    function openAddModal(type: ChannelTypeInfo) {
-        setSelectedType(type);
-        setAddForm({ name: `My ${type.name} Bot`, config: {} });
-        setShowAddModal(true);
-    }
-
-    async function handleAdd() {
-        if (!selectedType) return;
-        setAdding(true);
+    async function handleSave() {
+        if (!form.name.trim()) { setError('Name is required'); return; }
+        setSaving(true);
         setError('');
         try {
-            await createChannel({
-                channelType: selectedType.id,
-                name: addForm.name,
-                config: addForm.config,
-            });
-            setSuccess(`${selectedType.name} channel created!`);
-            setShowAddModal(false);
+            const payload = {
+                name: form.name.trim(),
+                persona: form.persona,
+                systemPrompt: form.systemPrompt,
+                llmConfig: {
+                    provider: form.provider,
+                    model: form.provider === 'custom' ? form.customModel : form.model,
+                    temperature: form.temperature,
+                    maxTokens: form.maxTokens,
+                    capabilities: form.capabilities,
+                },
+                memoryConfig: { enabled: form.memoryEnabled, maxEntries: form.memoryMaxEntries },
+                securityConfig: { requireApprovalForShell: form.requireApprovalForShell, requireApprovalForNetwork: form.requireApprovalForNetwork },
+                maxToolIterations: form.maxToolIterations,
+                toolTimeout: form.toolTimeout,
+                isDefault: form.isDefault,
+            };
+
+            if (editingId) {
+                await updateAgentConfig(editingId, payload);
+                setSuccess('Agent updated');
+            } else {
+                await createAgentConfig(payload);
+                setSuccess('Agent created');
+            }
+            setShowModal(false);
             await loadData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to create channel');
+            setError(err instanceof Error ? err.message : 'Failed to save');
         } finally {
-            setAdding(false);
+            setSaving(false);
         }
     }
 
     async function handleDelete(id: string) {
-        if (!confirm('Delete this channel connection?')) return;
+        if (!confirm('Delete this agent configuration?')) return;
         try {
-            await deleteChannel(id);
-            setSuccess('Channel deleted');
+            await deleteAgentConfig(id);
+            setSuccess('Agent deleted');
             await loadData();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete');
         }
     }
 
-    async function handleTest(id: string) {
-        setError('');
-        setSuccess('');
+    async function handleSetDefault(id: string) {
         try {
-            const res = await testChannel(id);
-            if (res.ok) {
-                setSuccess(res.message || 'Connection verified!');
-            } else {
-                setError(res.message || 'Test failed');
-            }
+            await updateAgentConfig(id, { isDefault: true });
+            setSuccess('Default agent updated');
             await loadData();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Test failed');
+            setError(err instanceof Error ? err.message : 'Failed');
         }
     }
 
-    async function handleActivate(id: string) {
-        try {
-            const res = await activateChannel(id);
-            setSuccess(res.message || 'Channel activated!');
-            await loadData();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Activation failed');
-        }
+    function onProviderChange(provider: string) {
+        const p = PROVIDERS.find((pr) => pr.id === provider);
+        const model = p?.models[0] || '';
+        const caps = MODEL_CAPABILITIES[model] || {};
+        setForm({
+            ...form,
+            provider,
+            model,
+            capabilities: {
+                vision: caps.vision ?? false,
+                audio: caps.audio ?? false,
+                streaming: caps.streaming ?? true,
+                functionCalling: caps.functionCalling ?? false,
+            },
+        });
     }
 
-    async function handleDeactivate(id: string) {
-        try {
-            await deactivateChannel(id);
-            setSuccess('Channel deactivated');
-            await loadData();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Deactivation failed');
-        }
+    function onModelChange(model: string) {
+        const caps = MODEL_CAPABILITIES[model] || {};
+        setForm({
+            ...form,
+            model,
+            capabilities: {
+                vision: caps.vision ?? false,
+                audio: caps.audio ?? false,
+                streaming: caps.streaming ?? true,
+                functionCalling: caps.functionCalling ?? false,
+            },
+        });
     }
 
-    function getTypeInfo(typeId: string) {
-        return channelTypes.find((t) => t.id === typeId);
-    }
-
-    const statusColor = (status: string) => {
-        switch (status) {
-            case 'active': return { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' };
-            case 'error': return { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' };
-            default: return { bg: 'rgba(156,163,175,0.15)', color: '#9ca3af' };
-        }
-    };
+    const currentProvider = PROVIDERS.find((p) => p.id === form.provider);
 
     return (
         <div className="h-full overflow-y-auto p-6">
@@ -204,20 +282,29 @@ export function AgentsPage() {
                     <div>
                         <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--color-fg)' }}>
                             <Bot size={28} style={{ color: 'var(--color-primary)' }} />
-                            Agents
+                            AI Agents
                         </h1>
                         <p className="text-sm mt-1" style={{ color: 'var(--color-fg-muted)' }}>
-                            Manage your AI agent channel connections — Telegram, Discord, Facebook, and more
+                            Create and manage AI agent configurations — persona, model, memory, and capabilities
                         </p>
                     </div>
-                    <button
-                        onClick={loadData}
-                        className="p-2 rounded-lg transition-colors cursor-pointer"
-                        style={{ color: 'var(--color-fg-muted)' }}
-                        title="Refresh"
-                    >
-                        <RefreshCw size={18} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={loadData}
+                            className="p-2 rounded-lg transition-colors cursor-pointer"
+                            style={{ color: 'var(--color-fg-muted)' }}
+                            title="Refresh"
+                        >
+                            <RefreshCw size={18} />
+                        </button>
+                        <button
+                            onClick={openCreate}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer"
+                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                        >
+                            <Plus size={16} /> New Agent
+                        </button>
+                    </div>
                 </div>
 
                 {/* Alerts */}
@@ -234,336 +321,420 @@ export function AgentsPage() {
                     </div>
                 )}
 
-                {/* Tabs */}
-                <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ background: 'var(--color-bg-soft)' }}>
-                    <button
-                        onClick={() => setTab('channels')}
-                        className="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer"
-                        style={{
-                            background: tab === 'channels' ? 'var(--color-bg-surface)' : 'transparent',
-                            color: tab === 'channels' ? 'var(--color-fg)' : 'var(--color-fg-muted)',
-                        }}
-                    >
-                        <Send size={14} className="inline mr-2" />
-                        Channels
-                    </button>
-                    <button
-                        onClick={() => { setTab('history'); loadSessions(); }}
-                        className="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer"
-                        style={{
-                            background: tab === 'history' ? 'var(--color-bg-surface)' : 'transparent',
-                            color: tab === 'history' ? 'var(--color-fg)' : 'var(--color-fg-muted)',
-                        }}
-                    >
-                        <MessageSquare size={14} className="inline mr-2" />
-                        Chat History
-                    </button>
-                </div>
-
                 {loading ? (
                     <div className="flex items-center justify-center py-20">
                         <div className="animate-spin w-6 h-6 border-2 border-t-transparent rounded-full" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
                     </div>
-                ) : tab === 'channels' ? (
-                    <>
-                        {/* Connected Channels */}
-                        {channels.length > 0 && (
-                            <div className="mb-8">
-                                <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-fg)' }}>
-                                    Connected Channels ({channels.length})
-                                </h2>
-                                <div className="grid gap-4">
-                                    {channels.map((ch) => {
-                                        const typeInfo = getTypeInfo(ch.channelType);
-                                        const sc = statusColor(ch.status);
-                                        return (
-                                            <div
-                                                key={ch._id}
-                                                className="rounded-xl p-5 border"
-                                                style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}
-                                            >
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-2xl">{typeInfo?.icon || '🔌'}</span>
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <h3 className="font-semibold" style={{ color: 'var(--color-fg)' }}>{ch.name}</h3>
-                                                                <span
-                                                                    className="text-[11px] px-2 py-0.5 rounded-full font-medium"
-                                                                    style={{ background: sc.bg, color: sc.color }}
-                                                                >
-                                                                    {ch.status}
-                                                                </span>
-                                                            </div>
-                                                            <p className="text-xs mt-0.5" style={{ color: 'var(--color-fg-muted)' }}>
-                                                                {typeInfo?.name} • Created {new Date(ch.createdAt).toLocaleDateString()}
-                                                                {ch.metadata?.botUsername && ` • @${ch.metadata.botUsername}`}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <button
-                                                            onClick={() => handleTest(ch._id)}
-                                                            className="p-2 rounded-lg transition-colors cursor-pointer"
-                                                            style={{ color: 'var(--color-fg-muted)' }}
-                                                            title="Test Connection"
-                                                        >
-                                                            <TestTube size={16} />
-                                                        </button>
-                                                        {ch.status === 'active' ? (
-                                                            <button
-                                                                onClick={() => handleDeactivate(ch._id)}
-                                                                className="p-2 rounded-lg transition-colors cursor-pointer"
-                                                                style={{ color: '#ef4444' }}
-                                                                title="Deactivate"
-                                                            >
-                                                                <PowerOff size={16} />
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => handleActivate(ch._id)}
-                                                                className="p-2 rounded-lg transition-colors cursor-pointer"
-                                                                style={{ color: '#22c55e' }}
-                                                                title="Activate"
-                                                            >
-                                                                <Power size={16} />
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => handleDelete(ch._id)}
-                                                            className="p-2 rounded-lg transition-colors cursor-pointer"
-                                                            style={{ color: '#ef4444' }}
-                                                            title="Delete"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Add New Channel */}
-                        <div>
-                            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--color-fg)' }}>
-                                <Plus size={18} className="inline mr-1" />
-                                Add Channel
-                            </h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {channelTypes.map((type) => (
-                                    <button
-                                        key={type.id}
-                                        onClick={() => openAddModal(type)}
-                                        className="text-left rounded-xl p-5 border transition-all cursor-pointer hover:scale-[1.02]"
-                                        style={{
-                                            background: 'var(--color-bg-surface)',
-                                            borderColor: 'var(--color-border)',
-                                        }}
-                                    >
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className="text-2xl">{type.icon}</span>
-                                            <h3 className="font-semibold" style={{ color: 'var(--color-fg)' }}>{type.name}</h3>
-                                        </div>
-                                        <p className="text-xs" style={{ color: 'var(--color-fg-muted)' }}>{type.description}</p>
-                                        <div className="flex items-center gap-1 mt-3 text-xs" style={{ color: 'var(--color-primary)' }}>
-                                            Connect <ChevronRight size={12} />
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </>
+                ) : configs.length === 0 ? (
+                    <div className="text-center py-20">
+                        <Bot size={48} className="mx-auto mb-4" style={{ color: 'var(--color-fg-muted)', opacity: 0.4 }} />
+                        <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--color-fg)' }}>No agents yet</h3>
+                        <p className="text-sm mb-4" style={{ color: 'var(--color-fg-muted)' }}>
+                            Create your first AI agent to get started
+                        </p>
+                        <button
+                            onClick={openCreate}
+                            className="px-4 py-2 rounded-lg text-sm font-medium cursor-pointer"
+                            style={{ background: 'var(--color-primary)', color: '#fff' }}
+                        >
+                            <Plus size={14} className="inline mr-1" /> Create Agent
+                        </button>
+                    </div>
                 ) : (
-                    /* Chat History Tab */
-                    <div className="flex gap-4" style={{ height: 'calc(100vh - 280px)' }}>
-                        {/* Session list */}
-                        <div
-                            className="w-80 shrink-0 rounded-xl border overflow-y-auto"
-                            style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}
-                        >
-                            <div className="p-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
-                                <h3 className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>Sessions</h3>
-                            </div>
-                            {loadingSessions ? (
-                                <div className="flex items-center justify-center py-10">
-                                    <div className="animate-spin w-5 h-5 border-2 border-t-transparent rounded-full" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
-                                </div>
-                            ) : sessions.length === 0 ? (
-                                <p className="text-xs text-center py-10" style={{ color: 'var(--color-fg-muted)' }}>No sessions yet</p>
-                            ) : (
-                                <div className="p-1">
-                                    {sessions.map((s) => (
-                                        <button
-                                            key={s._id}
-                                            onClick={() => loadMessages(s)}
-                                            className="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors cursor-pointer mb-0.5"
-                                            style={{
-                                                background: selectedSession?._id === s._id ? 'var(--color-primary-soft)' : 'transparent',
-                                                color: selectedSession?._id === s._id ? 'var(--color-primary-light)' : 'var(--color-fg-muted)',
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs">
-                                                    {s.platform === 'telegram' ? '✈️' : s.platform === 'discord' ? '🎮' : '💬'}
-                                                </span>
-                                                <span className="truncate flex-1 font-medium text-xs">{s.title || s._id}</span>
+                    <div className="grid gap-4">
+                        {configs.map((config) => {
+                            const caps = config.llmConfig.capabilities || MODEL_CAPABILITIES[config.llmConfig.model] || {};
+                            return (
+                                <div
+                                    key={config._id}
+                                    className="rounded-xl p-5 border"
+                                    style={{ background: 'var(--color-bg-surface)', borderColor: config.isDefault ? 'var(--color-primary)' : 'var(--color-border)' }}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="font-semibold text-lg" style={{ color: 'var(--color-fg)' }}>{config.name}</h3>
+                                                {config.isDefault && (
+                                                    <span className="text-[11px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1"
+                                                        style={{ background: 'rgba(251,191,36,0.15)', color: '#f59e0b' }}>
+                                                        <Star size={10} /> Default
+                                                    </span>
+                                                )}
                                             </div>
-                                            <p className="text-[10px] mt-0.5 opacity-60">
-                                                {s.platform} • {new Date(s.updatedAt).toLocaleString()}
-                                            </p>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Messages */}
-                        <div
-                            className="flex-1 rounded-xl border overflow-y-auto"
-                            style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}
-                        >
-                            {selectedSession ? (
-                                <>
-                                    <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
-                                        <div>
-                                            <h3 className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>
-                                                {selectedSession.title || selectedSession._id}
-                                            </h3>
-                                            <p className="text-[10px]" style={{ color: 'var(--color-fg-muted)' }}>
-                                                {selectedSession.platform} • {messages.length} messages
-                                            </p>
+                                            {config.persona && (
+                                                <p className="text-xs mb-2 truncate" style={{ color: 'var(--color-fg-muted)' }}>
+                                                    {config.persona}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                                                    style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary-light)' }}>
+                                                    {config.llmConfig.provider}/{config.llmConfig.model}
+                                                </span>
+                                                <span className="text-[10px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                                    temp: {config.llmConfig.temperature ?? 0.7}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                <CapabilityBadge icon={Image} label="Vision" active={!!caps.vision} />
+                                                <CapabilityBadge icon={Mic} label="Audio" active={!!caps.audio} />
+                                                <CapabilityBadge icon={Zap} label="Streaming" active={!!caps.streaming} />
+                                                <CapabilityBadge icon={BrainCircuit} label="Tools" active={!!caps.functionCalling} />
+                                                {config.memoryConfig?.enabled && (
+                                                    <span className="text-[11px] px-2 py-0.5 rounded-full"
+                                                        style={{ background: 'rgba(139,92,246,0.12)', color: '#8b5cf6' }}>
+                                                        Memory ({config.memoryConfig.maxEntries})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 ml-3">
+                                            {!config.isDefault && (
+                                                <button
+                                                    onClick={() => handleSetDefault(config._id)}
+                                                    className="p-2 rounded-lg transition-colors cursor-pointer"
+                                                    style={{ color: 'var(--color-fg-muted)' }}
+                                                    title="Set as default"
+                                                >
+                                                    <Star size={16} />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => openEdit(config)}
+                                                className="p-2 rounded-lg transition-colors cursor-pointer"
+                                                style={{ color: 'var(--color-fg-muted)' }}
+                                                title="Edit"
+                                            >
+                                                <Edit3 size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(config._id)}
+                                                className="p-2 rounded-lg transition-colors cursor-pointer"
+                                                style={{ color: '#ef4444' }}
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="p-4 space-y-3">
-                                        {messages.map((msg) => (
-                                            <div
-                                                key={msg._id}
-                                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                            >
-                                                <div
-                                                    className="max-w-[75%] rounded-xl px-4 py-2.5 text-sm"
-                                                    style={{
-                                                        background: msg.role === 'user' ? 'var(--color-primary)' : 'var(--color-bg-soft)',
-                                                        color: msg.role === 'user' ? '#fff' : 'var(--color-fg)',
-                                                    }}
-                                                >
-                                                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                                                    <p className="text-[10px] mt-1 opacity-50">
-                                                        {new Date(msg.createdAt).toLocaleTimeString()}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {messages.length === 0 && (
-                                            <p className="text-center text-xs py-10" style={{ color: 'var(--color-fg-muted)' }}>No messages</p>
-                                        )}
+                                    <div className="flex items-center gap-4 mt-3 pt-3 border-t text-[10px]" style={{ borderColor: 'var(--color-border)', color: 'var(--color-fg-muted)' }}>
+                                        <span>Created {new Date(config.createdAt).toLocaleDateString()}</span>
+                                        <span>Updated {new Date(config.updatedAt).toLocaleDateString()}</span>
+                                        {config.enabledSkills.length > 0 && <span>{config.enabledSkills.length} skills</span>}
                                     </div>
-                                </>
-                            ) : (
-                                <div className="flex items-center justify-center h-full">
-                                    <p className="text-sm" style={{ color: 'var(--color-fg-muted)' }}>Select a session to view chat history</p>
                                 </div>
-                            )}
-                        </div>
+                            );
+                        })}
                     </div>
                 )}
 
-                {/* Add Channel Modal */}
-                {showAddModal && selectedType && (
+                {/* Create/Edit Modal */}
+                {showModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
                         <div
-                            className="rounded-2xl p-6 w-full max-w-md mx-4"
+                            className="rounded-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
                             style={{ background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)' }}
                         >
-                            <div className="flex items-center justify-between mb-5">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xl">{selectedType.icon}</span>
-                                    <h2 className="text-lg font-bold" style={{ color: 'var(--color-fg)' }}>
-                                        Connect {selectedType.name}
-                                    </h2>
-                                </div>
-                                <button onClick={() => setShowAddModal(false)} className="cursor-pointer" style={{ color: 'var(--color-fg-muted)' }}>
+                            <div className="sticky top-0 z-10 flex items-center justify-between p-6 pb-4 border-b"
+                                style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
+                                <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--color-fg)' }}>
+                                    <Bot size={20} style={{ color: 'var(--color-primary)' }} />
+                                    {editingId ? 'Edit Agent' : 'New Agent'}
+                                </h2>
+                                <button onClick={() => setShowModal(false)} className="cursor-pointer" style={{ color: 'var(--color-fg-muted)' }}>
                                     <X size={18} />
                                 </button>
                             </div>
 
-                            {/* Setup guide */}
-                            <div className="mb-4 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary-light)' }}>
-                                💡 {selectedType.setupGuide}
-                            </div>
-
-                            <div className="space-y-4">
-                                {/* Channel name */}
+                            <div className="p-6 space-y-5">
+                                {/* Name */}
                                 <div>
-                                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>Channel Name</label>
+                                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>
+                                        Name <span style={{ color: '#ef4444' }}>*</span>
+                                    </label>
                                     <input
                                         type="text"
-                                        value={addForm.name}
-                                        onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                                        value={form.name}
+                                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                        placeholder="e.g. Customer Support Agent"
                                         className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
-                                        style={{
-                                            background: 'var(--color-bg)',
-                                            borderColor: 'var(--color-border)',
-                                            color: 'var(--color-fg)',
-                                        }}
+                                        style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
                                     />
                                 </div>
 
-                                {/* Config fields */}
-                                {selectedType.configFields.map((field) => (
-                                    <div key={field.key}>
-                                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>
-                                            {field.label} {field.required && <span style={{ color: '#ef4444' }}>*</span>}
-                                        </label>
-                                        <div className="relative">
-                                            <input
-                                                type={field.type === 'password' && !showPasswords[field.key] ? 'password' : 'text'}
-                                                value={addForm.config[field.key] || ''}
-                                                onChange={(e) => setAddForm({
-                                                    ...addForm,
-                                                    config: { ...addForm.config, [field.key]: e.target.value },
-                                                })}
-                                                placeholder={field.placeholder}
-                                                className="w-full px-3 py-2 rounded-lg text-sm border outline-none pr-9"
-                                                style={{
-                                                    background: 'var(--color-bg)',
-                                                    borderColor: 'var(--color-border)',
-                                                    color: 'var(--color-fg)',
-                                                }}
-                                            />
-                                            {field.type === 'password' && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowPasswords(prev => ({ ...prev, [field.key]: !prev[field.key] }))}
-                                                    className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
-                                                    style={{ color: 'var(--color-fg-muted)' }}
+                                {/* Persona */}
+                                <div>
+                                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>Persona</label>
+                                    <input
+                                        type="text"
+                                        value={form.persona}
+                                        onChange={(e) => setForm({ ...form, persona: e.target.value })}
+                                        placeholder="e.g. Friendly and helpful assistant"
+                                        className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                        style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                    />
+                                </div>
+
+                                {/* System Prompt */}
+                                <div>
+                                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>System Prompt</label>
+                                    <textarea
+                                        value={form.systemPrompt}
+                                        onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
+                                        placeholder="Instructions for the agent..."
+                                        rows={4}
+                                        className="w-full px-3 py-2 rounded-lg text-sm border outline-none resize-y"
+                                        style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                    />
+                                </div>
+
+                                {/* LLM Config */}
+                                <div className="rounded-xl p-4 border" style={{ borderColor: 'var(--color-border)' }}>
+                                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: 'var(--color-fg)' }}>
+                                        <BrainCircuit size={16} style={{ color: 'var(--color-primary)' }} />
+                                        Model Configuration
+                                    </h3>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {/* Provider */}
+                                        <div>
+                                            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>Provider</label>
+                                            <select
+                                                value={form.provider}
+                                                onChange={(e) => onProviderChange(e.target.value)}
+                                                className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                                style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                            >
+                                                {PROVIDERS.map((p) => (
+                                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Model */}
+                                        <div>
+                                            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>Model</label>
+                                            {form.provider === 'custom' ? (
+                                                <input
+                                                    type="text"
+                                                    value={form.customModel}
+                                                    onChange={(e) => setForm({ ...form, customModel: e.target.value })}
+                                                    placeholder="model-name"
+                                                    className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                                    style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                                />
+                                            ) : (
+                                                <select
+                                                    value={form.model}
+                                                    onChange={(e) => onModelChange(e.target.value)}
+                                                    className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                                    style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
                                                 >
-                                                    {showPasswords[field.key] ? <EyeOff size={14} /> : <Eye size={14} />}
-                                                </button>
+                                                    {currentProvider?.models.map((m) => (
+                                                        <option key={m} value={m}>{m}</option>
+                                                    ))}
+                                                </select>
                                             )}
                                         </div>
+
+                                        {/* Temperature */}
+                                        <div>
+                                            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>
+                                                Temperature: {form.temperature}
+                                            </label>
+                                            <input
+                                                type="range"
+                                                min="0" max="2" step="0.1"
+                                                value={form.temperature}
+                                                onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })}
+                                                className="w-full"
+                                            />
+                                        </div>
+
+                                        {/* Max Tokens */}
+                                        <div>
+                                            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>Max Tokens</label>
+                                            <input
+                                                type="number"
+                                                value={form.maxTokens}
+                                                onChange={(e) => setForm({ ...form, maxTokens: parseInt(e.target.value) || 4096 })}
+                                                className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                                style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                            />
+                                        </div>
                                     </div>
-                                ))}
+
+                                    {/* Capabilities badges */}
+                                    <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                                        <label className="block text-xs font-medium mb-2" style={{ color: 'var(--color-fg-muted)' }}>Model Capabilities</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setForm({ ...form, capabilities: { ...form.capabilities, vision: !form.capabilities.vision } })}
+                                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium cursor-pointer border transition-colors"
+                                                style={{
+                                                    background: form.capabilities.vision ? 'rgba(34,197,94,0.15)' : 'transparent',
+                                                    borderColor: form.capabilities.vision ? '#22c55e' : 'var(--color-border)',
+                                                    color: form.capabilities.vision ? '#22c55e' : 'var(--color-fg-muted)',
+                                                }}
+                                            >
+                                                <Image size={12} /> Vision
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setForm({ ...form, capabilities: { ...form.capabilities, audio: !form.capabilities.audio } })}
+                                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium cursor-pointer border transition-colors"
+                                                style={{
+                                                    background: form.capabilities.audio ? 'rgba(34,197,94,0.15)' : 'transparent',
+                                                    borderColor: form.capabilities.audio ? '#22c55e' : 'var(--color-border)',
+                                                    color: form.capabilities.audio ? '#22c55e' : 'var(--color-fg-muted)',
+                                                }}
+                                            >
+                                                <Mic size={12} /> Audio
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setForm({ ...form, capabilities: { ...form.capabilities, streaming: !form.capabilities.streaming } })}
+                                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium cursor-pointer border transition-colors"
+                                                style={{
+                                                    background: form.capabilities.streaming ? 'rgba(34,197,94,0.15)' : 'transparent',
+                                                    borderColor: form.capabilities.streaming ? '#22c55e' : 'var(--color-border)',
+                                                    color: form.capabilities.streaming ? '#22c55e' : 'var(--color-fg-muted)',
+                                                }}
+                                            >
+                                                <Zap size={12} /> Streaming
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setForm({ ...form, capabilities: { ...form.capabilities, functionCalling: !form.capabilities.functionCalling } })}
+                                                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium cursor-pointer border transition-colors"
+                                                style={{
+                                                    background: form.capabilities.functionCalling ? 'rgba(34,197,94,0.15)' : 'transparent',
+                                                    borderColor: form.capabilities.functionCalling ? '#22c55e' : 'var(--color-border)',
+                                                    color: form.capabilities.functionCalling ? '#22c55e' : 'var(--color-fg-muted)',
+                                                }}
+                                            >
+                                                <BrainCircuit size={12} /> Function Calling
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Memory & Security */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="rounded-xl p-4 border" style={{ borderColor: 'var(--color-border)' }}>
+                                        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-fg)' }}>Memory</h3>
+                                        <label className="flex items-center gap-2 text-xs cursor-pointer mb-2" style={{ color: 'var(--color-fg-muted)' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={form.memoryEnabled}
+                                                onChange={(e) => setForm({ ...form, memoryEnabled: e.target.checked })}
+                                                className="rounded"
+                                            />
+                                            Enable memory
+                                        </label>
+                                        {form.memoryEnabled && (
+                                            <div>
+                                                <label className="block text-[10px] mb-1" style={{ color: 'var(--color-fg-muted)' }}>Max entries</label>
+                                                <input
+                                                    type="number"
+                                                    value={form.memoryMaxEntries}
+                                                    onChange={(e) => setForm({ ...form, memoryMaxEntries: parseInt(e.target.value) || 100 })}
+                                                    className="w-full px-2 py-1 rounded-lg text-xs border outline-none"
+                                                    style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="rounded-xl p-4 border" style={{ borderColor: 'var(--color-border)' }}>
+                                        <h3 className="text-sm font-semibold mb-3 flex items-center gap-1" style={{ color: 'var(--color-fg)' }}>
+                                            <Shield size={14} /> Security
+                                        </h3>
+                                        <label className="flex items-center gap-2 text-xs cursor-pointer mb-2" style={{ color: 'var(--color-fg-muted)' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={form.requireApprovalForShell}
+                                                onChange={(e) => setForm({ ...form, requireApprovalForShell: e.target.checked })}
+                                                className="rounded"
+                                            />
+                                            Approve shell commands
+                                        </label>
+                                        <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--color-fg-muted)' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={form.requireApprovalForNetwork}
+                                                onChange={(e) => setForm({ ...form, requireApprovalForNetwork: e.target.checked })}
+                                                className="rounded"
+                                            />
+                                            Approve network access
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {/* Advanced */}
+                                <button
+                                    type="button"
+                                    onClick={() => setAdvancedOpen(!advancedOpen)}
+                                    className="flex items-center gap-1 text-xs font-medium cursor-pointer"
+                                    style={{ color: 'var(--color-fg-muted)' }}
+                                >
+                                    <ChevronDown size={14} style={{ transform: advancedOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+                                    Advanced Settings
+                                </button>
+                                {advancedOpen && (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>Max Tool Iterations</label>
+                                            <input
+                                                type="number"
+                                                value={form.maxToolIterations}
+                                                onChange={(e) => setForm({ ...form, maxToolIterations: parseInt(e.target.value) || 10 })}
+                                                className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                                style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>Tool Timeout (ms)</label>
+                                            <input
+                                                type="number"
+                                                value={form.toolTimeout}
+                                                onChange={(e) => setForm({ ...form, toolTimeout: parseInt(e.target.value) || 30000 })}
+                                                className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                                style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Default toggle */}
+                                <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--color-fg-muted)' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={form.isDefault}
+                                        onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
+                                        className="rounded"
+                                    />
+                                    <Star size={12} /> Set as default agent
+                                </label>
                             </div>
 
-                            <div className="flex gap-3 mt-6">
+                            <div className="sticky bottom-0 p-6 pt-4 border-t flex gap-3"
+                                style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}>
                                 <button
-                                    onClick={() => setShowAddModal(false)}
+                                    onClick={() => setShowModal(false)}
                                     className="flex-1 py-2 rounded-lg text-sm font-medium cursor-pointer border"
                                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-fg-muted)' }}
                                 >
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={handleAdd}
-                                    disabled={adding}
-                                    className="flex-1 py-2 rounded-lg text-sm font-medium cursor-pointer"
-                                    style={{ background: 'var(--color-primary)', color: '#fff', opacity: adding ? 0.7 : 1 }}
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className="flex-1 py-2 rounded-lg text-sm font-medium cursor-pointer flex items-center justify-center gap-2"
+                                    style={{ background: 'var(--color-primary)', color: '#fff', opacity: saving ? 0.7 : 1 }}
                                 >
-                                    {adding ? 'Connecting...' : 'Connect'}
+                                    <Save size={14} />
+                                    {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
                                 </button>
                             </div>
                         </div>

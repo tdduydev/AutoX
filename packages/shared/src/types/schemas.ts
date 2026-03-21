@@ -21,6 +21,7 @@ export const ChatRequestSchema = z.object({
   stream: z.boolean().optional().default(false),
   webSearch: z.boolean().optional().default(false),
   domainId: z.string().optional(),
+  agentConfigId: z.string().optional(),
 });
 
 export const ToolCallSchema = z.object({
