@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type FormEvent } from 'react';
 import {
-    Send, Loader2, PawPrint, User, Trash2, Paperclip, X, ChevronDown, Cpu,
+    Send, Loader2, User, Trash2, Paperclip, X, ChevronDown, Cpu,
     Globe, Sparkles, RotateCcw, Copy, Check, Hash, Clock, Bug, Search,
     ChevronRight, Zap, Database, ExternalLink, Timer, BookmarkPlus,
     ThumbsUp, ThumbsDown, MessageSquare, Plus, Edit3,
-    PanelLeftClose, PanelLeft,
+    PanelLeftClose, PanelLeft, Mic, StopCircle, Image, Volume2,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -15,6 +15,7 @@ import {
     getConversations, getConversation, deleteConversation, renameConversation, saveChatMessage,
     getAgentConfigs,
 } from '../lib/api';
+import { useVoice } from '../hooks/useVoice';
 
 interface ChatAttachment {
     id: string;
@@ -103,6 +104,34 @@ export function ChatPage() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
+
+    const { isRecording, isTranscribing, recordingDuration, startRecording, stopRecording, cancelRecording, speak, isSpeaking, stopSpeaking } = useVoice({
+        language: 'vi',
+        onTranscript: (text) => {
+            setInput((prev) => prev ? prev + ' ' + text : text);
+            inputRef.current?.focus();
+        },
+        onError: (err) => console.error('Voice error:', err),
+    });
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+        for (const file of Array.from(files)) {
+            if (!file.type.startsWith('image/')) continue;
+            const previewUrl = URL.createObjectURL(file);
+            setAttachments((prev) => [...prev, {
+                id: `img-${Date.now()}-${Math.random()}`,
+                name: file.name,
+                mimeType: file.type,
+                size: file.size,
+                file,
+                previewUrl,
+            }]);
+        }
+        e.target.value = '';
+    };
 
     // Persist sidebar state
     useEffect(() => {
@@ -253,6 +282,8 @@ export function ChatPage() {
         try {
             await setActiveModel(model);
             setActiveModelState(model);
+            // Manual model selection means no agent-specific override.
+            setActiveAgentConfigId(undefined);
         } catch { /* ignore */ }
         setShowModelPicker(false);
     };
@@ -428,7 +459,21 @@ export function ChatPage() {
         }
     };
 
+    const handleQuickReply = useCallback((text: string) => {
+        if (loading) return;
+        setInput(text);
+        // Auto-submit after setting input via a microtask
+        queueMicrotask(() => {
+            const form = document.querySelector('form[data-chat-form]') as HTMLFormElement | null;
+            form?.requestSubmit();
+        });
+    }, [loading]);
+
     const activeDomainInfo = domains.find((d) => d.id === activeDomain);
+    const activeAgentConfig = agentConfigs.find((a) => a._id === activeAgentConfigId);
+    const activeModelLabel = activeAgentConfig
+        ? `${activeAgentConfig.name} (Agent)`
+        : (activeModel || 'Model');
 
     // Group conversations by date
     const groupedConversations = useMemo(() => {
@@ -470,7 +515,7 @@ export function ChatPage() {
                         {/* Sidebar header */}
                         <div className="flex items-center justify-between px-3 h-12 shrink-0 border-b" style={{ borderColor: 'var(--color-border)' }}>
                             <div className="flex items-center gap-1.5">
-                                <PawPrint size={16} style={{ color: 'var(--color-primary)' }} />
+                                <img src="/logo.png" alt="xClaw" className="w-4 h-4" />
                                 <span className="text-xs font-semibold" style={{ color: 'var(--color-fg)' }}>Chats</span>
                             </div>
                             <div className="flex items-center gap-1">
@@ -632,7 +677,7 @@ export function ChatPage() {
                                 style={{ color: 'var(--color-fg)', background: 'transparent' }}
                             >
                                 {activeDomainInfo?.icon && <span>{activeDomainInfo.icon}</span>}
-                                <span>{activeModel || 'Model'}</span>
+                                <span>{activeModelLabel}</span>
                                 <ChevronDown size={14} style={{ color: 'var(--color-fg-muted)' }} />
                             </button>
                             {showModelPicker && (
@@ -674,21 +719,38 @@ export function ChatPage() {
                                                 <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-fg-muted)' }}>Agent</p>
                                             </div>
                                             <div className="py-1 max-h-44 overflow-y-auto">
+                                                <button
+                                                    onClick={() => { setActiveAgentConfigId(undefined); }}
+                                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer"
+                                                    style={{
+                                                        color: !activeAgentConfigId ? 'var(--color-primary-light)' : 'var(--color-fg)',
+                                                        background: !activeAgentConfigId ? 'var(--color-primary-soft)' : 'transparent',
+                                                    }}
+                                                >
+                                                    <img src="/logo.png" alt="xClaw" className="w-3 h-3" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xs font-medium truncate">Use global model (no agent override)</div>
+                                                        <div className="text-[10px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                                            Pick directly from Model section below
+                                                        </div>
+                                                    </div>
+                                                    {!activeAgentConfigId && <Check size={14} style={{ color: 'var(--color-primary)' }} />}
+                                                </button>
                                                 {agentConfigs.map((ac) => (
                                                     <button
                                                         key={ac._id}
-                                                        onClick={() => { setActiveAgentConfigId(ac._id); }}
+                                                        onClick={() => { setActiveAgentConfigId(ac._id); setShowModelPicker(false); }}
                                                         className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer"
                                                         style={{
                                                             color: ac._id === activeAgentConfigId ? 'var(--color-primary-light)' : 'var(--color-fg)',
                                                             background: ac._id === activeAgentConfigId ? 'var(--color-primary-soft)' : 'transparent',
                                                         }}
                                                     >
-                                                        <PawPrint size={12} />
+                                                        <img src="/logo.png" alt="xClaw" className="w-3 h-3" />
                                                         <div className="flex-1 min-w-0">
                                                             <div className="text-xs font-medium truncate">{ac.name}</div>
                                                             <div className="text-[10px]" style={{ color: 'var(--color-fg-muted)' }}>
-                                                                {ac.llmConfig?.provider || 'openai'} · {ac.llmConfig?.model || 'default'}
+                                                                {ac.llmConfig?.provider || 'ollama'} · {ac.llmConfig?.model || 'qwen2.5:14b'}
                                                             </div>
                                                         </div>
                                                         {ac._id === activeAgentConfigId && <Check size={14} style={{ color: 'var(--color-primary)' }} />}
@@ -704,28 +766,34 @@ export function ChatPage() {
                                             <div className="px-3 py-2 border-t border-b" style={{ borderColor: 'var(--color-border)' }}>
                                                 <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-fg-muted)' }}>Model</p>
                                             </div>
-                                            <div className="py-1 max-h-44 overflow-y-auto">
-                                                {models.map((m) => (
-                                                    <button
-                                                        key={m.name}
-                                                        onClick={() => { switchModel(m.name); setShowModelPicker(false); }}
-                                                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors cursor-pointer"
-                                                        style={{
-                                                            color: m.name === activeModel ? 'var(--color-primary-light)' : 'var(--color-fg)',
-                                                            background: m.name === activeModel ? 'var(--color-primary-soft)' : 'transparent',
-                                                        }}
-                                                    >
-                                                        <Cpu size={12} />
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="truncate font-medium">{m.name}</div>
-                                                            <div className="text-[10px]" style={{ color: 'var(--color-fg-muted)' }}>
-                                                                {m.parameterSize} · {m.family}
+                                            {activeAgentConfigId ? (
+                                                <div className="px-3 py-2 text-[11px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                                    Model is controlled by selected Agent. Switch to "Use global model" above to pick model manually.
+                                                </div>
+                                            ) : (
+                                                <div className="py-1 max-h-44 overflow-y-auto">
+                                                    {models.map((m) => (
+                                                        <button
+                                                            key={m.name}
+                                                            onClick={() => { switchModel(m.name); setShowModelPicker(false); }}
+                                                            className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors cursor-pointer"
+                                                            style={{
+                                                                color: m.name === activeModel ? 'var(--color-primary-light)' : 'var(--color-fg)',
+                                                                background: m.name === activeModel ? 'var(--color-primary-soft)' : 'transparent',
+                                                            }}
+                                                        >
+                                                            <Cpu size={12} />
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="truncate font-medium">{m.name}</div>
+                                                                <div className="text-[10px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                                                    {m.parameterSize} · {m.family}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                        {m.name === activeModel && <Check size={12} style={{ color: 'var(--color-primary)' }} />}
-                                                    </button>
-                                                ))}
-                                            </div>
+                                                            {m.name === activeModel && <Check size={12} style={{ color: 'var(--color-primary)' }} />}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </div>
@@ -776,8 +844,13 @@ export function ChatPage() {
                                     userQuestion={msg.role === 'assistant' && i > 0 ? messages[i - 1]?.content || '' : ''}
                                     onCopy={() => copyMessage(msg.id, msg.content)}
                                     onRegenerate={msg.role === 'assistant' && !msg.streaming ? () => regenerateMessage(i) : undefined}
+                                    onSpeak={msg.role === 'assistant' && !msg.streaming ? () => {
+                                        if (isSpeaking) { stopSpeaking(); } else { speak(msg.content); }
+                                    } : undefined}
+                                    isSpeaking={isSpeaking}
                                     copied={copiedId === msg.id}
                                     debugMode={debugMode}
+                                    onQuickReply={handleQuickReply}
                                 />
                             ))}
                         </div>
@@ -807,7 +880,7 @@ export function ChatPage() {
                             ))}
                         </div>
                     )}
-                    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto flex gap-2">
+                    <form onSubmit={handleSubmit} data-chat-form className="max-w-3xl mx-auto flex gap-2">
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -816,14 +889,32 @@ export function ChatPage() {
                             onChange={handleFileSelect}
                             accept="image/*,.pdf,.doc,.docx,.txt,.csv,.json,.md"
                         />
+                        <input
+                            ref={imageInputRef}
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={handleImageSelect}
+                            accept="image/*"
+                            capture="environment"
+                        />
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer shrink-0 self-end"
                             style={{ background: 'var(--color-bg)', color: 'var(--color-fg-muted)', border: '1px solid var(--color-border)' }}
-                            title="Attach file"
+                            title="Đính kèm file"
                         >
                             <Paperclip size={16} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => imageInputRef.current?.click()}
+                            className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer shrink-0 self-end"
+                            style={{ background: 'var(--color-bg)', color: 'var(--color-fg-muted)', border: '1px solid var(--color-border)' }}
+                            title="Gửi hình ảnh"
+                        >
+                            <Image size={16} />
                         </button>
                         <button
                             type="button"
@@ -860,6 +951,21 @@ export function ChatPage() {
                             />
                         </div>
                         <button
+                            type="button"
+                            onClick={isRecording ? stopRecording : startRecording}
+                            disabled={isTranscribing}
+                            className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer shrink-0 self-end"
+                            style={{
+                                background: isRecording ? 'rgba(239,68,68,0.15)' : 'var(--color-bg)',
+                                color: isRecording ? 'rgb(239,68,68)' : 'var(--color-fg-muted)',
+                                border: isRecording ? '1px solid rgba(239,68,68,0.4)' : '1px solid var(--color-border)',
+                                animation: isRecording ? 'pulse 1.5s infinite' : 'none',
+                            }}
+                            title={isRecording ? `Đang ghi... ${recordingDuration}s — nhấn để dừng` : 'Nhập giọng nói'}
+                        >
+                            {isTranscribing ? <Loader2 size={16} className="animate-spin" /> : isRecording ? <StopCircle size={16} /> : <Mic size={16} />}
+                        </button>
+                        <button
                             type="submit"
                             disabled={loading || !input.trim()}
                             className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40 self-end"
@@ -872,7 +978,8 @@ export function ChatPage() {
                         <p className="text-[10px] flex items-center gap-1.5" style={{ color: 'var(--color-fg-muted)', opacity: 0.5 }}>
                             RAG-enhanced · {activeModel || 'No model'} · {activeDomainInfo?.icon} {activeDomainInfo?.name || 'General'}
                             {webSearchEnabled && <span style={{ color: 'rgb(59,130,246)', opacity: 1 }}>· 🔍 Web</span>}
-                            {debugMode && <span style={{ color: 'var(--color-warning)', opacity: 1 }}>· 🐛 Debug</span>}
+                            {isRecording && <span style={{ color: 'rgb(239,68,68)', opacity: 1 }}>· 🎙️ Đang ghi ({recordingDuration}s)</span>}
+                            {isTranscribing && <span style={{ color: 'var(--color-warning)', opacity: 1 }}>· ⏳ Đang chuyển giọng nói...</span>}
                             {debugMode && <span style={{ color: 'var(--color-warning)', opacity: 1 }}>· 🐛 Debug</span>}
                         </p>
                         <p className="text-[10px]" style={{ color: 'var(--color-fg-muted)', opacity: 0.5 }}>
@@ -886,14 +993,17 @@ export function ChatPage() {
 }
 
 function ChatBubble({
-    message, userQuestion, onCopy, onRegenerate, copied, debugMode,
+    message, userQuestion, onCopy, onRegenerate, onSpeak, isSpeaking, copied, debugMode, onQuickReply,
 }: {
     message: Message;
     userQuestion: string;
     onCopy: () => void;
     onRegenerate?: () => void;
+    onSpeak?: () => void;
+    isSpeaking?: boolean;
     copied: boolean;
     debugMode: boolean;
+    onQuickReply?: (text: string) => void;
 }) {
     const isUser = message.role === 'user';
     const [debugOpen, setDebugOpen] = useState(false);
@@ -907,6 +1017,25 @@ function ChatBubble({
         message.debugInfo.hasRag || message.debugInfo.webResults?.length || message.debugInfo.timing || message.debugInfo.usage
     );
     const hasWebResults = !isUser && message.debugInfo?.webResults && message.debugInfo.webResults.length > 0;
+
+    // Parse interactive blocks from assistant messages (```interactive-blocks\n{...}\n```)
+    const { cleanContent, interactiveBlocks } = useMemo(() => {
+        if (isUser || !message.content) return { cleanContent: message.content, interactiveBlocks: [] as Array<{ type: string; title?: string; buttons: Array<{ label: string; value: string; icon?: string }> }> };
+        const blockRegex = /```interactive-blocks\s*\n([\s\S]*?)\n```/g;
+        let clean = message.content;
+        const blocks: Array<{ type: string; title?: string; buttons: Array<{ label: string; value: string; icon?: string }> }> = [];
+        let match: RegExpExecArray | null;
+        while ((match = blockRegex.exec(message.content)) !== null) {
+            try {
+                const parsed = JSON.parse(match[1]);
+                if (parsed.buttons && Array.isArray(parsed.buttons)) {
+                    blocks.push(parsed);
+                }
+            } catch { /* invalid JSON */ }
+            clean = clean.replace(match[0], '');
+        }
+        return { cleanContent: clean.trim(), interactiveBlocks: blocks };
+    }, [message.content, isUser]);
 
     const handleSaveToKB = async () => {
         if (!message.debugInfo?.webResults || saving || savedToKB) return;
@@ -925,10 +1054,10 @@ function ChatBubble({
         <div className={`flex gap-2.5 animate-fade-in group ${isUser ? 'justify-end' : ''}`}>
             {!isUser && (
                 <div
-                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 overflow-hidden"
                     style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15))', boxShadow: '0 2px 6px rgba(99,102,241,0.15)' }}
                 >
-                    <PawPrint size={14} style={{ color: 'var(--color-primary-light)' }} />
+                    <img src="/logo.png" alt="xClaw" className="w-5 h-5" />
                 </div>
             )}
             <div className="max-w-[80%] min-w-0">
@@ -968,10 +1097,40 @@ function ChatBubble({
                                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--color-fg-muted)', animation: 'pulse-dot 1.4s infinite 0.4s' }} />
                                 </div>
                             )}
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{message.content}</ReactMarkdown>
+                            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{cleanContent}</ReactMarkdown>
                         </div>
                     )}
                 </div>
+
+                {/* Interactive Quick Reply Blocks */}
+                {!isUser && interactiveBlocks.length > 0 && !message.streaming && (
+                    <div className="mt-2 space-y-2">
+                        {interactiveBlocks.map((block, bi) => (
+                            <div key={bi}>
+                                {block.title && (
+                                    <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--color-fg-muted)' }}>{block.title}</p>
+                                )}
+                                <div className="flex flex-wrap gap-1.5">
+                                    {block.buttons.map((btn, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => onQuickReply?.(btn.value)}
+                                            className="px-3 py-1.5 rounded-xl text-xs font-medium border transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                                            style={{
+                                                background: 'var(--color-bg)',
+                                                borderColor: 'var(--color-primary)',
+                                                color: 'var(--color-primary)',
+                                            }}
+                                        >
+                                            {btn.icon && <span className="mr-1">{btn.icon}</span>}
+                                            {btn.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Web Search Sources — always visible when present */}
                 {hasWebResults && !message.streaming && (
@@ -1166,6 +1325,16 @@ function ChatBubble({
                                 <RotateCcw size={12} />
                             </button>
                         )}
+                        {onSpeak && (
+                            <button
+                                onClick={onSpeak}
+                                className="p-1 rounded transition-colors cursor-pointer"
+                                style={{ color: isSpeaking ? 'var(--color-primary)' : 'var(--color-fg-muted)' }}
+                                title={isSpeaking ? 'Dừng đọc' : 'Đọc to'}
+                            >
+                                <Volume2 size={12} />
+                            </button>
+                        )}
                         <div className="w-px h-3 mx-0.5" style={{ background: 'var(--color-border)' }} />
                         <button
                             onClick={async () => {
@@ -1290,10 +1459,10 @@ function EmptyState({
 
             <div className="relative">
                 <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                    style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 6px 20px rgba(99,102,241,0.35)' }}
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 overflow-hidden"
+                    style={{ boxShadow: '0 6px 20px rgba(99,102,241,0.35)' }}
                 >
-                    <PawPrint size={28} color="#fff" />
+                    <img src="/logo.png" alt="xClaw" className="w-14 h-14" />
                 </div>
                 <h3 className="text-xl font-bold mb-1 text-center" style={{ color: 'var(--color-fg)' }}>xClaw AI Chat</h3>
                 <p className="text-xs text-center mb-8" style={{ color: 'var(--color-fg-muted)' }}>

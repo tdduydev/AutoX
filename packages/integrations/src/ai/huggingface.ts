@@ -1,6 +1,40 @@
 import { z } from 'zod';
 import { defineIntegration } from '../base/define-integration.js';
 
+const HF_INFERENCE = 'https://api-inference.huggingface.co';
+const HF_HUB = 'https://huggingface.co/api';
+
+async function hfInference(model: string, token: string, body: unknown): Promise<unknown> {
+  const res = await fetch(`${HF_INFERENCE}/models/${model}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`HuggingFace inference error ${res.status}: ${err}`);
+  }
+  return res.json();
+}
+
+async function hfHubGet(path: string, token: string, params: Record<string, string> = {}): Promise<unknown> {
+  const url = new URL(`${HF_HUB}${path}`);
+  for (const [k, v] of Object.entries(params)) if (v) url.searchParams.set(k, v);
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`HuggingFace Hub error ${res.status}: ${err}`);
+  }
+  return res.json();
+}
+
 export const huggingfaceIntegration = defineIntegration({
   id: 'huggingface',
   name: 'Hugging Face',
@@ -46,7 +80,16 @@ export const huggingfaceIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Hugging Face inference not implemented yet — requires HTTP integration' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'HuggingFace token not configured' };
+        try {
+          const payload: Record<string, unknown> = { inputs: args.inputs };
+          if (args.parameters) payload.parameters = args.parameters;
+          const data = await hfInference(args.model, token, payload);
+          return { success: true, data };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'HuggingFace inference failed' };
+        }
       },
     },
     {
@@ -61,7 +104,18 @@ export const huggingfaceIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Hugging Face list_models not implemented yet' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'HuggingFace token not configured' };
+        try {
+          const params: Record<string, string> = { sort: args.sort, limit: String(args.limit) };
+          if (args.search) params.search = args.search;
+          if (args.author) params.author = args.author;
+          if (args.filter) params.filter = args.filter;
+          const data = await hfHubGet('/models', token, params);
+          return { success: true, data };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'HuggingFace list_models failed' };
+        }
       },
     },
     {
@@ -76,7 +130,18 @@ export const huggingfaceIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Hugging Face list_datasets not implemented yet' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'HuggingFace token not configured' };
+        try {
+          const params: Record<string, string> = { sort: args.sort, limit: String(args.limit) };
+          if (args.search) params.search = args.search;
+          if (args.author) params.author = args.author;
+          if (args.filter) params.filter = args.filter;
+          const data = await hfHubGet('/datasets', token, params);
+          return { success: true, data };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'HuggingFace list_datasets failed' };
+        }
       },
     },
     {
@@ -87,7 +152,14 @@ export const huggingfaceIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Hugging Face get_model_info not implemented yet' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'HuggingFace token not configured' };
+        try {
+          const data = await hfHubGet(`/models/${args.model}`, token);
+          return { success: true, data };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'HuggingFace get_model_info failed' };
+        }
       },
     },
     {
@@ -99,7 +171,14 @@ export const huggingfaceIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Hugging Face text_embedding not implemented yet' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'HuggingFace token not configured' };
+        try {
+          const data = await hfInference(args.model, token, { inputs: args.inputs });
+          return { success: true, data };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'HuggingFace text_embedding failed' };
+        }
       },
     },
   ],

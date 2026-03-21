@@ -6,12 +6,19 @@ import type {
   ToolCall,
   ToolResult,
   StreamEvent,
+  ToolDefinition,
 } from '@xclaw-ai/shared';
 import { EventBus } from './event-bus.js';
 import { LLMRouter } from '../llm/llm-router.js';
 import { MemoryManager } from '../memory/memory-manager.js';
 import { ToolRegistry } from '../tools/tool-registry.js';
 import { Tracer } from '../tracing/tracer.js';
+
+/** In-request tool: a tool definition + its handler, passed directly to chat/chatStream */
+export interface AdditionalTool {
+  definition: ToolDefinition;
+  handler: (args: Record<string, unknown>) => Promise<unknown>;
+}
 
 export class Agent {
   readonly config: AgentConfig;
@@ -32,8 +39,9 @@ export class Agent {
 
   /**
    * Chat with the agent (non-streaming). Returns full response.
+   * Pass `additionalTools` to inject per-request tools (e.g. domain skill tools) without mutating shared state.
    */
-  async chat(sessionId: string, userMessage: string, ragContext?: string): Promise<string> {
+  async chat(sessionId: string, userMessage: string, ragContext?: string, images?: string[], additionalTools?: AdditionalTool[]): Promise<string> {
     const span = this.tracer.startSpan('agent:chat', 'agent');
 
     // Save user message to history
@@ -47,7 +55,13 @@ export class Agent {
 
     // Build messages
     await this.memory.loadHistory(sessionId, 20);
-    const messages = this.buildMessages(sessionId, userMessage, ragContext);
+    const messages = this.buildMessages(sessionId, userMessage, ragContext, images);
+
+    // Merge registered tools + per-request additional tools
+    const allToolDefs = [
+      ...this.tools.getDefinitions(),
+      ...(additionalTools?.map((t) => t.definition) ?? []),
+    ];
 
     // Tool-calling loop
     let response: LLMResponse;
@@ -55,7 +69,7 @@ export class Agent {
 
     while (iterations < this.config.maxToolIterations) {
       iterations++;
-      response = await this.llm.chat(messages, this.tools.getDefinitions());
+      response = await this.llm.chat(messages, allToolDefs);
 
       if (!response.toolCalls?.length) {
         // No tool calls — we have the final answer
@@ -78,8 +92,8 @@ export class Agent {
         return response.content;
       }
 
-      // Execute tool calls
-      const toolResults = await this.executeToolCalls(response.toolCalls);
+      // Execute tool calls (additional tools take priority over registry)
+      const toolResults = await this.executeToolCalls(response.toolCalls, additionalTools);
 
       // Add assistant message with tool calls + results to context
       messages.push({
@@ -104,8 +118,9 @@ export class Agent {
 
   /**
    * Stream chat response via async generator.
+   * Pass `additionalTools` to inject per-request tools (e.g. domain skill tools) without mutating shared state.
    */
-  async *chatStream(sessionId: string, userMessage: string, ragContext?: string): AsyncGenerator<StreamEvent> {
+  async *chatStream(sessionId: string, userMessage: string, ragContext?: string, images?: string[], additionalTools?: AdditionalTool[]): AsyncGenerator<StreamEvent> {
     const span = this.tracer.startSpan('agent:chatStream', 'agent');
 
     await this.memory.addMessage(sessionId, {
@@ -117,13 +132,18 @@ export class Agent {
     });
 
     await this.memory.loadHistory(sessionId, 20);
-    const messages = this.buildMessages(sessionId, userMessage, ragContext);
+    const messages = this.buildMessages(sessionId, userMessage, ragContext, images);
+
+    const allToolDefs = [
+      ...this.tools.getDefinitions(),
+      ...(additionalTools?.map((t) => t.definition) ?? []),
+    ];
     let iterations = 0;
 
     while (iterations < this.config.maxToolIterations) {
       iterations++;
 
-      const stream = this.llm.chatStream(messages, this.tools.getDefinitions());
+      const stream = this.llm.chatStream(messages, allToolDefs);
 
       let fullContent = '';
       const toolCalls: ToolCall[] = [];
@@ -162,7 +182,7 @@ export class Agent {
 
       // Execute tool calls if any
       if (toolCalls.length > 0) {
-        const results = await this.executeToolCalls(toolCalls);
+        const results = await this.executeToolCalls(toolCalls, additionalTools);
 
         for (const result of results) {
           yield { type: 'tool-result', toolCallId: result.toolCallId, result };
@@ -187,7 +207,7 @@ export class Agent {
     yield { type: 'error', error: 'Max tool iterations reached' };
   }
 
-  private buildMessages(sessionId: string, userMessage: string, ragContext?: string): LLMMessage[] {
+  private buildMessages(sessionId: string, userMessage: string, ragContext?: string, images?: string[]): LLMMessage[] {
     const messages: LLMMessage[] = [];
 
     // System prompt (augmented with RAG context if available)
@@ -202,9 +222,12 @@ export class Agent {
     // Conversation history (from cache)
     const history = this.memory.getHistorySync(sessionId);
     for (const msg of history) {
+      // The last user message in history is the current one — attach images to it
+      const isCurrentUserMsg = msg.role === 'user' && msg.content === userMessage && images?.length;
       messages.push({
         role: msg.role as LLMMessage['role'],
         content: msg.content,
+        ...(isCurrentUserMsg ? { images } : {}),
         toolCalls: msg.toolCalls,
       });
     }
@@ -212,7 +235,7 @@ export class Agent {
     return messages;
   }
 
-  private async executeToolCalls(toolCalls: ToolCall[]): Promise<ToolResult[]> {
+  private async executeToolCalls(toolCalls: ToolCall[], additionalTools?: AdditionalTool[]): Promise<ToolResult[]> {
     const results: ToolResult[] = [];
 
     for (const call of toolCalls) {
@@ -223,7 +246,20 @@ export class Agent {
         timestamp: new Date().toISOString(),
       });
 
-      const result = await this.tools.execute(call);
+      // Check additional (per-request) tools first, fall back to shared registry
+      const additionalTool = additionalTools?.find((t) => t.definition.name === call.name);
+      let result: ToolResult;
+      if (additionalTool) {
+        const start = Date.now();
+        try {
+          const res = await additionalTool.handler(call.arguments);
+          result = { toolCallId: call.id, success: true, result: res, duration: Date.now() - start };
+        } catch (err) {
+          result = { toolCallId: call.id, success: false, result: null, error: err instanceof Error ? err.message : String(err), duration: Date.now() - start };
+        }
+      } else {
+        result = await this.tools.execute(call);
+      }
       results.push(result);
 
       await this.events.emit({

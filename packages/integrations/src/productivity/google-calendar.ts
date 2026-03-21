@@ -1,6 +1,34 @@
 import { z } from 'zod';
 import { defineIntegration } from '../base/define-integration.js';
 
+const GCAL = 'https://www.googleapis.com/calendar/v3';
+
+async function gcalRequest(
+  method: string,
+  path: string,
+  accessToken: string,
+  body?: unknown,
+  params?: Record<string, string>
+): Promise<unknown> {
+  const url = new URL(`${GCAL}${path}`);
+  if (params) for (const [k, v] of Object.entries(params)) if (v) url.searchParams.set(k, v);
+  const res = await fetch(url.toString(), {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Google Calendar API error ${res.status}: ${err}`);
+  }
+  if (res.status === 204) return {};
+  return res.json();
+}
+
 export const googleCalendarIntegration = defineIntegration({
   id: 'google-calendar',
   name: 'Google Calendar',
@@ -35,7 +63,21 @@ export const googleCalendarIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Google Calendar list_events not implemented yet' };
+        const accessToken = ctx.credentials.access_token;
+        if (!accessToken) return { success: false, error: 'Google Calendar access token not configured' };
+        try {
+          const params: Record<string, string> = {
+            maxResults: String(args.maxResults),
+            singleEvents: 'true',
+            orderBy: 'startTime',
+          };
+          if (args.timeMin) params.timeMin = args.timeMin;
+          if (args.timeMax) params.timeMax = args.timeMax;
+          const data = await gcalRequest('GET', `/calendars/${encodeURIComponent(args.calendarId)}/events`, accessToken, undefined, params);
+          return { success: true, data };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Google Calendar list_events failed' };
+        }
       },
     },
     {
@@ -53,7 +95,22 @@ export const googleCalendarIntegration = defineIntegration({
       riskLevel: 'moderate',
       requiresApproval: true,
       execute: async (args, ctx) => {
-        return { success: false, error: 'Google Calendar create_event not implemented yet' };
+        const accessToken = ctx.credentials.access_token;
+        if (!accessToken) return { success: false, error: 'Google Calendar access token not configured' };
+        try {
+          const body: Record<string, unknown> = {
+            summary: args.summary,
+            start: { dateTime: args.start },
+            end: { dateTime: args.end },
+          };
+          if (args.description) body.description = args.description;
+          if (args.location) body.location = args.location;
+          if (args.attendees?.length) body.attendees = args.attendees.map((email: string) => ({ email }));
+          const data = await gcalRequest('POST', `/calendars/${encodeURIComponent(args.calendarId)}/events`, accessToken, body);
+          return { success: true, data };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Google Calendar create_event failed' };
+        }
       },
     },
     {
@@ -66,7 +123,14 @@ export const googleCalendarIntegration = defineIntegration({
       riskLevel: 'dangerous',
       requiresApproval: true,
       execute: async (args, ctx) => {
-        return { success: false, error: 'Google Calendar delete_event not implemented yet' };
+        const accessToken = ctx.credentials.access_token;
+        if (!accessToken) return { success: false, error: 'Google Calendar access token not configured' };
+        try {
+          await gcalRequest('DELETE', `/calendars/${encodeURIComponent(args.calendarId)}/events/${args.eventId}`, accessToken);
+          return { success: true, data: { deleted: true, eventId: args.eventId } };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Google Calendar delete_event failed' };
+        }
       },
     },
   ],
@@ -83,7 +147,36 @@ export const googleCalendarIntegration = defineIntegration({
       }),
       pollInterval: 60_000,
       poll: async (lastPollTime, credentials) => {
-        return [];
+        const accessToken = credentials.access_token;
+        if (!accessToken) return [];
+        try {
+          const now = new Date();
+          const lookAheadMs = 15 * 60 * 1000;
+          const params: Record<string, string> = {
+            maxResults: '10',
+            singleEvents: 'true',
+            orderBy: 'startTime',
+            timeMin: now.toISOString(),
+            timeMax: new Date(now.getTime() + lookAheadMs).toISOString(),
+          };
+          const data = await gcalRequest('GET', '/calendars/primary/events', accessToken, undefined, params) as Record<string, unknown>;
+          const items = (data.items as Array<Record<string, unknown>>) ?? [];
+          return items.map(event => ({
+            integrationId: 'google-calendar',
+            triggerName: 'event_starting_soon',
+            data: {
+              eventId: event.id as string,
+              summary: (event.summary as string) ?? '(No title)',
+              start: ((event.start as Record<string, string>)?.dateTime ?? (event.start as Record<string, string>)?.date) ?? '',
+              minutesUntilStart: Math.round(
+                (new Date(((event.start as Record<string, string>)?.dateTime ?? '') || now.toISOString()).getTime() - now.getTime()) / 60000
+              ),
+            },
+            timestamp: new Date(),
+          }));
+        } catch {
+          return [];
+        }
       },
     },
   ],

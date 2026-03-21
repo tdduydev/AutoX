@@ -73,7 +73,7 @@ export interface IntegrationAction {
   name: string;
   description: string;
   parameters: z.ZodSchema;
-  execute: (args: unknown, ctx: IntegrationContext) => Promise<ActionResult>;
+  execute: (args: Record<string, any>, ctx: IntegrationContext) => Promise<ActionResult>;
   riskLevel?: 'safe' | 'moderate' | 'dangerous';
   requiresApproval?: boolean;
 }

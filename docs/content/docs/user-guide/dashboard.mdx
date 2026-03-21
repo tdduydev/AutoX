@@ -1,0 +1,85 @@
+---
+title: Dashboard
+description: System overview, quick actions, and platform health monitoring
+---
+
+# Dashboard
+
+![Dashboard](/screenshots/03-dashboard.png)
+
+The Dashboard is the landing page after login. It gives you a real-time overview of your entire xClaw platform.
+
+---
+
+## System Status
+
+Four status cards at the top show key metrics:
+
+| Card | Description | Example |
+|------|-------------|---------|
+| **System Status** | Server health indicator | Online / Offline |
+| **Uptime** | Time since last restart | 0h 2m |
+| **Documents** | Total documents in Knowledge Base | 0 chunks indexed |
+| **KB Size** | Vector embeddings count | 0 vector embeddings |
+
+When the system is healthy, the status shows **Online** in green. If any service is down, it will display a red indicator.
+
+---
+
+## Quick Actions
+
+Six action cards provide one-click access to the most common tasks:
+
+### AI Chat
+Opens the conversational AI interface. Start new conversations, select domains, and interact with your agents.
+
+### Knowledge Base
+Navigate to the document management system. Upload text, files, or URLs to build your RAG knowledge base.
+
+### RAG Search
+Perform semantic searches across all your indexed documents. Uses vector similarity to find relevant content.
+
+### Workflows
+Open the visual workflow builder. Create automation flows using drag-and-drop nodes.
+
+### Agent Manager
+View and configure your AI agents. Set personas, select models, and assign skills.
+
+### Channels
+Connect messaging platforms (Telegram, Discord, Slack, etc.) to your agents.
+
+---
+
+## Platform Capabilities
+
+This section shows what's available in your current installation:
+
+| Capability | Details |
+|------------|---------|
+| **Domain Packs** | 13 industry-specialized AI packs (general, developer, healthcare, finance, legal, education, marketing, HR, research, agriculture, customer service, IoT, security) |
+| **Multi-LLM** | Support for OpenAI, Anthropic, DeepSeek, xAI, OpenRouter, Perplexity, Google, Groq, Mistral, Ollama |
+| **RBAC** | 60 granular permissions across 10 permission groups |
+| **ML/AutoML** | 12 machine learning algorithms (classification, regression, clustering, anomaly detection) |
+
+---
+
+## System Information
+
+The bottom panel shows detailed server information:
+
+| Field | Description |
+|-------|-------------|
+| **Version** | Current xClaw version (e.g., 2.0.0) |
+| **Status** | Health check result (ok / error) |
+| **Uptime** | Formatted uptime string |
+| **Last Check** | Timestamp of the most recent health check |
+
+The **Healthy** badge in green confirms all services (PostgreSQL, MongoDB, Redis, API server) are operational.
+
+---
+
+## Tips
+
+- Refresh the Dashboard to get updated system metrics
+- If any status card shows an error, check Docker container logs with `docker compose logs -f xclaw`
+- The Dashboard auto-detects Ollama models if the Ollama service is running on the host

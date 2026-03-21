@@ -20,6 +20,11 @@
         "@xclaw-ai/ml": "*",
         "@xclaw-ai/skills": "*",
         "@xclaw-ai/channel-telegram": "*",
+        "@xclaw-ai/channel-slack": "*",
+        "@xclaw-ai/channel-whatsapp": "*",
+        "@xclaw-ai/channel-zalo": "*",
+        "@xclaw-ai/channel-discord": "*",
+        "@xclaw-ai/channel-msteams": "*",
         "@hono/node-server": "^1.14.0",
         "dotenv": "^16.4.0"
     }

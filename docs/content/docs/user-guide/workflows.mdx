@@ -1,0 +1,154 @@
+---
+title: Workflows
+description: Build visual automation workflows with drag-and-drop nodes, triggers, and conditions
+---
+
+# Workflows
+
+![Workflows](/screenshots/07-workflows.png)
+
+The Workflow Builder lets you create visual automation flows using a drag-and-drop canvas. Workflows can be triggered manually, on a schedule, by incoming messages, or via webhooks.
+
+---
+
+## Getting Started
+
+Click **+ New Workflow** or **Create Your First Workflow** to open the visual editor.
+
+### Workflow Properties
+- **Name**: Give your workflow a descriptive name
+- **Description**: Explain what the workflow does
+- **Trigger**: Select how the workflow starts
+
+---
+
+## Trigger Types
+
+Every workflow starts with a trigger node:
+
+### Manual Trigger
+Run the workflow by clicking a button in the UI or via API call. Best for on-demand tasks.
+
+### Cron Schedule
+Run the workflow on a recurring schedule using cron syntax:
+- `0 9 * * 1-5` — Every weekday at 9:00 AM
+- `*/30 * * * *` — Every 30 minutes
+- `0 0 1 * *` — First day of every month
+
+### Message Event
+Triggered when a chat message matches certain criteria:
+- **Keyword match**: Trigger on specific words or phrases
+- **Domain match**: Trigger for specific domains
+- **Channel match**: Trigger for messages from specific channels
+
+### Webhook
+Receive external HTTP requests to trigger the workflow. Each webhook gets a unique URL:
+```
+POST /api/webhooks/{workflow-id}
+```
+
+---
+
+## Node Types
+
+xClaw provides 16 node types for building workflows:
+
+### AI Nodes
+
+| Node | Description |
+|------|-------------|
+| **LLM Call** | Send a prompt to an LLM and get a response. Configure model, temperature, and system prompt |
+| **RAG Query** | Search the knowledge base and return relevant documents |
+| **Sentiment Analysis** | Analyze text sentiment (positive, negative, neutral) |
+| **Text Classification** | Classify text into predefined categories |
+
+### Logic Nodes
+
+| Node | Description |
+|------|-------------|
+| **Condition** | Branch the flow based on if/else conditions. Supports comparison operators |
+| **Switch** | Multi-way branching based on a value (like a switch statement) |
+| **Loop** | Repeat a set of nodes for each item in a list |
+| **Delay** | Pause execution for a specified duration |
+
+### Action Nodes
+
+| Node | Description |
+|------|-------------|
+| **HTTP Request** | Make API calls to external services (GET, POST, PUT, DELETE) |
+| **Send Message** | Send a message to a user or channel |
+| **Send Email** | Send an email via configured email provider |
+| **Code Execute** | Run custom JavaScript/TypeScript code |
+
+### Data Nodes
+
+| Node | Description |
+|------|-------------|
+| **Data Transform** | Map, filter, or transform data between nodes |
+| **JSON Parse** | Parse JSON strings into objects |
+| **Template** | Render text using Handlebars-style templates with variables |
+| **Aggregate** | Collect results from parallel branches |
+
+---
+
+## Building a Workflow
+
+### 1. Add Nodes
+Drag nodes from the palette onto the canvas, or right-click the canvas to add a node.
+
+### 2. Connect Nodes
+Click an output port and drag to an input port to create a connection. Data flows from left to right.
+
+### 3. Configure Nodes
+Click a node to open its configuration panel:
+- Set input parameters
+- Define output variables
+- Configure error handling
+
+### 4. Test Run
+Click **Run** to execute the workflow with test data. View results at each node to debug.
+
+### 5. Save and Activate
+Save the workflow and toggle it to **Active** to enable trigger-based execution.
+
+---
+
+## Example: Customer Inquiry Router
+
+```
+[Message Trigger] → [Sentiment Analysis] → [Condition]
+                                              ├── Positive → [LLM Call: Thank & Assist]
+                                              ├── Neutral  → [LLM Call: Answer Query]
+                                              └── Negative → [Send Email: Alert Manager]
+                                                           → [LLM Call: Empathize & Resolve]
+```
+
+This workflow:
+1. Triggers on every incoming chat message
+2. Analyzes the sentiment
+3. Routes to different LLM prompts based on sentiment
+4. Escalates negative sentiment to a human manager via email
+
+---
+
+## Workflow Execution History
+
+Each workflow execution is logged with:
+- **Status**: Success, Failed, or Running
+- **Start/End Time**: Execution timestamps
+- **Duration**: Total execution time
+- **Node Results**: Output of each node in the chain
+- **Errors**: Detailed error messages for failed nodes
+
+Access execution history from the workflow detail page or the **Analytics** section.
+
+---
+
+## Workflow as Agent Tool
+
+Workflows can be exposed as tools that agents can invoke during conversations:
+- The agent sees available workflows via `list_workflows` tool
+- The agent can trigger a workflow using `trigger_workflow` tool
+- Results are returned to the conversation context
+
+This enables powerful automation directly from chat interactions.

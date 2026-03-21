@@ -6,6 +6,7 @@ import {
     Users, UserPlus, ShieldCheck, Mail, MoreVertical, Ban, CheckSquare, X,
 } from 'lucide-react';
 import { getHealth, getModels, getDomains, setActiveModel as apiSetActiveModel, getAISettings, updateAISettings, getRBACUsers, getRBACRoles, getRBACPermissions, inviteUser, updateUserStatus, assignUserRole, removeUserRole, createRole, deleteRole } from '../lib/api';
+import { useSettingsStore } from '../stores/index.js';
 
 type Tab = 'overview' | 'llm' | 'rag' | 'language' | 'domains' | 'users' | 'security';
 
@@ -707,23 +708,22 @@ function LLMTab({ models, activeModel, switching, onSwitch }: { models: any[]; a
 
 /* ─── Language Tab ─────────────────────────────────────── */
 function LanguageTab() {
-    const [loading, setLoading] = useState(true);
+    const { aiLanguage, aiLanguageCustom, setAiLanguage, setAiLanguageCustom, applyFromAPI, loaded: settingsLoaded } = useSettingsStore();
+    const [loading, setLoading] = useState(!settingsLoaded);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [aiLanguage, setAiLanguage] = useState('auto');
-    const [aiLanguageCustom, setAiLanguageCustom] = useState('');
     const [languages, setLanguages] = useState<Array<{ code: string; name: string }>>([]);
 
     useEffect(() => {
+        if (settingsLoaded) { setLoading(false); return; }
         getAISettings()
             .then((data) => {
-                setAiLanguage(data.aiLanguage || 'auto');
-                setAiLanguageCustom(data.aiLanguageCustom || '');
+                applyFromAPI(data as Record<string, unknown>);
                 if (data.languages) setLanguages(data.languages);
             })
             .catch(() => { })
             .finally(() => setLoading(false));
-    }, []);
+    }, [settingsLoaded]);
 
     const handleSave = async () => {
         setSaving(true);

@@ -1,0 +1,146 @@
+---
+title: Skill Marketplace
+description: Browse, install, and manage AI skills for your agents
+---
+
+# Skill Marketplace
+
+![Skill Marketplace](/screenshots/08-marketplace.png)
+
+The Marketplace is where you discover and install AI skills. Skills extend agent capabilities with domain-specific tools, prompts, and processing logic.
+
+---
+
+## Browsing Skills
+
+### Category Filters
+Use the filter bar to narrow results by category:
+
+| Category | Examples |
+|----------|---------|
+| **All** | Show all 24 available skills |
+| **Productivity** | Text generation, email writing |
+| **Development** | Code generation, Git operations |
+| **Healthcare** | Drug interactions, ICD-10 coding, clinical notes |
+| **Security** | Threat analysis, vulnerability scanning |
+| **AI / ML** | Model training, data analytics |
+| **Integrations** | External service connectors |
+| **Analytics** | Data analysis, reporting |
+
+### Search
+Use the search bar at the top to find skills by name, description, or keyword.
+
+---
+
+## Skill Card Details
+
+Each skill card displays:
+
+| Field | Description |
+|-------|-------------|
+| **Name** | Skill identifier (e.g., "Drug Interaction Checker") |
+| **Author** | Creator (e.g., "xClaw") |
+| **Domain** | Industry category (e.g., "Healthcare & Medical") |
+| **Version** | Current version (e.g., v1.0.0) |
+| **Description** | What the skill does |
+| **Tags** | Category labels for filtering |
+| **Rating** | Community rating (stars) |
+| **Downloads** | Installation count |
+| **Status** | "Installed" badge if already active |
+
+---
+
+## Installing a Skill
+
+1. Find the skill you want in the marketplace
+2. Click the skill card to view details
+3. Click **Install** to add it to your platform
+4. The skill becomes available for agent assignment
+
+Installed skills show a green **Installed** badge on their card.
+
+---
+
+## Available Skills (24)
+
+### General Purpose
+| Skill | Description |
+|-------|-------------|
+| **Text Generation** | Write emails, articles, reports, social posts, and creative content |
+| **Web Research** | Search the web and summarize findings |
+
+### Software Development
+| Skill | Description |
+|-------|-------------|
+| **Code Generation** | Generate, refactor, and review code across languages |
+| **Git Operations** | Generate Git commands and manage workflows |
+
+### Healthcare & Medical
+| Skill | Description |
+|-------|-------------|
+| **Drug Interaction Checker** | Check potential drug-drug interactions and contraindications |
+| **ICD-10 Coding Assistant** | Suggest ICD-10 codes from clinical descriptions |
+| **Clinical Notes Generator** | Generate structured clinical notes (SOAP, discharge summaries) |
+
+### Finance & Accounting
+| Skill | Description |
+|-------|-------------|
+| **Financial Analysis** | Analyze financial data, calculate ratios, generate reports |
+| **Invoice Processing** | Extract data from invoices and generate documents |
+
+### Marketing & Social Media
+| Skill | Description |
+|-------|-------------|
+| **Content Marketing** | Create blog posts, social media content, ad copy |
+
+### Education & Training
+| Skill | Description |
+|-------|-------------|
+| **AI Tutor** | Interactive tutoring with adaptive difficulty and Socratic method |
+
+### Research & Academic
+| Skill | Description |
+|-------|-------------|
+| **Paper Analysis** | Summarize, compare, and extract findings from research papers |
+
+### DevOps & Infrastructure
+| Skill | Description |
+|-------|-------------|
+| **Jenkins Pipeline Builder** | Generate, validate, and manage CI/CD pipelines |
+| **Docker & Containers** | Generate Dockerfiles, docker-compose configs |
+
+### Legal
+| Skill | Description |
+|-------|-------------|
+| **Contract Review** | Analyze contracts for key terms, risks, and missing clauses |
+
+### Human Resources
+| Skill | Description |
+|-------|-------------|
+| **Recruitment Assistant** | Create job descriptions, screen resumes, prepare interview questions |
+
+*Plus additional skills in Security, Analytics, and Integration categories.*
+
+---
+
+## Assigning Skills to Agents
+
+After installing a skill:
+1. Go to **Agents** → select an agent → **Edit**
+2. Navigate to the **Skills** tab
+3. Toggle the installed skills you want this agent to use
+4. Save the agent
+
+Each agent can have a different combination of skills, allowing you to create specialized agents for different tasks.
+
+---
+
+## Skill Architecture
+
+Skills are built using the `defineSkill()` helper from `@xclaw-ai/core`:
+- **Tools**: Function definitions the LLM can call
+- **Prompts**: Domain-specific system prompt extensions
+- **Knowledge**: Pre-loaded data (e.g., drug interaction databases)
+- **Validators**: Input/output validation logic
+
+Skills are loaded dynamically at runtime and can be hot-swapped without restarting the server.

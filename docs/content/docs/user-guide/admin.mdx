@@ -1,0 +1,156 @@
+---
+title: Admin Panel
+description: Multi-tenant management, audit logs, API keys, and data retention policies
+---
+
+# Admin Panel
+
+![Admin Panel](/screenshots/14-admin.png)
+
+The Admin Panel provides system-level management capabilities. Access requires the **Owner** or **Admin** role.
+
+---
+
+## Tenants
+
+xClaw supports multi-tenant architecture where each tenant operates with isolated data.
+
+### Viewing Tenants
+The Tenants tab shows all registered tenants with:
+- Tenant name
+- Status (active / suspended)
+- Creation date
+- Number of users
+
+### Creating a New Tenant
+Click **+ New Tenant** and fill in:
+
+| Field | Description |
+|-------|-------------|
+| **Name** | Tenant organization name |
+| **Slug** | URL-friendly identifier (auto-generated) |
+| **Description** | Optional description |
+| **Owner Email** | Email for the tenant's admin user |
+
+### Tenant Isolation
+Each tenant has:
+- **Separate database context** — conversations, documents, and configurations are isolated
+- **Independent agent configurations** — each tenant can have its own agents
+- **Custom LLM settings** — different models and API keys per tenant
+- **Separate domain packs** — enable/disable domains independently
+- **Own user base** — users belong to a specific tenant
+
+### Managing Tenants
+- **Edit**: Update tenant details and configuration
+- **Suspend**: Temporarily disable a tenant (preserves data)
+- **Delete**: Permanently remove a tenant and all associated data
+
+---
+
+## Audit
+
+The Audit tab provides a complete activity log.
+
+### What's Logged
+Every significant action is recorded:
+
+| Event Type | Examples |
+|------------|---------|
+| **Authentication** | Login, logout, failed login attempts |
+| **User Management** | User created, role changed, password reset |
+| **Agent Changes** | Agent created, edited, deleted |
+| **Configuration** | Settings modified, model changed |
+| **Knowledge Base** | Document uploaded, deleted, collection created |
+| **Workflow** | Workflow created, executed, failed |
+| **Channel** | Channel connected, disconnected |
+| **Admin** | Tenant created, API key generated |
+
+### Audit Entry Fields
+Each log entry includes:
+- **Timestamp**: When the action occurred
+- **User**: Who performed the action
+- **Action**: What was done
+- **Resource**: What was affected
+- **Details**: Additional context (e.g., old value → new value)
+- **IP Address**: Source IP of the request
+
+### Filtering
+Filter audit logs by:
+- Date range
+- User
+- Action type
+- Resource type
+
+### Export
+Export audit logs as CSV for compliance reporting.
+
+---
+
+## API Keys
+
+Manage API keys for programmatic access to the xClaw API.
+
+### Creating an API Key
+1. Click **+ New API Key**
+2. Enter a **name** for the key (e.g., "Production Bot")
+3. Optionally set an **expiration date**
+4. Select **permissions** (scopes) for the key
+5. Click **Create** — the key is shown once and cannot be retrieved again
+
+### Key Properties
+
+| Field | Description |
+|-------|-------------|
+| **Name** | Human-readable identifier |
+| **Key Prefix** | First 8 characters (for identification) |
+| **Created** | Creation timestamp |
+| **Expires** | Expiration date (or "Never") |
+| **Last Used** | Most recent API call timestamp |
+| **Scopes** | Permitted operations |
+
+### Using API Keys
+Include the key in the `Authorization` header:
+```
+Authorization: Bearer xclaw_sk_xxxxxxxxxxxxx
+```
+
+### Revoking Keys
+Click **Revoke** to immediately disable an API key. Revoked keys cannot be re-enabled.
+
+---
+
+## Retention
+
+Configure data retention policies to manage storage and comply with regulations.
+
+### Retention Settings
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Conversation Retention** | How long to keep conversation data | 90 days |
+| **Message Retention** | How long to keep individual messages | 90 days |
+| **Audit Log Retention** | How long to keep audit entries | 365 days |
+| **Analytics Retention** | How long to keep analytics data | 180 days |
+| **File Retention** | How long to keep uploaded files | 90 days |
+
+### Cleanup Schedule
+Configure when automatic cleanup runs:
+- **Daily** — Runs once per day at a specified time
+- **Weekly** — Runs once per week on a specified day
+- **Manual** — Only runs when triggered manually
+
+### Compliance Considerations
+- Set retention periods according to your industry regulations (GDPR, HIPAA, etc.)
+- Audit logs should typically be retained longer than conversation data
+- PII-detected messages may require shorter retention periods
+- Export data before it's automatically deleted if needed for archival
+
+---
+
+## Tips
+
+- Create a separate tenant for testing and development
+- Review audit logs weekly for security monitoring
+- Rotate API keys regularly (every 90 days recommended)
+- Set up retention policies early — retroactive cleanup can be slow for large datasets
+- Use tenant isolation to serve multiple clients from a single xClaw deployment

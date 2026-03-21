@@ -1,0 +1,20 @@
+---
+title: Slack API
+description: Send messages and interact with Slack channels through your AI agent.
+---
+
+## Setup
+
+1. Create a Slack App at [api.slack.com/apps](https://api.slack.com/apps)
+2. Add Bot Token Scopes: `chat:write`, `channels:read`, `channels:history`, `files:write`
+3. Install the app to your workspace
+4. Add the Bot Token in **Settings** → **Integrations** → **Slack**
+
+## Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `send_message` | Send a message to a Slack channel |
+| `list_channels` | List available channels in the workspace |
+| `read_messages` | Read recent messages from a channel |
+| `upload_file` | Upload a file to a channel |

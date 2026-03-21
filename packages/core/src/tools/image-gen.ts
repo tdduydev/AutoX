@@ -9,6 +9,7 @@ import type { ToolHandler } from './tool-registry.js';
 export const imageGenDefinition: ToolDefinition = {
   name: 'generate_image',
   description: 'Generate an image from a text description using AI (DALL-E 3). Returns an image URL.',
+  category: 'content',
   parameters: [
     {
       name: 'prompt',

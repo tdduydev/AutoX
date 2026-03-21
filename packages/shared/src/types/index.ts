@@ -26,6 +26,7 @@ export interface LLMConfig {
 export interface LLMMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  images?: string[]; // base64 image data or URLs for vision/OCR models
   toolCallId?: string;
   toolCalls?: ToolCall[];
 }
@@ -146,6 +147,20 @@ export interface TriggerDefinition {
 }
 
 export type TriggerType = 'cron' | 'webhook' | 'event' | 'message' | 'file' | 'manual';
+
+// ─── Interactive Block Types ────────────────────────────────
+
+export interface QuickReplyButton {
+  label: string;
+  value: string; // The message to send when clicked
+  icon?: string; // Optional emoji/icon
+}
+
+export interface InteractiveBlock {
+  type: 'quick-replies' | 'list-select' | 'confirm';
+  title?: string;
+  buttons: QuickReplyButton[];
+}
 
 // ─── Workflow Types ─────────────────────────────────────────
 
@@ -767,4 +782,124 @@ export interface PluginRegistryEntry {
   status: PluginStatus;
   activatedAt?: string;
   error?: string;
+}
+
+// ─── Voice / STT / TTS Types ───────────────────────────────
+
+export interface TranscriptionResult {
+  text: string;
+  language?: string;
+  duration?: number;
+  segments?: Array<{ start: number; end: number; text: string }>;
+}
+
+export interface TTSRequest {
+  text: string;
+  voice?: string;
+  speed?: number;
+  language?: string;
+}
+
+// ─── Human Handoff / Escalation Types ───────────────────────
+
+export type HandoffStatus = 'pending' | 'assigned' | 'active' | 'resolved' | 'returned_to_ai';
+
+export type EscalationReason = 'user_request' | 'sentiment' | 'keyword' | 'confidence' | 'loop_detected' | 'manual';
+
+export interface HandoffSession {
+  id: string;
+  tenantId: string;
+  sessionId: string;
+  userId: string;
+  agentUserId?: string;
+  status: HandoffStatus;
+  reason: EscalationReason;
+  reasonDetail?: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  assignedAt?: string;
+  resolvedAt?: string;
+}
+
+export interface EscalationRule {
+  id: string;
+  tenantId: string;
+  type: EscalationReason;
+  enabled: boolean;
+  config: {
+    keywords?: string[];
+    sentimentThreshold?: number;
+    confidenceThreshold?: number;
+    maxLoopCount?: number;
+  };
+}
+
+// ─── Conversation Analytics Types ───────────────────────────
+
+export interface ConversationAnalytics {
+  totalConversations: number;
+  totalMessages: number;
+  avgResponseTimeMs: number;
+  avgMessagesPerConversation: number;
+  resolutionRate: number;
+  platformBreakdown: Record<string, number>;
+  dailyVolume: Array<{ date: string; conversations: number; messages: number }>;
+  topTopics: Array<{ topic: string; count: number }>;
+  sentimentDistribution: { positive: number; neutral: number; negative: number };
+  avgSessionDurationMs: number;
+  peakHours: Array<{ hour: number; count: number }>;
+}
+
+export interface AgentPerformanceMetrics {
+  totalInteractions: number;
+  avgLatencyMs: number;
+  toolCallRate: number;
+  escalationRate: number;
+  tokenUsage: { prompt: number; completion: number; total: number };
+  costUsd: number;
+  modelBreakdown: Record<string, { calls: number; avgLatency: number; cost: number }>;
+  errorRate: number;
+}
+
+// ─── Agent Template Types ───────────────────────────────────
+
+export interface AgentTemplate {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  persona: string;
+  systemPrompt: string;
+  skills: string[];
+  tools: string[];
+  suggestedModel?: string;
+  tags: string[];
+}
+
+// ─── Data Retention Types ───────────────────────────────────
+
+export interface RetentionPolicy {
+  id: string;
+  tenantId: string;
+  resource: 'messages' | 'sessions' | 'audit_logs' | 'activity_logs' | 'llm_logs';
+  retentionDays: number;
+  enabled: boolean;
+  lastRunAt?: string;
+}
+
+// ─── API Key Types ──────────────────────────────────────────
+
+export interface ApiKeyEntry {
+  id: string;
+  tenantId: string;
+  name: string;
+  keyPrefix: string;
+  keyHash: string;
+  scopes: string[];
+  expiresAt?: string;
+  lastUsedAt?: string;
+  createdAt: string;
+  createdBy: string;
 }

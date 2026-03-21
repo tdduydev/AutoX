@@ -1,6 +1,27 @@
 import { z } from 'zod';
 import { defineIntegration } from '../base/define-integration.js';
 
+const GITHUB_API = 'https://api.github.com';
+
+async function ghFetch(path: string, token: string, options: RequestInit = {}): Promise<any> {
+  const res = await fetch(`${GITHUB_API}${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'Content-Type': 'application/json',
+      ...(options.headers ?? {}),
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as any;
+    throw new Error(err.message || `GitHub API error ${res.status}`);
+  }
+  return res.status === 204 ? {} : res.json();
+}
+
 export const githubIntegration = defineIntegration({
   id: 'github',
   name: 'GitHub',
@@ -33,7 +54,10 @@ export const githubIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'GitHub list_repos not implemented yet' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'GitHub token not configured' };
+        const repos = await ghFetch(`/user/repos?type=${args.type}&sort=${args.sort}&per_page=${args.perPage}`, token);
+        return { success: true, data: repos.map((r: any) => ({ id: r.id, name: r.full_name, description: r.description, private: r.private, url: r.html_url, language: r.language, stars: r.stargazers_count, updatedAt: r.updated_at })) };
       },
     },
     {
@@ -49,7 +73,13 @@ export const githubIntegration = defineIntegration({
       }),
       riskLevel: 'moderate',
       execute: async (args, ctx) => {
-        return { success: false, error: 'GitHub create_issue not implemented yet' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'GitHub token not configured' };
+        const issue = await ghFetch(`/repos/${args.owner}/${args.repo}/issues`, token, {
+          method: 'POST',
+          body: JSON.stringify({ title: args.title, body: args.body, labels: args.labels, assignees: args.assignees }),
+        });
+        return { success: true, data: { number: issue.number, url: issue.html_url, title: issue.title } };
       },
     },
     {
@@ -64,7 +94,12 @@ export const githubIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'GitHub list_issues not implemented yet' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'GitHub token not configured' };
+        const params = new URLSearchParams({ state: args.state, per_page: String(args.perPage) });
+        if (args.labels) params.set('labels', args.labels);
+        const issues = await ghFetch(`/repos/${args.owner}/${args.repo}/issues?${params}`, token);
+        return { success: true, data: issues.map((i: any) => ({ number: i.number, title: i.title, state: i.state, url: i.html_url, labels: i.labels.map((l: any) => l.name), assignees: i.assignees.map((a: any) => a.login), createdAt: i.created_at })) };
       },
     },
     {
@@ -81,7 +116,13 @@ export const githubIntegration = defineIntegration({
       riskLevel: 'moderate',
       requiresApproval: true,
       execute: async (args, ctx) => {
-        return { success: false, error: 'GitHub create_pull_request not implemented yet' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'GitHub token not configured' };
+        const pr = await ghFetch(`/repos/${args.owner}/${args.repo}/pulls`, token, {
+          method: 'POST',
+          body: JSON.stringify({ title: args.title, body: args.body, head: args.head, base: args.base }),
+        });
+        return { success: true, data: { number: pr.number, url: pr.html_url, title: pr.title, state: pr.state } };
       },
     },
     {
@@ -95,7 +136,12 @@ export const githubIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'GitHub get_file_contents not implemented yet' };
+        const token = ctx.credentials.token;
+        if (!token) return { success: false, error: 'GitHub token not configured' };
+        const params = args.ref ? `?ref=${encodeURIComponent(args.ref)}` : '';
+        const file = await ghFetch(`/repos/${args.owner}/${args.repo}/contents/${args.path}${params}`, token);
+        const content = file.encoding === 'base64' ? Buffer.from(file.content, 'base64').toString('utf-8') : file.content;
+        return { success: true, data: { name: file.name, path: file.path, content, size: file.size, sha: file.sha, url: file.html_url } };
       },
     },
   ],

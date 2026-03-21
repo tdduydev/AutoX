@@ -1,0 +1,142 @@
+---
+title: ML / AutoML
+description: Machine learning toolkit with 12 algorithms, model training, and AutoML
+---
+
+# ML / AutoML
+
+![ML / AutoML](/screenshots/18-ml.png)
+
+The ML / AutoML page provides a complete machine learning toolkit with 12 built-in algorithms, model training, automated model selection, and a model registry.
+
+---
+
+## Overview
+
+The page header shows:
+- **12 algorithms** available
+- **Trained models** count
+- Four tabs for different workflows
+
+---
+
+## Tabs
+
+### 1. Algorithms
+
+Browse all 12 machine learning algorithms organized by category.
+
+#### Classification & Regression
+
+| Algorithm | Description | Hyperparameters |
+|-----------|-------------|-----------------|
+| **Linear Regression** | Standard linear regression with optional L1/L2 regularization | Learning rate, regularization type |
+| **Logistic Regression** | Binary and multi-class classification | Solver, regularization strength |
+| **Decision Tree** | Tree-based model for both classification and regression | Max depth, min samples |
+| **Random Forest** | Ensemble of decision trees with bagging for robust predictions | N estimators, max depth |
+| **Gradient Boosting** | XGBoost-style gradient boosted decision trees | Learning rate, N estimators |
+| **K-Nearest Neighbors** | Simple instance-based learning | K value, distance metric |
+| **Naive Bayes** | Probabilistic classifier based on Bayes theorem | Distribution type |
+| **Support Vector Machine** | SVM for classification and regression tasks | Kernel, C parameter |
+
+#### Clustering
+
+| Algorithm | Description | Hyperparameters |
+|-----------|-------------|-----------------|
+| **K-Means Clustering** | Partition data into K groups | K value, max iterations |
+| **DBSCAN** | Density-based clustering that finds arbitrarily shaped clusters | Epsilon, min samples |
+
+#### Dimensionality Reduction
+
+| Algorithm | Description | Hyperparameters |
+|-----------|-------------|-----------------|
+| **PCA** | Principal Component Analysis for dimensionality reduction | N components |
+
+#### Anomaly Detection
+
+| Algorithm | Description | Hyperparameters |
+|-----------|-------------|-----------------|
+| **Isolation Forest** | Unsupervised anomaly detection using isolation trees | N estimators, contamination |
+
+Each algorithm card shows three numbered badges indicating difficulty/complexity levels.
+
+---
+
+### 2. Train Model
+
+Train a machine learning model with your own data.
+
+#### Step-by-Step
+1. Switch to the **Train Model** tab
+2. **Select Algorithm** — Choose from the 12 available algorithms
+3. **Upload Data** — Upload a CSV file with your training data
+4. **Configure Features**:
+   - Select **input columns** (features)
+   - Select **target column** (label/output)
+   - Set **train/test split** ratio (default: 80/20)
+5. **Set Hyperparameters** — Algorithm-specific settings
+6. Click **Train** — Monitor training progress
+7. View **Results**:
+   - Accuracy / R² score
+   - Confusion matrix (classification)
+   - Feature importance
+   - Validation metrics
+
+---
+
+### 3. AutoML
+
+Automatic model selection and hyperparameter tuning.
+
+#### Step-by-Step
+1. Switch to the **AutoML** tab
+2. Upload your dataset (CSV)
+3. Select the **target column**
+4. Choose the **task type** (classification or regression)
+5. Click **Run AutoML**
+6. The system automatically:
+   - Tries multiple algorithms
+   - Tunes hyperparameters
+   - Cross-validates results
+   - Ranks models by performance
+7. Review the **leaderboard** — best model appears on top
+8. Click **Deploy** on the best model to save it to the registry
+
+---
+
+### 4. Model Registry
+
+View and manage all trained models.
+
+| Field | Description |
+|-------|-------------|
+| **Model Name** | Custom name or auto-generated |
+| **Algorithm** | Which algorithm was used |
+| **Accuracy** | Model performance metric |
+| **Created** | Training timestamp |
+| **Status** | Active / Inactive |
+| **Actions** | Download, delete, deploy |
+
+---
+
+## Use Cases
+
+| Use Case | Recommended Algorithm |
+|----------|----------------------|
+| **Spam detection** | Logistic Regression, Naive Bayes |
+| **Customer churn** | Random Forest, Gradient Boosting |
+| **Price prediction** | Linear Regression, Gradient Boosting |
+| **Customer segmentation** | K-Means Clustering |
+| **Fraud detection** | Isolation Forest, SVM |
+| **Document categorization** | Logistic Regression, SVM |
+| **Feature reduction** | PCA |
+
+---
+
+## Tips
+
+- Start with simpler models (Linear/Logistic Regression) before trying ensemble methods
+- Ensure your data is clean — remove null values and outliers before training
+- Use AutoML for first-pass model selection, then fine-tune manually
+- Compare at least 3 algorithms on the same dataset
+- Use cross-validation for more reliable accuracy estimates

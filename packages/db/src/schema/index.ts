@@ -19,8 +19,8 @@ export const tenantSettings = pgTable('tenant_settings', {
   id: text('id').primaryKey(),
   tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   // LLM Configuration
-  llmProvider: text('llm_provider').notNull().default('openai'), // openai | anthropic | ollama
-  llmModel: text('llm_model').notNull().default('gpt-4o-mini'),
+  llmProvider: text('llm_provider').notNull().default('ollama'), // openai | anthropic | ollama
+  llmModel: text('llm_model').notNull().default('qwen2.5:14b'),
   llmApiKey: text('llm_api_key'), // encrypted — tenant's own API key
   llmBaseUrl: text('llm_base_url'), // for ollama / custom endpoints
   llmTemperature: integer('llm_temperature'), // stored as integer x100 (e.g. 70 = 0.7)

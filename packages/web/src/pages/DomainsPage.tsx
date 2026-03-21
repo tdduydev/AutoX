@@ -4,21 +4,13 @@ import {
     Globe, Search, Loader2, Plug, ArrowRight, Sparkles, Download, Trash2, Check, Package,
 } from 'lucide-react';
 import { getDomains, installDomain, uninstallDomain } from '../lib/api';
-
-interface DomainPack {
-    id: string;
-    name: string;
-    description: string;
-    icon: string;
-    skills: Array<{ id: string; name: string; description: string }>;
-    integrations?: string[];
-    installed?: boolean;
-}
+import { useDomainsStore } from '../stores/index.js';
+import type { DomainPack } from '../stores/index.js';
 
 type FilterMode = 'all' | 'installed' | 'available';
 
 export function DomainsPage() {
-    const [domains, setDomains] = useState<DomainPack[]>([]);
+    const { domains, setDomains, markInstalled, markUninstalled } = useDomainsStore();
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<FilterMode>('all');
@@ -27,10 +19,10 @@ export function DomainsPage() {
 
     const fetchDomains = useCallback(() => {
         getDomains()
-            .then((data) => { if (data.domains) setDomains(data.domains); })
+            .then((data) => { if (data.domains) setDomains(data.domains as DomainPack[]); })
             .catch(() => { })
             .finally(() => setLoading(false));
-    }, []);
+    }, [setDomains]);
 
     useEffect(() => { fetchDomains(); }, [fetchDomains]);
 
@@ -38,7 +30,8 @@ export function DomainsPage() {
         setInstalling(id);
         try {
             await installDomain(id);
-            setDomains((prev) => prev.map((d) => d.id === id ? { ...d, installed: true } : d));
+            markInstalled(id);
+            setDomains(domains.map((d) => d.id === id ? { ...d, installed: true } : d) as DomainPack[]);
         } catch { /* ignore */ }
         setInstalling(null);
     };
@@ -48,7 +41,8 @@ export function DomainsPage() {
         setInstalling(id);
         try {
             await uninstallDomain(id);
-            setDomains((prev) => prev.map((d) => d.id === id ? { ...d, installed: false } : d));
+            markUninstalled(id);
+            setDomains(domains.map((d) => d.id === id ? { ...d, installed: false } : d) as DomainPack[]);
         } catch { /* ignore */ }
         setInstalling(null);
     };

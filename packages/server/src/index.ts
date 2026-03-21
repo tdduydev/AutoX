@@ -15,24 +15,32 @@ import {
 } from '@xclaw-ai/core';
 import { createGateway } from '@xclaw-ai/gateway';
 import { AgentManager } from '@xclaw-ai/gateway';
+import { startWorkflowScheduler } from '@xclaw-ai/gateway';
 import { IntegrationRegistry, allIntegrations } from '@xclaw-ai/integrations';
 import { allDomainPacks } from '@xclaw-ai/domains';
 import { MLEngine } from '@xclaw-ai/ml';
 import { PluginManager } from '@xclaw-ai/core';
 import type { AgentConfig, GatewayConfig } from '@xclaw-ai/shared';
 import { TelegramChannel } from '@xclaw-ai/channel-telegram';
+import { SlackChannel } from '@xclaw-ai/channel-slack';
+import { WhatsAppChannel } from '@xclaw-ai/channel-whatsapp';
+import { ZaloChannel } from '@xclaw-ai/channel-zalo';
+import { DiscordChannel } from '@xclaw-ai/channel-discord';
+import { MSTeamsChannel } from '@xclaw-ai/channel-msteams';
+import { textToFhirSkill } from '@xclaw-ai/skills';
 import { loadKnowledgePacks } from './knowledge-loader.js';
-import { runMigrations, seedInitialData, connectMongo, getMongo, mongoMonitoringStore, sessionsCollection, messagesCollection, agentConfigsCollection, channelConnectionsCollection } from '@xclaw-ai/db';
+import { runMigrations, seedInitialData, connectMongo, getMongo, mongoMonitoringStore, sessionsCollection, messagesCollection, agentConfigsCollection, channelConnectionsCollection, llmLogsCollection, estimateCost } from '@xclaw-ai/db';
+import type { MongoChannelConnection } from '@xclaw-ai/db';
 
 dotenv.config();
 
 // Load env
 const {
-  PORT = '3000',
+  PORT = '5001',
   HOST = '0.0.0.0',
-  CORS_ORIGINS = 'http://localhost:5173,http://localhost:5174,http://localhost:5175',
+  CORS_ORIGINS = 'http://localhost:3000,http://localhost:3001,http://localhost:3002',
   JWT_SECRET = 'xclaw-dev-secret-change-me',
-  LLM_PROVIDER = 'openai',
+  LLM_PROVIDER = 'ollama',
   LLM_MODEL: LLM_MODEL_ENV,
   OPENAI_API_KEY = '',
   ANTHROPIC_API_KEY = '',
@@ -46,10 +54,17 @@ const {
   COMFYUI_URL = 'http://localhost:8188',
   TELEGRAM_BOT_TOKEN = '',
   TELEGRAM_ALLOWED_CHAT_IDS = '',
+  SLACK_BOT_TOKEN = '',
+  WHATSAPP_ACCESS_TOKEN = '',
+  WHATSAPP_PHONE_NUMBER_ID = '',
+  ZALO_OA_ACCESS_TOKEN = '',
+  DISCORD_BOT_TOKEN = '',
+  MSTEAMS_APP_ID = '',
+  MSTEAMS_APP_PASSWORD = '',
 } = process.env;
 
 // Auto-detect default model based on provider
-const LLM_MODEL = LLM_MODEL_ENV || (LLM_PROVIDER === 'ollama' ? 'llama3.1:8b' : 'gpt-4o-mini');
+const LLM_MODEL = LLM_MODEL_ENV || (LLM_PROVIDER === 'ollama' ? 'qwen2.5:14b' : 'gpt-4o-mini');
 
 // Vietnamese system prompt for doctor support
 const DEFAULT_SYSTEM_PROMPT = `You are xClaw, an open-source AI agent platform that adapts to any industry. You are highly capable, helpful, and concise.
@@ -224,6 +239,12 @@ async function main() {
   const mlEngine = new MLEngine();
   console.log(`   ML Engine: ${mlEngine.listAlgorithms().length} algorithms available`);
 
+  // Register built-in text-to-fhir skill (HIS query tools for LLM)
+  for (const tool of textToFhirSkill.tools) {
+    agent.tools.register(tool.definition, tool.handler);
+  }
+  console.log(`   Skills:    text-to-fhir (${textToFhirSkill.tools.length} tools registered)`);
+
   // Workflow Engine
   const workflowEngine = new WorkflowEngine(agent.tools, agent.llm, agent.events);
   console.log('   Workflow:  engine ready (16 node types)');
@@ -257,87 +278,186 @@ async function main() {
   // Plugins are loaded from external submodule (xclaw-plugins)
   console.log(`   Plugins:   ${pluginManager.listActive().length} loaded`);
 
+  // ─── Shared message handler factory for all channel plugins ─────────────
+  const makeChannelHandler = (
+    platform: string,
+    send: (channelId: string, content: string, replyTo?: string) => Promise<void>,
+  ) => async (incoming: { channelId: string; userId: string; content: string; metadata?: Record<string, unknown> }) => {
+    const prefix = platform.substring(0, 3);
+    const sessionId = `${prefix}-${incoming.channelId}-${incoming.userId}`;
+    try {
+      const channelConn = await channelConnectionsCollection().findOne({ channelType: platform as MongoChannelConnection['channelType'], status: 'active' });
+      const channelAgent = channelConn?.agentConfigId
+        ? await agentManager.getAgent(channelConn.agentConfigId, 'default')
+        : await agentManager.getDefaultForTenant('default');
+
+      const sessions = sessionsCollection();
+      const now = new Date();
+      const existingSession = await sessions.findOne({ _id: sessionId });
+      if (!existingSession) {
+        await sessions.insertOne({
+          _id: sessionId,
+          tenantId: 'default',
+          userId: `${prefix}-${incoming.userId}`,
+          platform,
+          title: incoming.content.slice(0, 60) + (incoming.content.length > 60 ? '...' : ''),
+          createdAt: now,
+          updatedAt: now,
+        });
+      } else {
+        await sessions.updateOne({ _id: sessionId }, { $set: { updatedAt: now } });
+      }
+
+      const messages = messagesCollection();
+      await messages.insertOne({
+        _id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        sessionId,
+        role: 'user',
+        content: incoming.content,
+        metadata: incoming.metadata,
+        createdAt: now,
+      });
+
+      let ragContext = '';
+      try {
+        const retrieval = await rag.retrieve(incoming.content);
+        if (retrieval.context) ragContext = retrieval.context;
+      } catch { /* RAG failure is non-fatal */ }
+
+      let channelMessage = incoming.content;
+      if (channelConn?.domainId && channelConn.domainId !== 'general') {
+        const domain = allDomainPacks.find((d) => d.id === channelConn.domainId);
+        if (domain?.agentPersona) {
+          channelMessage = `[System instruction — Domain specialist mode]\n${domain.agentPersona}\n\n[User message]\n${incoming.content}`;
+        }
+      }
+
+      const llmStart = Date.now();
+      const response = await channelAgent.chat(sessionId, channelMessage, ragContext);
+      const llmDuration = Date.now() - llmStart;
+
+      llmLogsCollection().insertOne({
+        tenantId: 'default',
+        userId: `${prefix}-${incoming.userId}`,
+        sessionId,
+        provider: channelAgent.config.llm.provider,
+        model: channelAgent.config.llm.model,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        duration: llmDuration,
+        costUsd: estimateCost(channelAgent.config.llm.provider, channelAgent.config.llm.model, 0, 0),
+        platform,
+        success: true,
+        toolCalls: 0,
+        streaming: false,
+        createdAt: new Date(),
+      } as any).catch(() => {});
+
+      await messages.insertOne({
+        _id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        sessionId,
+        role: 'assistant',
+        content: response,
+        createdAt: new Date(),
+      });
+
+      await send(incoming.channelId, response, incoming.metadata?.messageId ? String(incoming.metadata.messageId) : undefined);
+    } catch (err) {
+      console.error(`${platform} agent error:`, err instanceof Error ? err.message : err);
+      try { await send(incoming.channelId, '❌ Xin lỗi, có lỗi xảy ra khi xử lý yêu cầu.'); } catch { /* ignore */ }
+    }
+  };
+
   // ─── Telegram Channel ────────────────────────────────────
   let telegramChannel: TelegramChannel | undefined;
   if (TELEGRAM_BOT_TOKEN) {
     try {
       telegramChannel = new TelegramChannel();
-      await telegramChannel.initialize({
-        botToken: TELEGRAM_BOT_TOKEN,
-      });
-
-      // Handle incoming Telegram messages using the Agent
-      telegramChannel.onMessage(async (incoming) => {
-        const sessionId = `tg-${incoming.channelId}-${incoming.userId}`;
-        try {
-          // Resolve agent — look up linked channel connection's agentConfigId, else default
-          const channelConn = await channelConnectionsCollection().findOne({
-            channelType: 'telegram',
-            status: 'active',
-          });
-          const channelAgent = channelConn?.agentConfigId
-            ? await agentManager.getAgent(channelConn.agentConfigId, 'default')
-            : await agentManager.getDefaultForTenant('default');
-
-          // Save session (idempotent)
-          const sessions = sessionsCollection();
-          const existingSession = await sessions.findOne({ _id: sessionId });
-          const now = new Date();
-          if (!existingSession) {
-            await sessions.insertOne({
-              _id: sessionId,
-              tenantId: 'default',
-              userId: `tg-${incoming.userId}`,
-              platform: 'telegram',
-              title: incoming.content.slice(0, 60) + (incoming.content.length > 60 ? '...' : ''),
-              createdAt: now,
-              updatedAt: now,
-            });
-          } else {
-            await sessions.updateOne({ _id: sessionId }, { $set: { updatedAt: now } });
-          }
-
-          // Save user message
-          const messages = messagesCollection();
-          await messages.insertOne({
-            _id: `u-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            sessionId,
-            role: 'user',
-            content: incoming.content,
-            metadata: incoming.metadata,
-            createdAt: now,
-          });
-
-          const response = await channelAgent.chat(sessionId, incoming.content);
-
-          // Save assistant response
-          await messages.insertOne({
-            _id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            sessionId,
-            role: 'assistant',
-            content: response,
-            createdAt: new Date(),
-          });
-
-          await telegramChannel!.send({
-            platform: 'telegram',
-            channelId: incoming.channelId,
-            content: response,
-            replyTo: incoming.metadata?.messageId ? String(incoming.metadata.messageId) : undefined,
-          });
-        } catch (err) {
-          console.error('Telegram agent error:', err instanceof Error ? err.message : err);
-          await telegramChannel!.send({
-            platform: 'telegram',
-            channelId: incoming.channelId,
-            content: '❌ Xin lỗi, có lỗi xảy ra khi xử lý yêu cầu.',
-          });
-        }
-      });
-
+      await telegramChannel.initialize({ botToken: TELEGRAM_BOT_TOKEN });
+      telegramChannel.onMessage(makeChannelHandler('telegram', async (channelId, content, replyTo) => {
+        await telegramChannel!.send({ platform: 'telegram', channelId, content, replyTo });
+      }));
       await telegramChannel.start();
     } catch (err) {
       console.warn('⚠️  Telegram channel skipped:', (err as Error).message);
+    }
+  }
+
+  // ─── Slack Channel ────────────────────────────────────────
+  if (SLACK_BOT_TOKEN) {
+    try {
+      const slackChannel = new SlackChannel();
+      await slackChannel.initialize({ botToken: SLACK_BOT_TOKEN });
+      slackChannel.onMessage(makeChannelHandler('slack', async (channelId, content) => {
+        await slackChannel.send({ platform: 'slack', channelId, content });
+      }));
+      await slackChannel.start();
+    } catch (err) {
+      console.warn('⚠️  Slack channel skipped:', (err as Error).message);
+    }
+  }
+
+  // ─── WhatsApp Channel ─────────────────────────────────────
+  if (WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID) {
+    try {
+      const waChannel = new WhatsAppChannel();
+      await waChannel.initialize({
+        accessToken: WHATSAPP_ACCESS_TOKEN,
+        phoneNumberId: WHATSAPP_PHONE_NUMBER_ID,
+        verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ?? 'xclaw-wa-verify',
+      });
+      waChannel.onMessage(makeChannelHandler('whatsapp', async (channelId, content) => {
+        await waChannel.send({ platform: 'whatsapp', channelId, content });
+      }));
+      await waChannel.start();
+    } catch (err) {
+      console.warn('⚠️  WhatsApp channel skipped:', (err as Error).message);
+    }
+  }
+
+  // ─── Zalo Channel ─────────────────────────────────────────
+  if (ZALO_OA_ACCESS_TOKEN) {
+    try {
+      const zaloChannel = new ZaloChannel();
+      await zaloChannel.initialize({
+        accessToken: ZALO_OA_ACCESS_TOKEN,
+        oaId: process.env.ZALO_OA_ID ?? '',
+      });
+      zaloChannel.onMessage(makeChannelHandler('zalo', async (channelId, content) => {
+        await zaloChannel.send({ platform: 'zalo', channelId, content });
+      }));
+      await zaloChannel.start();
+    } catch (err) {
+      console.warn('⚠️  Zalo channel skipped:', (err as Error).message);
+    }
+  }
+
+  // ─── Discord Channel ──────────────────────────────────────
+  if (DISCORD_BOT_TOKEN) {
+    try {
+      const discordChannel = new DiscordChannel();
+      await discordChannel.initialize({ botToken: DISCORD_BOT_TOKEN });
+      discordChannel.onMessage(makeChannelHandler('discord', async (channelId, content) => {
+        await discordChannel.send({ platform: 'discord', channelId, content });
+      }));
+      await discordChannel.start();
+    } catch (err) {
+      console.warn('⚠️  Discord channel skipped:', (err as Error).message);
+    }
+  }
+
+  // ─── Microsoft Teams Channel ──────────────────────────────
+  if (MSTEAMS_APP_ID && MSTEAMS_APP_PASSWORD) {
+    try {
+      const teamsChannel = new MSTeamsChannel();
+      await teamsChannel.initialize({ appId: MSTEAMS_APP_ID, appPassword: MSTEAMS_APP_PASSWORD });
+      teamsChannel.onMessage(makeChannelHandler('msteams', async (channelId, content) => {
+        await teamsChannel.send({ platform: 'msteams', channelId, content });
+      }));
+      await teamsChannel.start();
+    } catch (err) {
+      console.warn('⚠️  MS Teams channel skipped:', (err as Error).message);
     }
   }
 
@@ -374,6 +494,9 @@ async function main() {
       console.log(`   RAG:      ${OPENAI_API_KEY ? 'OpenAI embeddings' : 'Local embeddings (dev mode)'}`);
     },
   );
+
+  // Start workflow cron scheduler
+  startWorkflowScheduler(workflowEngine);
 }
 
 main().catch((err) => {

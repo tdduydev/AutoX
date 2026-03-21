@@ -23,10 +23,19 @@ import { createMCPRoutes } from './mcp.js';
 import { tenantMiddleware, createTenantRoutes } from './tenant.js';
 import { createRBACRoutes } from './rbac.js';
 import { createOAuth2Routes } from './oauth2.js';
-import { createWorkflowRoutes } from './workflows.js';
+import { createZaloMiniAppAuthRoutes } from './auth-zalo-miniapp.js';
+import { createWorkflowRoutes, createWorkflowWebhookRoutes } from './workflows.js';
 import { createMonitoringRoutes } from './monitoring.js';
 import { createPluginRoutes } from './plugins.js';
 import { createAgentsRoutes } from './agents.js';
+import { createMarketplaceRoutes } from './marketplace.js';
+import { activityLoggerMiddleware } from './activity-logger.js';
+import { createVoiceRoutes } from './voice.js';
+import { createHandoffRoutes } from './handoff.js';
+import { createAnalyticsRoutes } from './analytics.js';
+import { createApiKeyRoutes } from './api-keys.js';
+import { createRetentionRoutes } from './retention.js';
+import { createWidgetRoutes } from './widget.js';
 
 export interface GatewayContext {
   agent: Agent;
@@ -57,11 +66,18 @@ export function createGateway(ctx: GatewayContext) {
   app.route('/', createHealthRoutes());
   app.route('/auth', createAuthRoutes(ctx));
   app.route('/auth/oauth2', createOAuth2Routes(ctx));
+  app.route('/auth/zalo-miniapp', createZaloMiniAppAuthRoutes(ctx));
+
+  // Public webhook routes (no auth — secrets validated per-workflow)
+  if (ctx.workflowEngine) {
+    app.route('/webhooks/workflow', createWorkflowWebhookRoutes(ctx.workflowEngine));
+  }
 
   // Protected routes
   const api = new Hono();
   api.use('*', authMiddleware(ctx.config.jwtSecret));
   api.use('*', tenantMiddleware());
+  api.use('*', activityLoggerMiddleware());
   api.route('/chat', createChatRoutes(ctx));
   api.route('/knowledge', createKnowledgeRoutes(ctx));
   api.route('/models', createModelsRoutes(ctx));
@@ -90,6 +106,15 @@ export function createGateway(ctx: GatewayContext) {
     api.route('/plugins', createPluginRoutes(ctx.pluginManager));
   }
   api.route('/agents', createAgentsRoutes(ctx));
+  if (ctx.domainPacks) {
+    api.route('/marketplace', createMarketplaceRoutes(ctx.domainPacks));
+  }
+  api.route('/voice', createVoiceRoutes(ctx));
+  api.route('/handoff', createHandoffRoutes());
+  api.route('/analytics', createAnalyticsRoutes());
+  api.route('/api-keys', createApiKeyRoutes());
+  api.route('/retention', createRetentionRoutes());
+  api.route('/widget', createWidgetRoutes());
   app.route('/api', api);
 
   return app;

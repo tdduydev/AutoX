@@ -4,6 +4,7 @@
 
 import { Hono } from 'hono';
 import type { MonitoringService } from '@xclaw-ai/core';
+import { mongoMonitoringStore, listPricing } from '@xclaw-ai/db';
 
 export function createMonitoringRoutes(monitoring: MonitoringService) {
   const app = new Hono();
@@ -95,6 +96,91 @@ export function createMonitoringRoutes(monitoring: MonitoringService) {
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
     }
+  });
+
+  // ─── Activity Logs (per-user API requests) ────────────────
+
+  app.get('/activity', async (c) => {
+    try {
+      const tenantId = c.get('tenantId') as string;
+      const { userId, method, path, from, to, limit, offset } = c.req.query();
+
+      const filter = {
+        tenantId,
+        userId: userId || undefined,
+        method: method || undefined,
+        path: path || undefined,
+        from: from ? new Date(from) : undefined,
+        to: to ? new Date(to) : undefined,
+        limit: limit ? parseInt(limit, 10) : 50,
+        offset: offset ? parseInt(offset, 10) : 0,
+      };
+
+      const [logs, total] = await Promise.all([
+        mongoMonitoringStore.queryActivityLogs(filter),
+        mongoMonitoringStore.countActivityLogs(filter),
+      ]);
+
+      return c.json({ ok: true, logs, total });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
+    }
+  });
+
+  // ─── LLM Logs (per-user LLM interactions) ─────────────────
+
+  app.get('/llm', async (c) => {
+    try {
+      const tenantId = c.get('tenantId') as string;
+      const { userId, provider, model, sessionId, success, from, to, limit, offset } = c.req.query();
+
+      const filter = {
+        tenantId,
+        userId: userId || undefined,
+        provider: provider || undefined,
+        model: model || undefined,
+        sessionId: sessionId || undefined,
+        success: success !== undefined ? success === 'true' : undefined,
+        from: from ? new Date(from) : undefined,
+        to: to ? new Date(to) : undefined,
+        limit: limit ? parseInt(limit, 10) : 50,
+        offset: offset ? parseInt(offset, 10) : 0,
+      };
+
+      const [logs, total] = await Promise.all([
+        mongoMonitoringStore.queryLLMLogs(filter),
+        mongoMonitoringStore.countLLMLogs(filter),
+      ]);
+
+      return c.json({ ok: true, logs, total });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
+    }
+  });
+
+  // ─── LLM Usage Stats (aggregated) ─────────────────────────
+
+  app.get('/llm/stats', async (c) => {
+    try {
+      const tenantId = c.get('tenantId') as string;
+      const { from, to } = c.req.query();
+
+      const stats = await mongoMonitoringStore.getLLMUsageStats(
+        tenantId,
+        from ? new Date(from) : undefined,
+        to ? new Date(to) : undefined,
+      );
+
+      return c.json({ ok: true, stats });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
+    }
+  });
+
+  // ─── LLM Pricing Reference ─────────────────────────────────
+
+  app.get('/llm/pricing', (c) => {
+    return c.json({ ok: true, pricing: listPricing() });
   });
 
   return app;

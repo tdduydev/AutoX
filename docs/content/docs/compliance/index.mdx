@@ -1,0 +1,48 @@
+---
+title: Security & Compliance
+description: Overview of xClaw's security controls, compliance posture, and data protection measures.
+---
+
+# Security & Compliance
+
+xClaw is designed with security and privacy as core architectural principles. This section documents the platform's compliance posture for SOC 2 Type II and GDPR requirements.
+
+## Security Architecture
+
+### Authentication & Authorization
+
+- **JWT-based authentication** with configurable token expiry
+- **Role-Based Access Control (RBAC)** with granular permissions (13 PostgreSQL tables: roles, permissions, rolePermissions, userRoles)
+- **OAuth 2.0** support for third-party identity providers
+- **API key management** with per-tenant scoping and revocation
+- **Rate limiting** per user and per tenant to prevent abuse
+
+### Multi-Tenant Isolation
+
+- **Tenant middleware** enforces data isolation at the API layer — every request is scoped to a `tenantId`
+- **PostgreSQL row-level filtering** via Drizzle ORM queries with mandatory `tenantId` predicates
+- **MongoDB collection filtering** with `tenantId` on all documents (sessions, messages, memory_entries, agent_configs)
+- **Redis cache keys** namespaced per tenant
+
+### Data Encryption
+
+- **In transit**: All API communication over HTTPS/TLS
+- **At rest**: PostgreSQL and MongoDB configured with storage-level encryption (AES-256)
+- **Secrets management**: Environment variables for credentials, no hardcoded secrets
+
+### Audit Logging
+
+- **Comprehensive audit trail** for administrative actions (user creation, role changes, tenant operations)
+- **Audit log viewer** in Admin UI for real-time monitoring
+- **Structured log format** with timestamp, actor, action, resource, and metadata
+
+## Compliance Guides
+
+<Cards>
+  <Card title="SOC 2 Type II" href="/docs/compliance/soc2">
+    Trust service criteria mapping — security, availability, processing integrity, confidentiality, and privacy controls.
+  </Card>
+  <Card title="GDPR" href="/docs/compliance/gdpr">
+    Data protection measures — lawful basis, data subject rights, retention policies, and breach notification procedures.
+  </Card>
+</Cards>

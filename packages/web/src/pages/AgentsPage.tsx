@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Bot, Plus, Trash2, Edit3, Star, RefreshCw, X,
     Image, Mic, Zap, Shield, BrainCircuit, Save, ChevronDown,
 } from 'lucide-react';
 import {
     getAgentConfigs, createAgentConfig, updateAgentConfig, deleteAgentConfig,
+    getModels,
 } from '../lib/api';
 
 interface AgentConfigData {
@@ -40,8 +41,33 @@ const PROVIDERS = [
     { id: 'google', name: 'Google', models: ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash'] },
     { id: 'groq', name: 'Groq', models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'] },
     { id: 'mistral', name: 'Mistral', models: ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest'] },
-    { id: 'ollama', name: 'Ollama (Local)', models: ['llama3', 'mistral', 'codellama', 'phi3', 'gemma'] },
+    { id: 'ollama', name: 'Ollama (Local)', models: ['qwen2.5:14b', 'qwen2.5:7b', 'qwen2.5:3b', 'llama3.2', 'llama3.1', 'mistral', 'codellama', 'phi3', 'gemma', 'deepseek-r1'] },
     { id: 'custom', name: 'Custom', models: [] },
+];
+
+const OLLAMA_CURATED_MODELS = [
+    'qwen2.5:14b',
+    'qwen2.5:7b',
+    'qwen2.5-coder:14b',
+    'deepseek-r1:14b',
+    'deepseek-r1:8b',
+    'llama3.3:70b-instruct-q4_K_M',
+    'llama3.2:3b',
+    'llama3.2:1b',
+    'gemma3:12b',
+    'gemma3:4b',
+    'mistral-small:24b',
+    'phi4-mini:3.8b',
+    'qwen2.5-vl:7b',
+    'nomic-embed-text',
+];
+
+const OLLAMA_MODERN_HINTS = [
+    { model: 'qwen2.5:14b', note: 'Best balance Vietnamese + tools' },
+    { model: 'deepseek-r1:14b', note: 'Strong reasoning, slower' },
+    { model: 'llama3.2:3b', note: 'Fast on laptop' },
+    { model: 'qwen2.5-coder:14b', note: 'Coding-focused tasks' },
+    { model: 'gemma3:12b', note: 'Modern compact general model' },
 ];
 
 const MODEL_CAPABILITIES: Record<string, { vision?: boolean; audio?: boolean; streaming?: boolean; functionCalling?: boolean }> = {
@@ -87,8 +113,8 @@ const DEFAULT_FORM: FormData = {
     name: '',
     persona: '',
     systemPrompt: '',
-    provider: 'openai',
-    model: 'gpt-4o',
+    provider: 'ollama',
+    model: 'qwen2.5:14b',
     customModel: '',
     temperature: 0.7,
     maxTokens: 4096,
@@ -129,8 +155,12 @@ export function AgentsPage() {
     const [form, setForm] = useState<FormData>({ ...DEFAULT_FORM });
     const [saving, setSaving] = useState(false);
     const [advancedOpen, setAdvancedOpen] = useState(false);
+    const [ollamaInstalledModels, setOllamaInstalledModels] = useState<string[]>([]);
 
-    useEffect(() => { loadData(); }, []);
+    useEffect(() => {
+        loadData();
+        loadOllamaModels();
+    }, []);
 
     async function loadData() {
         setLoading(true);
@@ -141,6 +171,19 @@ export function AgentsPage() {
             setError(err instanceof Error ? err.message : 'Failed to load agent configs');
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function loadOllamaModels() {
+        try {
+            const data = await getModels() as { models?: Array<{ name?: string }> };
+            const installed = (data.models || [])
+                .map((m) => m.name)
+                .filter((name): name is string => !!name && name.trim().length > 0);
+            setOllamaInstalledModels(installed);
+        } catch {
+            // Ollama may be offline; keep curated fallback list.
+            setOllamaInstalledModels([]);
         }
     }
 
@@ -158,8 +201,8 @@ export function AgentsPage() {
             name: config.name,
             persona: config.persona,
             systemPrompt: config.systemPrompt,
-            provider: config.llmConfig.provider || 'openai',
-            model: config.llmConfig.model || 'gpt-4o',
+            provider: config.llmConfig.provider || 'ollama',
+            model: config.llmConfig.model || 'qwen2.5:14b',
             customModel: '',
             temperature: config.llmConfig.temperature ?? 0.7,
             maxTokens: config.llmConfig.maxTokens ?? 4096,
@@ -243,7 +286,9 @@ export function AgentsPage() {
 
     function onProviderChange(provider: string) {
         const p = PROVIDERS.find((pr) => pr.id === provider);
-        const model = p?.models[0] || '';
+        const model = provider === 'ollama'
+            ? ollamaModelOptions[0] || ''
+            : (p?.models[0] || '');
         const caps = MODEL_CAPABILITIES[model] || {};
         setForm({
             ...form,
@@ -273,6 +318,16 @@ export function AgentsPage() {
     }
 
     const currentProvider = PROVIDERS.find((p) => p.id === form.provider);
+    const ollamaModelOptions = useMemo(() => {
+        const merged = new Set<string>();
+        for (const name of ollamaInstalledModels) merged.add(name);
+        for (const name of OLLAMA_CURATED_MODELS) merged.add(name);
+        return Array.from(merged);
+    }, [ollamaInstalledModels]);
+
+    const modelOptions = form.provider === 'ollama'
+        ? ollamaModelOptions
+        : (currentProvider?.models || []);
 
     return (
         <div className="h-full overflow-y-auto p-6">
@@ -530,10 +585,15 @@ export function AgentsPage() {
                                                     className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
                                                     style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
                                                 >
-                                                    {currentProvider?.models.map((m) => (
+                                                    {modelOptions.map((m) => (
                                                         <option key={m} value={m}>{m}</option>
                                                     ))}
                                                 </select>
+                                            )}
+                                            {form.provider === 'ollama' && (
+                                                <p className="mt-1 text-[11px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                                    Installed: {ollamaInstalledModels.length} | Curated modern models included for quick testing.
+                                                </p>
                                             )}
                                         </div>
 
@@ -565,6 +625,32 @@ export function AgentsPage() {
                                     </div>
 
                                     {/* Capabilities badges */}
+                                    {form.provider === 'ollama' && (
+                                        <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                                            <label className="block text-xs font-medium mb-2" style={{ color: 'var(--color-fg-muted)' }}>
+                                                Modern Ollama Picks
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {OLLAMA_MODERN_HINTS.map((item) => (
+                                                    <button
+                                                        key={item.model}
+                                                        type="button"
+                                                        onClick={() => onModelChange(item.model)}
+                                                        className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-medium cursor-pointer border transition-colors"
+                                                        style={{
+                                                            background: form.model === item.model ? 'var(--color-primary-soft)' : 'transparent',
+                                                            borderColor: form.model === item.model ? 'var(--color-primary)' : 'var(--color-border)',
+                                                            color: form.model === item.model ? 'var(--color-primary-light)' : 'var(--color-fg-muted)',
+                                                        }}
+                                                        title={item.note}
+                                                    >
+                                                        {item.model}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
                                         <label className="block text-xs font-medium mb-2" style={{ color: 'var(--color-fg-muted)' }}>Model Capabilities</label>
                                         <div className="flex flex-wrap gap-2">

@@ -40,6 +40,10 @@ import {
     batchMoveToCollection,
     updateDocument,
     getAnalytics,
+    crawlWebsite,
+    getStaleDocuments,
+    refreshDocument as apiRefreshDocument,
+    refreshAllStaleDocuments,
 } from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -627,7 +631,7 @@ function UploadModal({ collections, onClose, onSuccess }: {
     onClose: () => void;
     onSuccess: () => void;
 }) {
-    const [mode, setMode] = useState<'text' | 'file' | 'url'>('text');
+    const [mode, setMode] = useState<'text' | 'file' | 'url' | 'crawl'>('text');
     const [title, setTitle] = useState('');
     const [text, setText] = useState('');
     const [url, setUrl] = useState('');
@@ -639,6 +643,10 @@ function UploadModal({ collections, onClose, onSuccess }: {
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
+    const [crawlResult, setCrawlResult] = useState<{ ingested: number; pages: number; errors: string[] } | null>(null);
+    const [crawlMaxPages, setCrawlMaxPages] = useState(20);
+    const [crawlMaxDepth, setCrawlMaxDepth] = useState(2);
+    const [crawlSameDomain, setCrawlSameDomain] = useState(true);
     const fileRef = useRef<HTMLInputElement>(null);
 
     const handleSubmit = async (e: FormEvent) => {
@@ -659,9 +667,22 @@ function UploadModal({ collections, onClose, onSuccess }: {
             } else if (mode === 'file') {
                 if (!file) throw new Error('File is required');
                 await uploadDocumentFile(file, { title: title || file.name, ...opts });
-            } else {
+            } else if (mode === 'url') {
                 if (!url.trim()) throw new Error('URL is required');
                 await importUrl(url, { title: title || undefined, ...opts });
+            } else if (mode === 'crawl') {
+                if (!url.trim()) throw new Error('URL is required');
+                const result = await crawlWebsite(url, {
+                    maxPages: crawlMaxPages,
+                    maxDepth: crawlMaxDepth,
+                    sameDomain: crawlSameDomain,
+                    tags: tagList.length ? tagList : undefined,
+                    collectionId: collectionId || undefined,
+                    chunkSize: showAdvanced ? chunkSize : undefined,
+                    chunkOverlap: showAdvanced ? chunkOverlap : undefined,
+                });
+                setCrawlResult({ ingested: result.ingested, pages: result.pages?.length ?? 0, errors: result.errors ?? [] });
+                return;
             }
             onSuccess();
         } catch (err: any) {
@@ -684,10 +705,11 @@ function UploadModal({ collections, onClose, onSuccess }: {
 
                 <form onSubmit={handleSubmit} className="p-5 space-y-4">
                     {/* Mode toggle */}
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         <TabBtn active={mode === 'text'} onClick={() => setMode('text')}>Paste Text</TabBtn>
                         <TabBtn active={mode === 'file'} onClick={() => setMode('file')}>Upload File</TabBtn>
                         <TabBtn active={mode === 'url'} onClick={() => setMode('url')}>Web URL</TabBtn>
+                        <TabBtn active={mode === 'crawl'} onClick={() => setMode('crawl')}>Crawl Site</TabBtn>
                     </div>
 
                     {/* Title */}
@@ -740,7 +762,7 @@ function UploadModal({ collections, onClose, onSuccess }: {
                                 </>
                             )}
                         </div>
-                    ) : (
+                    ) : mode === 'url' ? (
                         <div>
                             <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--color-fg-muted)' }}>URL</label>
                             <div className="flex items-center gap-2">
@@ -755,7 +777,54 @@ function UploadModal({ collections, onClose, onSuccess }: {
                                 />
                             </div>
                         </div>
-                    )}
+                    ) : mode === 'crawl' ? (
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--color-fg-muted)' }}>Start URL</label>
+                                <div className="flex items-center gap-2">
+                                    <Globe size={16} style={{ color: 'var(--color-fg-muted)' }} />
+                                    <input
+                                        type="url"
+                                        value={url}
+                                        onChange={(e) => setUrl(e.target.value)}
+                                        placeholder="https://example.com — will crawl linked pages"
+                                        className="flex-1 px-3 py-2 rounded-lg text-sm border outline-none"
+                                        style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-xs mb-1" style={{ color: 'var(--color-fg-muted)' }}>Max Pages</label>
+                                    <input type="number" value={crawlMaxPages} onChange={(e) => setCrawlMaxPages(Number(e.target.value))} min={1} max={100}
+                                        className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                        style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs mb-1" style={{ color: 'var(--color-fg-muted)' }}>Max Depth</label>
+                                    <input type="number" value={crawlMaxDepth} onChange={(e) => setCrawlMaxDepth(Number(e.target.value))} min={1} max={5}
+                                        className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                        style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }} />
+                                </div>
+                                <div className="flex items-end pb-1">
+                                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: 'var(--color-fg-muted)' }}>
+                                        <input type="checkbox" checked={crawlSameDomain} onChange={(e) => setCrawlSameDomain(e.target.checked)} />
+                                        Same domain only
+                                    </label>
+                                </div>
+                            </div>
+                            {crawlResult && (
+                                <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e' }}>
+                                    Crawled {crawlResult.pages} pages, ingested {crawlResult.ingested} documents.
+                                    {crawlResult.errors.length > 0 && (
+                                        <span className="block mt-1" style={{ color: '#eab308' }}>
+                                            {crawlResult.errors.length} error(s): {crawlResult.errors.slice(0, 3).join(', ')}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
 
                     {/* Advanced Chunking Options */}
                     <div>
@@ -792,7 +861,7 @@ function UploadModal({ collections, onClose, onSuccess }: {
                             style={{ borderColor: 'var(--color-border)', color: 'var(--color-fg-muted)' }}>Cancel</button>
                         <button type="submit" disabled={uploading} className="flex-1 py-2.5 rounded-lg text-sm font-medium text-white cursor-pointer disabled:opacity-50"
                             style={{ background: 'var(--color-primary)' }}>
-                            {uploading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Upload & Index'}
+                            {uploading ? <Loader2 size={16} className="animate-spin mx-auto" /> : mode === 'crawl' ? 'Crawl & Index' : 'Upload & Index'}
                         </button>
                     </div>
                 </form>

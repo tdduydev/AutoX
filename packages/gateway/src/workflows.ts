@@ -304,3 +304,76 @@ export function createWorkflowRoutes(workflowEngine: WorkflowEngine) {
 
   return app;
 }
+
+// ---------------------------------------------------------------------------
+// Public webhook handler — mounts at /webhooks/workflow/:workflowId
+// No auth middleware; optional secret validation via trigger config.
+// ---------------------------------------------------------------------------
+export function createWorkflowWebhookRoutes(workflowEngine: WorkflowEngine) {
+  const app = new Hono();
+
+  app.post('/:workflowId', async (c) => {
+    try {
+      const db = getDB();
+      const workflowId = c.req.param('workflowId');
+
+      const [row] = await db
+        .select()
+        .from(workflows)
+        .where(eq(workflows.id, workflowId));
+
+      if (!row) return c.json({ error: 'Workflow not found' }, 404);
+      if (!row.enabled) return c.json({ error: 'Workflow is disabled' }, 400);
+
+      const def = row.definition as any;
+      const trigger = def?.trigger;
+      if (!trigger || trigger.type !== 'webhook') {
+        return c.json({ error: 'Workflow does not have a webhook trigger' }, 400);
+      }
+
+      // Optional secret validation
+      const expectedSecret = trigger.config?.secret as string | undefined;
+      if (expectedSecret) {
+        const incomingSecret =
+          c.req.header('x-webhook-secret') ??
+          c.req.query('secret');
+        if (incomingSecret !== expectedSecret) {
+          return c.json({ error: 'Invalid webhook secret' }, 401);
+        }
+      }
+
+      const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+
+      const workflow = buildWorkflow(row);
+      const execution = await workflowEngine.execute(workflow, {
+        triggeredBy: 'webhook',
+        webhookPayload: body,
+        receivedAt: new Date().toISOString(),
+      });
+
+      const nodeResultsObj: Record<string, any> = {};
+      execution.nodeResults.forEach((v: any, k: string) => { nodeResultsObj[k] = v; });
+
+      await db.insert(workflowExecutions).values({
+        id: execution.id,
+        workflowId: row.id,
+        status: execution.status,
+        nodeResults: nodeResultsObj,
+        variables: execution.variables,
+        error: execution.error ?? null,
+        startedAt: new Date(execution.startedAt),
+        completedAt: execution.completedAt ? new Date(execution.completedAt) : null,
+      });
+
+      return c.json({
+        ok: true,
+        executionId: execution.id,
+        status: execution.status,
+      });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
+    }
+  });
+
+  return app;
+}

@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Cpu, Download, Trash2, Loader2, CheckCircle, XCircle, HardDrive, Zap, RefreshCw } from 'lucide-react';
 import { getModels, getModelsHealth, setActiveModel, pullModel, deleteModel } from '../lib/api';
+import { useToastStore } from '../stores/useToastStore';
 
 interface ModelInfo {
     name: string;
@@ -64,18 +65,33 @@ export function ModelsPage() {
         } catch { /* ignore */ }
     };
 
+    const pullingRef = useRef(false);
+
     const handlePull = async (modelName: string) => {
-        if (pullProgress) return;
+        if (pullingRef.current) return;
+        pullingRef.current = true;
         setPullProgress({ model: modelName, status: 'Starting...', percent: 0 });
+
+        const { addToast, updateToast } = useToastStore.getState();
+        const toastId = addToast({ type: 'progress', title: `Pulling ${modelName}`, message: 'Starting...', percent: 0 });
+
         try {
             for await (const progress of pullModel(modelName)) {
                 const percent = progress.total ? Math.round(((progress.completed ?? 0) / progress.total) * 100) : 0;
                 setPullProgress({ model: modelName, status: progress.status, percent });
+                updateToast(toastId, { percent, message: progress.status });
             }
-            setPullProgress(null);
+            updateToast(toastId, { type: 'success', title: `${modelName} ready`, message: 'Model pulled successfully', percent: undefined, duration: 4000 });
+            // Auto-dismiss success toast
+            setTimeout(() => useToastStore.getState().removeToast(toastId), 4000);
             await refresh();
         } catch (err) {
+            const msg = err instanceof Error ? err.message : 'Pull failed';
+            updateToast(toastId, { type: 'error', title: `Failed to pull ${modelName}`, message: msg, percent: undefined, duration: 5000 });
+            setTimeout(() => useToastStore.getState().removeToast(toastId), 5000);
+        } finally {
             setPullProgress(null);
+            pullingRef.current = false;
         }
     };
 

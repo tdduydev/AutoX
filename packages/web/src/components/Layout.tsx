@@ -7,7 +7,7 @@ import {
     Settings,
     LogOut,
     Search,
-    PawPrint,
+
     Cpu,
     Shield,
     ChevronDown,
@@ -31,6 +31,10 @@ import {
     FileText,
     Users,
     AlertTriangle,
+    BarChart3,
+    FlaskConical,
+    Building2,
+    Wand2,
     type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -86,6 +90,10 @@ const AGENTS_NAV = [
     { to: '/channels', icon: Radio, label: 'Channels' },
     { to: '/workflows', icon: Workflow, label: 'Workflows' },
     { to: '/marketplace', icon: Boxes, label: 'Marketplace' },
+    { to: '/analytics', icon: BarChart3, label: 'Analytics' },
+    { to: '/prompt-lab', icon: FlaskConical, label: 'Prompt Lab' },
+    { to: '/agent-builder', icon: Wand2, label: 'Agent Builder' },
+    { to: '/admin', icon: Building2, label: 'Admin' },
 ];
 
 const TOOLS_NAV = [
@@ -128,33 +136,32 @@ export function Layout() {
         <div className="flex h-screen overflow-hidden" style={{ background: 'var(--color-bg)' }}>
             {/* Sidebar */}
             <aside
-                className="relative flex flex-col shrink-0 border-r transition-all duration-300 ease-in-out"
+                className="glass-sidebar relative flex flex-col shrink-0 border-r transition-all duration-300 ease-in-out"
                 style={{
-                    background: 'var(--color-bg-surface)',
-                    borderColor: 'var(--color-border)',
+                    borderColor: 'rgba(255, 255, 255, 0.06)',
                     width: collapsed ? '56px' : '248px',
                 }}
             >
                 {/* Gradient accent line */}
                 <div
                     className="absolute left-0 top-0 bottom-0 w-[2px]"
-                    style={{ background: 'linear-gradient(180deg, #6366f1 0%, #06b6d4 50%, #10b981 100%)', opacity: 0.5 }}
+                    style={{ background: 'linear-gradient(180deg, #6366f1 0%, #8b5cf6 30%, #06b6d4 60%, #10b981 100%)', opacity: 0.6 }}
                 />
 
                 {/* Logo */}
-                <div className="flex items-center gap-2.5 px-3 h-14 border-b" style={{ borderColor: 'var(--color-border)' }}>
+                <div className="flex items-center gap-2.5 px-3 h-14 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
                     {!collapsed && (
                         <>
-                            <div
-                                className="w-7 h-7 rounded-lg flex items-center justify-center"
-                                style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' }}
-                            >
-                                <PawPrint size={15} color="#fff" />
-                            </div>
-                            <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-fg)' }}>xClaw</span>
+                            <img
+                                src="/logo.png"
+                                alt="xClaw"
+                                className="w-8 h-8 rounded-lg"
+                                style={{ boxShadow: '0 2px 10px rgba(99,102,241,0.25)' }}
+                            />
+                            <span className="text-lg font-bold tracking-tight" style={{ color: '#f4f4f5' }}>xClaw</span>
                             <span
-                                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
-                                style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary-light)' }}
+                                className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                                style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}
                             >
                                 v2
                             </span>
@@ -162,8 +169,8 @@ export function Layout() {
                     )}
                     <button
                         onClick={() => setCollapsed(!collapsed)}
-                        className="ml-auto p-1.5 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[var(--color-bg-soft)]"
-                        style={{ color: 'var(--color-fg-muted)' }}
+                        className="ml-auto p-1.5 rounded-lg transition-all duration-200 cursor-pointer"
+                        style={{ color: '#a1a1aa' }}
                         title={collapsed ? 'Expand' : 'Collapse'}
                     >
                         {collapsed ? <Menu size={18} /> : <X size={14} />}
@@ -323,27 +330,34 @@ export function Layout() {
                 </nav>
 
                 {/* User */}
-                <div className="flex items-center gap-2.5 px-3 py-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                <div
+                    className="flex items-center gap-2.5 px-3 py-3 border-t"
+                    style={{
+                        borderColor: 'rgba(255,255,255,0.06)',
+                        background: 'rgba(255,255,255,0.02)',
+                    }}
+                >
                     <div
                         className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                         style={{
-                            background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(6,182,212,0.2))',
-                            color: 'var(--color-primary-light)',
-                            border: '2px solid rgba(99,102,241,0.3)',
+                            background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15))',
+                            color: '#818cf8',
+                            border: '2px solid rgba(99,102,241,0.25)',
+                            boxShadow: '0 0 12px rgba(99,102,241,0.1)',
                         }}
                     >
                         {user?.email?.charAt(0).toUpperCase() ?? 'U'}
                     </div>
                     {!collapsed && (
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate" style={{ color: 'var(--color-fg)' }}>{user?.email ?? 'Guest'}</p>
-                            <p className="text-[10px] capitalize" style={{ color: 'var(--color-fg-muted)' }}>{user?.role ?? 'admin'}</p>
+                            <p className="text-xs font-medium truncate" style={{ color: '#e4e4e7' }}>{user?.email ?? 'Guest'}</p>
+                            <p className="text-[10px] capitalize" style={{ color: '#71717a' }}>{user?.role ?? 'admin'}</p>
                         </div>
                     )}
                     <button
                         onClick={logout}
                         className="p-1.5 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[rgba(239,68,68,0.1)]"
-                        style={{ color: 'var(--color-fg-muted)' }}
+                        style={{ color: '#71717a' }}
                         title="Logout"
                     >
                         <LogOut size={14} />
@@ -384,13 +398,11 @@ function SidebarLink({
         <NavLink
             to={to}
             end={to === '/' || to === '/domains'}
-            className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13px] font-medium transition-all duration-200"
+            className={({ isActive }) =>
+                `sidebar-link flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13px] font-medium${isActive ? ' sidebar-link-active' : ''}`
+            }
             style={({ isActive }) => ({
-                background: isActive
-                    ? 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))'
-                    : 'transparent',
-                color: isActive ? 'var(--color-primary-light)' : 'var(--color-fg-muted)',
-                boxShadow: isActive ? 'inset 0 0 0 1px rgba(99,102,241,0.15)' : 'none',
+                color: isActive ? '#a5b4fc' : '#a1a1aa',
             })}
             title={collapsed ? label : undefined}
         >

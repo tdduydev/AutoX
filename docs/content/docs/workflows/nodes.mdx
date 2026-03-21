@@ -1,0 +1,41 @@
+---
+title: Workflow Nodes
+description: The 16 node types available in the visual workflow builder.
+---
+
+## Node Types
+
+| Node | Category | Description |
+|------|----------|-------------|
+| **LLM** | AI | Send a prompt to an LLM and get a response |
+| **Condition** | Logic | Branch based on a condition expression |
+| **Loop** | Logic | Iterate over a list or repeat N times |
+| **HTTP Request** | Integration | Make HTTP requests to external APIs |
+| **Code** | Processing | Execute custom JavaScript code |
+| **Template** | Processing | Render text with variable substitution |
+| **Transform** | Processing | Map, filter, or reshape data |
+| **Delay** | Control | Wait for a specified duration |
+| **Switch** | Logic | Multi-way branching based on value |
+| **Merge** | Control | Combine outputs from multiple branches |
+| **Webhook Response** | Integration | Return data to a webhook caller |
+| **Email** | Integration | Send an email via configured SMTP |
+| **Database** | Data | Query PostgreSQL or MongoDB |
+| **RAG** | AI | Retrieve relevant knowledge from RAG engine |
+| **Tool Call** | AI | Invoke a registered agent tool |
+| **Output** | Control | Final output node — sets the workflow result |
+
+## Node Configuration
+
+Each node has:
+- **Name** — Descriptive label shown on the canvas
+- **Type** — Determines behavior and config options
+- **Config** — Type-specific settings (prompt text, URL, condition expression, etc.)
+- **Inputs** — Connected from upstream nodes via edges
+- **Outputs** — Pass data to downstream nodes
+
+## Data Flow
+
+Data flows through nodes via edges. Each node receives the output of its predecessor and can access:
+- `input` — Data from the connected upstream node
+- `variables` — Workflow-level variables
+- `trigger` — The trigger payload (e.g., webhook body, message text)

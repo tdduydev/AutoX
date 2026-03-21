@@ -96,22 +96,36 @@ export function DashboardPage() {
             {/* Hero Section */}
             <div
                 className="relative overflow-hidden border-b"
-                style={{ borderColor: 'var(--color-border)' }}
+                style={{ borderColor: 'rgba(255,255,255,0.06)' }}
             >
-                <div className="gradient-mesh absolute inset-0" />
-                <div className="relative max-w-6xl mx-auto px-6 py-8">
-                    <div className="flex items-center gap-3 mb-2">
+                {/* Enhanced gradient mesh */}
+                <div
+                    className="absolute inset-0"
+                    style={{
+                        background: `
+                            radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.12) 0%, transparent 50%),
+                            radial-gradient(ellipse at 80% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 50%),
+                            radial-gradient(ellipse at 60% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+                            radial-gradient(ellipse at 40% 30%, rgba(139, 92, 246, 0.06) 0%, transparent 40%)
+                        `,
+                    }}
+                />
+                <div className="relative max-w-6xl mx-auto px-6 py-10">
+                    <div className="flex items-center gap-4 mb-2">
                         <div
-                            className="w-10 h-10 rounded-xl flex items-center justify-center gradient-primary"
-                            style={{ boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)' }}
+                            className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                            style={{
+                                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                                boxShadow: '0 4px 20px rgba(99, 102, 241, 0.35)',
+                            }}
                         >
-                            <Sparkles size={20} color="#fff" />
+                            <Sparkles size={22} color="#fff" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>
+                            <h1 className="text-2xl font-bold" style={{ color: '#f4f4f5' }}>
                                 Welcome to xClaw
                             </h1>
-                            <p className="text-sm" style={{ color: 'var(--color-fg-muted)' }}>
+                            <p className="text-sm" style={{ color: '#71717a' }}>
                                 Open-source AI Agent Platform — Multi-industry, Multi-tenant
                             </p>
                         </div>
@@ -120,7 +134,7 @@ export function DashboardPage() {
                     {error && (
                         <div
                             className="mt-4 px-4 py-3 rounded-xl text-sm flex items-center gap-2"
-                            style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
+                            style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.15)' }}
                         >
                             <Activity size={14} /> {error}
                         </div>
@@ -134,16 +148,14 @@ export function DashboardPage() {
                     {stats.map((stat, i) => (
                         <div
                             key={stat.label}
-                            className="relative rounded-2xl p-5 hover-lift hover-border-glow overflow-hidden"
+                            className="glass-card relative rounded-2xl p-5 hover-lift overflow-hidden transition-all duration-300"
                             style={{
-                                background: 'var(--color-bg-surface)',
-                                border: '1px solid var(--color-border)',
                                 animationDelay: `${i * 80}ms`,
                             }}
                         >
                             {/* Subtle gradient glow */}
                             <div
-                                className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-20 blur-2xl"
+                                className="absolute top-0 right-0 w-28 h-28 rounded-full opacity-25 blur-2xl"
                                 style={{ background: `linear-gradient(135deg, ${stat.gradient.from}, ${stat.gradient.to})` }}
                             />
                             <div className="relative">
@@ -154,14 +166,14 @@ export function DashboardPage() {
                                     >
                                         <stat.icon size={18} style={{ color: stat.gradient.from }} />
                                     </div>
-                                    <span className="text-xs font-medium" style={{ color: 'var(--color-fg-muted)' }}>
+                                    <span className="text-xs font-medium" style={{ color: '#a1a1aa' }}>
                                         {stat.label}
                                     </span>
                                 </div>
                                 <p className="text-2xl font-bold mb-1" style={{ color: stat.gradient.from }}>
                                     {stat.value}
                                 </p>
-                                <p className="text-[11px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                <p className="text-[11px]" style={{ color: '#71717a' }}>
                                     {stat.detail}
                                 </p>
                             </div>
@@ -182,11 +194,7 @@ export function DashboardPage() {
                             <a
                                 key={action.title}
                                 href={action.href}
-                                className="group relative rounded-xl p-4 hover-lift hover-border-glow"
-                                style={{
-                                    background: 'var(--color-bg-surface)',
-                                    border: '1px solid var(--color-border)',
-                                }}
+                                className="group glass-card relative rounded-xl p-4 hover-lift transition-all duration-300"
                             >
                                 <div className="flex items-start justify-between mb-3">
                                     <div
@@ -198,13 +206,13 @@ export function DashboardPage() {
                                     <ArrowUpRight
                                         size={14}
                                         className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                        style={{ color: 'var(--color-fg-muted)' }}
+                                        style={{ color: '#71717a' }}
                                     />
                                 </div>
-                                <h3 className="text-sm font-semibold mb-0.5" style={{ color: 'var(--color-fg)' }}>
+                                <h3 className="text-sm font-semibold mb-0.5" style={{ color: '#e4e4e7' }}>
                                     {action.title}
                                 </h3>
-                                <p className="text-[11px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                <p className="text-[11px]" style={{ color: '#71717a' }}>
                                     {action.desc}
                                 </p>
                             </a>

@@ -1,0 +1,31 @@
+---
+title: Gmail
+description: Send and read emails through your AI agent with the Gmail integration.
+---
+
+## Setup
+
+1. Create a Google Cloud project and enable the Gmail API
+2. Create OAuth2 credentials (Client ID + Client Secret)
+3. Add credentials in **Settings** → **Integrations** → **Gmail**
+
+## Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `send_email` | Send an email with subject, body, and recipient(s) |
+| `read_emails` | Read recent emails with optional query filter |
+| `create_draft` | Create an email draft without sending |
+
+## Triggers
+
+| Trigger | Description |
+|---------|-------------|
+| `new_email` | Polls for new unread emails at configurable intervals |
+
+## Example Usage
+
+Ask your agent:
+> "Send an email to team@example.com about the meeting notes"
+
+The agent will use the `send_email` tool to compose and send the message.

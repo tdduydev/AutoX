@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import { I18nProvider } from './i18n';
 import { Layout } from './components/Layout';
 import { SettingsLayout } from './components/SettingsLayout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ChatPage } from './pages/ChatPage';
@@ -26,6 +27,11 @@ import { AgentsPage } from './pages/AgentsPage';
 import { ChannelsPage } from './pages/ChannelsPage';
 import { WorkflowsPage } from './pages/WorkflowsPage';
 import { SkillMarketplacePage } from './pages/SkillMarketplacePage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
+import { AdminPage } from './pages/AdminPage';
+import { PromptLabPage } from './pages/PromptLabPage';
+import { AgentBuilderPage } from './pages/AgentBuilderPage';
+import { ToastContainer } from './components/ToastContainer';
 
 function ProtectedRoutes() {
     const { user, loading } = useAuth();
@@ -34,23 +40,27 @@ function ProtectedRoutes() {
 
     return (
         <Routes>
-            <Route element={<Layout />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="chat" element={<ChatPage />} />
-                <Route path="knowledge" element={<KnowledgePage />} />
-                <Route path="knowledge/:id" element={<DocumentDetailPage />} />
-                <Route path="search" element={<SearchPage />} />
-                <Route path="models" element={<ModelsPage />} />
-                <Route path="medical" element={<MedicalPage />} />
-                <Route path="domains" element={<DomainsPage />} />
-                <Route path="domains/:id" element={<DomainDetailPage />} />
-                <Route path="domains/:id/workspace" element={<DomainWorkspacePage />} />
-                <Route path="ml" element={<MLPage />} />
-                <Route path="mcp" element={<MCPPage />} />
-                <Route path="agents" element={<AgentsPage />} />
-                <Route path="channels" element={<ChannelsPage />} />
-                <Route path="workflows" element={<WorkflowsPage />} />
-                <Route path="marketplace" element={<SkillMarketplacePage />} />
+            <Route element={<ErrorBoundary><Layout /></ErrorBoundary>}>
+                <Route index element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
+                <Route path="chat" element={<ErrorBoundary><ChatPage /></ErrorBoundary>} />
+                <Route path="knowledge" element={<ErrorBoundary><KnowledgePage /></ErrorBoundary>} />
+                <Route path="knowledge/:id" element={<ErrorBoundary><DocumentDetailPage /></ErrorBoundary>} />
+                <Route path="search" element={<ErrorBoundary><SearchPage /></ErrorBoundary>} />
+                <Route path="models" element={<ErrorBoundary><ModelsPage /></ErrorBoundary>} />
+                <Route path="medical" element={<ErrorBoundary><MedicalPage /></ErrorBoundary>} />
+                <Route path="domains" element={<ErrorBoundary><DomainsPage /></ErrorBoundary>} />
+                <Route path="domains/:id" element={<ErrorBoundary><DomainDetailPage /></ErrorBoundary>} />
+                <Route path="domains/:id/workspace" element={<ErrorBoundary><DomainWorkspacePage /></ErrorBoundary>} />
+                <Route path="ml" element={<ErrorBoundary><MLPage /></ErrorBoundary>} />
+                <Route path="mcp" element={<ErrorBoundary><MCPPage /></ErrorBoundary>} />
+                <Route path="agents" element={<ErrorBoundary><AgentsPage /></ErrorBoundary>} />
+                <Route path="channels" element={<ErrorBoundary><ChannelsPage /></ErrorBoundary>} />
+                <Route path="workflows" element={<ErrorBoundary><WorkflowsPage /></ErrorBoundary>} />
+                <Route path="marketplace" element={<ErrorBoundary><SkillMarketplacePage /></ErrorBoundary>} />
+                <Route path="analytics" element={<ErrorBoundary><AnalyticsPage /></ErrorBoundary>} />
+                <Route path="admin" element={<ErrorBoundary><AdminPage /></ErrorBoundary>} />
+                <Route path="prompt-lab" element={<ErrorBoundary><PromptLabPage /></ErrorBoundary>} />
+                <Route path="agent-builder" element={<ErrorBoundary><AgentBuilderPage /></ErrorBoundary>} />
                 <Route path="plugins/:pluginId/*" element={<PluginPage />} />
                 <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<SettingsOverviewPage />} />
@@ -78,6 +88,7 @@ export function App() {
                         {/* All other routes — with auth + sidebar layout */}
                         <Route path="/*" element={<ProtectedRoutes />} />
                     </Routes>
+                    <ToastContainer />
                 </AuthProvider>
             </I18nProvider>
         </BrowserRouter>

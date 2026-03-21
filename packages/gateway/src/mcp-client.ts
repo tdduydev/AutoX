@@ -1,10 +1,12 @@
 // ============================================================
-// MCP Client Manager — Real MCP server connections via stdio
-// Spawns child processes, lists tools, and executes tool calls
+// MCP Client Manager — Real MCP server connections via stdio, SSE, HTTP
+// Spawns child processes or connects to remote servers, lists tools, and executes tool calls
 // ============================================================
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { ToolDefinition, ToolParameter } from '@xclaw-ai/shared';
 import type { ToolRegistry } from '@xclaw-ai/core';
 
@@ -15,6 +17,7 @@ export interface MCPServerConfig {
   command?: string;
   args?: string[];
   url?: string;
+  headers?: Record<string, string>;
   enabled: boolean;
   status: 'connected' | 'disconnected' | 'error';
   toolCount: number;
@@ -25,7 +28,7 @@ export interface MCPServerConfig {
 
 interface MCPConnection {
   client: Client;
-  transport: StdioClientTransport;
+  transport: StdioClientTransport | SSEClientTransport | StreamableHTTPClientTransport;
   tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
 }
 
@@ -68,23 +71,44 @@ export class MCPClientManager {
   }
 
   /**
-   * Connect to an MCP server via stdio, list its tools, and register them.
+   * Connect to an MCP server via stdio, SSE, or HTTP, list its tools, and register them.
    */
   async connect(server: MCPServerConfig): Promise<{ tools: string[] }> {
-    if (server.type !== 'stdio' || !server.command) {
-      throw new Error(`Only stdio MCP servers are supported. Server "${server.id}" has type "${server.type}".`);
-    }
-
     // Disconnect existing connection if any
     if (this.connections.has(server.id)) {
       await this.disconnect(server.id);
     }
 
-    const transport = new StdioClientTransport({
-      command: server.command,
-      args: server.args || [],
-      stderr: 'pipe',
-    });
+    let transport: StdioClientTransport | SSEClientTransport | StreamableHTTPClientTransport;
+
+    if (server.type === 'stdio') {
+      if (!server.command) {
+        throw new Error(`stdio MCP server "${server.id}" requires a command`);
+      }
+      transport = new StdioClientTransport({
+        command: server.command,
+        args: server.args || [],
+        stderr: 'pipe',
+      });
+    } else if (server.type === 'sse') {
+      if (!server.url) {
+        throw new Error(`SSE MCP server "${server.id}" requires a url`);
+      }
+      transport = new SSEClientTransport(
+        new URL(server.url),
+        { requestInit: server.headers ? { headers: server.headers } : undefined },
+      );
+    } else if (server.type === 'http') {
+      if (!server.url) {
+        throw new Error(`HTTP MCP server "${server.id}" requires a url`);
+      }
+      transport = new StreamableHTTPClientTransport(
+        new URL(server.url),
+        { requestInit: server.headers ? { headers: server.headers } : undefined },
+      );
+    } else {
+      throw new Error(`Unsupported MCP transport type: "${server.type}"`);
+    }
 
     const client = new Client({
       name: 'xClaw',

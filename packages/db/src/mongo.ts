@@ -28,10 +28,11 @@ export interface MongoMessage {
 export interface MongoMemoryEntry {
   _id: string;
   tenantId: string;
-  type: 'fact' | 'preference' | 'conversation' | 'context' | 'skill-data';
+  userId?: string; // user-scoped persistent memory (null = tenant-wide)
+  type: 'fact' | 'preference' | 'conversation' | 'context' | 'instruction' | 'skill-data';
   content: string;
-  metadata: Record<string, any>;
-  source: string;
+  metadata: Record<string, any>; // extra fields: key, confidence, etc.
+  source: string; // 'explicit' | 'inferred' | ...
   tags: string[];
   embedding?: number[]; // vector embedding for similarity search
   createdAt: Date;
@@ -83,15 +84,52 @@ export interface MongoChannelConnection {
   _id: string;
   tenantId: string;
   userId: string;
-  channelType: 'telegram' | 'discord' | 'facebook' | 'slack' | 'whatsapp' | 'webhook';
+  channelType: 'telegram' | 'discord' | 'facebook' | 'slack' | 'whatsapp' | 'zalo' | 'msteams' | 'webhook';
   name: string;
   config: Record<string, any>; // e.g. { botToken, allowedChatIds }
   status: 'active' | 'inactive' | 'error';
   agentConfigId?: string;
+  domainId?: string; // Domain pack ID for channel-specific AI persona (e.g. 'healthcare', 'finance')
   lastConnectedAt?: Date;
   metadata?: Record<string, any>; // e.g. { botUsername, botId }
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface MongoActivityLog {
+  _id: string;
+  tenantId: string;
+  userId: string;
+  method: string;        // GET, POST, PUT, DELETE
+  path: string;          // /api/chat, /api/settings, etc.
+  statusCode: number;
+  duration: number;       // ms
+  ip?: string;
+  userAgent?: string;
+  requestBody?: Record<string, any>; // sanitized (no secrets)
+  responseSize?: number;
+  sessionId?: string;     // chat session if applicable
+  createdAt: Date;
+}
+
+export interface MongoLLMLog {
+  _id: string;
+  tenantId: string;
+  userId: string;
+  sessionId?: string;
+  provider: string;       // ollama, openai, anthropic
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  duration: number;       // ms
+  costUsd: number;        // estimated cost in USD
+  platform?: string;      // web, telegram, slack, api, etc.
+  success: boolean;
+  error?: string;
+  toolCalls?: number;     // count of tool calls in this interaction
+  streaming: boolean;
+  createdAt: Date;
 }
 
 // ─── Connection ────────────────────────────────────────────
@@ -166,6 +204,83 @@ export function channelConnectionsCollection(db?: Db): Collection<MongoChannelCo
   return (db || getMongo()).collection<MongoChannelConnection>('channel_connections');
 }
 
+export function activityLogsCollection(db?: Db): Collection<MongoActivityLog> {
+  return (db || getMongo()).collection<MongoActivityLog>('activity_logs');
+}
+
+export function llmLogsCollection(db?: Db): Collection<MongoLLMLog> {
+  return (db || getMongo()).collection<MongoLLMLog>('llm_logs');
+}
+
+// ─── Handoff Sessions ──────────────────────────────────────
+
+export interface MongoHandoffSession {
+  tenantId: string;
+  sessionId: string;
+  userId: string;
+  agentUserId?: string;
+  status: 'pending' | 'assigned' | 'active' | 'resolved' | 'returned_to_ai';
+  reason: string;
+  reasonDetail?: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+  assignedAt?: Date;
+  resolvedAt?: Date;
+}
+
+export function handoffSessionsCollection(db?: Db): Collection<MongoHandoffSession> {
+  return (db || getMongo()).collection<MongoHandoffSession>('handoff_sessions');
+}
+
+// ─── Escalation Rules ──────────────────────────────────────
+
+export interface MongoEscalationRule {
+  tenantId: string;
+  type: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export function escalationRulesCollection(db?: Db): Collection<MongoEscalationRule> {
+  return (db || getMongo()).collection<MongoEscalationRule>('escalation_rules');
+}
+
+// ─── API Keys ──────────────────────────────────────────────
+
+export interface MongoApiKey {
+  tenantId: string;
+  name: string;
+  keyPrefix: string;
+  keyHash: string;
+  scopes: string[];
+  expiresAt?: Date;
+  lastUsedAt?: Date;
+  createdAt: Date;
+  createdBy: string;
+}
+
+export function apiKeysCollection(db?: Db): Collection<MongoApiKey> {
+  return (db || getMongo()).collection<MongoApiKey>('api_keys');
+}
+
+// ─── Retention Policies ────────────────────────────────────
+
+export interface MongoRetentionPolicy {
+  tenantId: string;
+  resource: string;
+  retentionDays: number;
+  enabled: boolean;
+  lastRunAt?: Date;
+  createdAt: Date;
+}
+
+export function retentionPoliciesCollection(db?: Db): Collection<MongoRetentionPolicy> {
+  return (db || getMongo()).collection<MongoRetentionPolicy>('retention_policies');
+}
+
 // ─── Indexes ───────────────────────────────────────────────
 
 async function ensureIndexes(db: Db) {
@@ -208,4 +323,41 @@ async function ensureIndexes(db: Db) {
   await channels.createIndex({ tenantId: 1, userId: 1 });
   await channels.createIndex({ tenantId: 1, channelType: 1 });
   await channels.createIndex({ status: 1 });
+
+  // Activity logs (per-user API request logs)
+  const activityLogs = activityLogsCollection(db);
+  await activityLogs.createIndex({ tenantId: 1, userId: 1, createdAt: -1 });
+  await activityLogs.createIndex({ userId: 1, createdAt: -1 });
+  await activityLogs.createIndex({ path: 1, createdAt: -1 });
+  await activityLogs.createIndex({ method: 1 });
+  // TTL: auto-delete activity logs after 60 days
+  await activityLogs.createIndex({ createdAt: 1 }, { expireAfterSeconds: 60 * 24 * 3600 });
+
+  // LLM interaction logs
+  const llmLogs = llmLogsCollection(db);
+  await llmLogs.createIndex({ tenantId: 1, userId: 1, createdAt: -1 });
+  await llmLogs.createIndex({ provider: 1, model: 1, createdAt: -1 });
+  await llmLogs.createIndex({ sessionId: 1 });
+  await llmLogs.createIndex({ success: 1 });
+  // TTL: auto-delete LLM logs after 90 days
+  await llmLogs.createIndex({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 3600 });
+
+  // Handoff sessions
+  const handoff = handoffSessionsCollection(db);
+  await handoff.createIndex({ tenantId: 1, status: 1, createdAt: -1 });
+  await handoff.createIndex({ sessionId: 1 });
+  await handoff.createIndex({ agentUserId: 1, status: 1 });
+
+  // Escalation rules
+  const rules = escalationRulesCollection(db);
+  await rules.createIndex({ tenantId: 1, type: 1 });
+
+  // API keys
+  const apiKeys = apiKeysCollection(db);
+  await apiKeys.createIndex({ tenantId: 1 });
+  await apiKeys.createIndex({ keyHash: 1 }, { unique: true });
+
+  // Retention policies
+  const retention = retentionPoliciesCollection(db);
+  await retention.createIndex({ tenantId: 1, resource: 1 }, { unique: true });
 }

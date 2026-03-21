@@ -229,6 +229,7 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
         config,
         status: 'inactive',
         agentConfigId: body.agentConfigId || undefined,
+        domainId: body.domainId || undefined,
         createdAt: now,
         updatedAt: now,
       };
@@ -257,6 +258,7 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
       const updates: Record<string, any> = { updatedAt: new Date() };
       if (name) updates.name = name;
       if (body.agentConfigId !== undefined) updates.agentConfigId = body.agentConfigId || undefined;
+      if (body.domainId !== undefined) updates.domainId = body.domainId || undefined;
       if (config) {
         const validation = validateChannelConfig(existing.channelType, config);
         if (!validation.ok) return c.json({ error: validation.error }, 400);

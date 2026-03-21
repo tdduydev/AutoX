@@ -1,0 +1,165 @@
+---
+title: GDPR Compliance
+description: How xClaw implements GDPR data protection requirements for EU users and tenants.
+---
+
+# GDPR Compliance
+
+This document describes how xClaw implements the requirements of the General Data Protection Regulation (EU) 2016/679 for processing personal data.
+
+## Lawful Basis for Processing
+
+xClaw processes personal data under the following lawful bases:
+
+| Data Category | Lawful Basis | Purpose |
+|--------------|-------------|---------|
+| User account data (email, name) | **Contractual necessity** (Art. 6(1)(b)) | Authentication and account management |
+| Conversation messages | **Legitimate interest** (Art. 6(1)(f)) | AI agent service delivery |
+| Analytics data | **Legitimate interest** (Art. 6(1)(f)) | Service improvement and monitoring |
+| Integration credentials | **Consent** (Art. 6(1)(a)) | OAuth 2.0 consent flow for third-party services |
+
+## Data Subject Rights
+
+### Right of Access (Art. 15)
+
+- Users can view their conversation history through the web UI
+- API endpoint: `GET /api/sessions` returns all sessions for the authenticated user
+- API endpoint: `GET /api/sessions/:id/messages` returns full message history
+- Admin API: `GET /api/analytics/export` exports data in CSV format
+
+### Right to Erasure (Art. 17)
+
+- **Data retention policies**: Configurable auto-deletion of conversations after a specified number of days
+- **Manual deletion**: Users can delete individual sessions through the UI
+- **Tenant-level purge**: Admins can configure retention rules via `RetentionTab` in Admin settings
+- Implementation: `packages/gateway/src/retention.ts` — `DELETE /api/retention/execute` triggers cleanup
+
+### Right to Rectification (Art. 16)
+
+- Users can update their profile information through the settings UI
+- Admin users can modify user records via the Admin panel
+
+### Right to Data Portability (Art. 20)
+
+- **CSV export**: `GET /api/analytics/export` provides downloadable CSV of conversation data
+- **API access**: All user data is accessible through authenticated REST API endpoints
+- Data format: Structured JSON (MongoDB documents) and relational data (PostgreSQL)
+
+### Right to Restriction of Processing (Art. 18)
+
+- Tenant suspension: Admins can suspend a tenant, halting all data processing
+- User deactivation: Individual user accounts can be deactivated
+
+### Right to Object (Art. 21)
+
+- Users can disconnect integrations (revoking data flow to third-party services)
+- Channel-specific opt-out available per user
+
+## Data Protection by Design (Art. 25)
+
+### Multi-Tenant Isolation
+
+xClaw enforces strict tenant isolation as a core architectural principle:
+
+```
+Request → Auth Middleware → Tenant Middleware → Route Handler
+                ↓                   ↓
+          JWT validation      tenantId injection
+                              into all DB queries
+```
+
+- Every API request passes through `tenantMiddleware()` which extracts and validates the tenant context
+- All PostgreSQL queries include `WHERE tenantId = ?` via Drizzle ORM
+- All MongoDB queries include `{ tenantId }` filter
+- Redis cache keys are namespaced: `tenant:{tenantId}:{key}`
+
+### Data Minimization
+
+- Conversations store only the message content, role, and metadata required for AI responses
+- Embeddings (`number[]` vectors) are derived data that cannot be reverse-engineered to original text
+- No unnecessary personal data is collected or retained
+
+### Purpose Limitation
+
+- Conversation data is used only for AI agent responses within the configured tenant
+- Analytics data is aggregated and scoped to tenant-level insights
+- Integration data flows only through explicitly connected and authorized channels
+
+## Data Retention (Art. 5(1)(e))
+
+xClaw implements configurable data retention policies:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Conversation retention | Auto-delete conversations older than N days | Configurable per tenant |
+| Memory entry retention | Auto-purge agent memory entries | Configurable per tenant |
+| Audit log retention | Retain admin action logs | 90 days |
+| Analytics data | Aggregated metrics retention | 365 days |
+
+### Implementation
+
+- `packages/gateway/src/retention.ts` provides CRUD routes for retention policies
+- `DELETE /api/retention/execute` executes cleanup based on configured rules
+- Retention settings are managed per-tenant in the Admin UI (Settings → Retention tab)
+
+## Data Processing Records (Art. 30)
+
+### Categories of Processing
+
+| Processing Activity | Data Categories | Recipients | Retention |
+|-------------------|----------------|-----------|-----------|
+| User authentication | Email, password hash, OAuth tokens | Internal only | Account lifetime |
+| AI conversation | Messages, session metadata | LLM provider (configured) | Per retention policy |
+| Knowledge base indexing | Documents, embeddings | Internal vector store | Until deletion |
+| Integration sync | Third-party data (emails, calendar, etc.) | Configured integration | Per retention policy |
+| Analytics | Aggregated usage metrics | Internal only | 365 days |
+
+### Sub-Processors
+
+xClaw may transmit conversation data to the following categories of sub-processors for AI inference:
+
+- **LLM Providers**: Ollama (self-hosted), OpenAI, Anthropic, Google Gemini, Mistral, Groq
+- **Search Providers**: Brave Search, Tavily (when configured)
+- **Integration Services**: Gmail, GitHub, Notion, Slack, HuggingFace, W&B (when connected by user)
+
+Each sub-processor connection requires explicit tenant configuration and user consent (OAuth flow for integrations).
+
+## Data Breach Notification (Art. 33–34)
+
+### Detection
+
+- Audit logging tracks all administrative actions and data access
+- Analytics dashboard monitors for anomalous patterns (unusual conversation volume, error spikes)
+- Rate limiting prevents brute-force attacks
+- Failed authentication attempts are tracked
+
+### Response Procedure
+
+1. **Detection**: Automated monitoring flags anomalous activity
+2. **Assessment**: Admin reviews audit logs and analytics
+3. **Containment**: Tenant suspension, API key revocation, user deactivation
+4. **Notification**: Supervisory authority within 72 hours (Art. 33), affected users without undue delay (Art. 34)
+5. **Remediation**: Root cause analysis, security patch deployment
+
+## International Data Transfers (Art. 44–49)
+
+- **Self-hosted deployments**: Data remains within the deployment region (no cross-border transfers)
+- **Cloud LLM providers**: Data transmitted to provider-specified regions. Tenants should configure providers based on their data residency requirements
+- **Standard Contractual Clauses (SCCs)**: Recommended for tenants using cloud LLM providers outside the EEA
+
+## Data Protection Officer
+
+For self-hosted deployments, the deploying organization is the data controller and should designate a DPO as required by Art. 37.
+
+## Technical Measures Summary
+
+| Measure | Implementation |
+|---------|---------------|
+| Encryption in transit | HTTPS/TLS for all API communication |
+| Encryption at rest | Database-level encryption (AES-256) |
+| Access control | JWT + RBAC with granular permissions |
+| Audit trail | Comprehensive logging with actor attribution |
+| Data isolation | Multi-tenant middleware on every request |
+| Data deletion | Configurable retention with automated cleanup |
+| Consent management | OAuth 2.0 flows for third-party integrations |
+| Breach detection | Monitoring, rate limiting, anomaly detection |

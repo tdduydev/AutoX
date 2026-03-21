@@ -1,0 +1,116 @@
+---
+title: MCP Servers
+description: Manage Model Context Protocol servers for extending agent capabilities
+---
+
+# MCP Servers
+
+![MCP Servers](/screenshots/19-mcp.png)
+
+The MCP Servers page lets you manage Model Context Protocol (MCP) servers — external tool providers that extend xClaw agent capabilities with real-world integrations.
+
+---
+
+## Overview
+
+The page has three tabs:
+
+| Tab | Description |
+|-----|-------------|
+| **Servers** | List of all configured MCP servers with status |
+| **Tools (39)** | Browse all tools provided by connected servers |
+| **MCP Info** | Protocol documentation and version info |
+
+Two action buttons in the header:
+- **+ Add Server** — Register a new MCP server
+- **Refresh** — Refresh server status and tool list
+
+---
+
+## Pre-configured Servers
+
+xClaw ships with 5 built-in MCP servers:
+
+| Server | Description | Transport | Status |
+|--------|-------------|-----------|--------|
+| **Chrome DevTools** | Browser automation, screenshots, page navigation | stdio | Connected |
+| **GitHub** | Repository management, issues, pull requests, code search | stdio | Connected |
+| **PostgreSQL** | Database queries, schema exploration, data management | stdio | Connected |
+| **Filesystem** | File read/write, directory listing, file search | stdio | Connected |
+| **Brave Search** | Web search and summarization via Brave Search API | stdio | Connected |
+
+---
+
+## Managing Servers
+
+### Add a New Server
+
+1. Click **+ Add Server** in the header
+2. Fill in server details:
+   - **Name** — Display name for the server
+   - **Command** — Command to start the MCP server (e.g., `npx -y @anthropic/mcp-server-github`)
+   - **Arguments** — Command arguments (JSON array)
+   - **Environment Variables** — Key-value pairs for API keys, tokens
+   - **Transport** — `stdio` (default) or `sse`
+3. Click **Save** to register the server
+4. Click **Connect** to establish connection
+
+### Connect / Disconnect
+
+- Each server card has a **Connect** / **Disconnect** toggle
+- Connected servers show a green status indicator
+- Disconnected servers are grayed out but retain configuration
+
+### Delete a Server
+
+1. Click the server card to expand details
+2. Click **Delete** (trash icon)
+3. Confirm the deletion
+
+---
+
+## Tools Tab
+
+The Tools tab lists all 39+ tools across all connected servers.
+
+Each tool entry shows:
+- **Tool name** — e.g., `github_search_code`, `pgsql_query`
+- **Server origin** — Which MCP server provides this tool
+- **Description** — What the tool does
+- **Parameters** — Input schema (JSON)
+
+Agents can automatically use these tools during conversations when they need external data or actions.
+
+---
+
+## MCP Info Tab
+
+Contains:
+- MCP Protocol version
+- Supported transport types
+- Server health monitoring
+- Connection diagnostics
+
+---
+
+## Configuration via Environment Variables
+
+MCP servers are configured in the Docker environment:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `GITHUB_TOKEN` | GitHub personal access token | `ghp_xxxxxxxxxxxx` |
+| `BRAVE_API_KEY` | Brave Search API key | `BSAxxxxxxxxxxxx` |
+| `MCP_TRANSPORT` | Default transport type | `stdio` |
+
+These are set in `docker-compose.yml` under the `xclaw` service environment section.
+
+---
+
+## Tips
+
+- Check the **Tools** tab to see which tools are available — agents can only use tools from connected servers
+- Use **Refresh** after adding a new server to update the tool list
+- The 39 built-in tools cover most common tasks — only add custom servers for specialized needs
+- MCP servers run as child processes — if xClaw restarts, servers auto-reconnect
+- Monitor server status regularly; a red indicator means the server process crashed

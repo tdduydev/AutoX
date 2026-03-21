@@ -46,17 +46,17 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "5001:5001"
     env_file:
       - .env
     environment:
       - HOST=0.0.0.0
-      - PORT=3000
+      - PORT=5001
       - DATABASE_URL=postgresql://xclaw:xclaw@postgres:5432/xclaw
       - MONGODB_URL=mongodb://mongodb:27017/xclaw
       - REDIS_URL=redis://redis:6379
       - OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
-      - CORS_ORIGINS=http://localhost,http://localhost:5173,http://localhost:3000
+      - CORS_ORIGINS=http://localhost,http://localhost:3000,http://localhost:3001,http://localhost:5001
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,7 +71,7 @@ services:
       context: .
       dockerfile: packages/web/Dockerfile
     ports:
-      - "3001:80"
+      - "3000:80"
     depends_on:
       - xclaw
 

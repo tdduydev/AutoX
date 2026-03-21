@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { DocumentProcessor, type RagDocument, type DocumentChunk, type ChunkingOptions } from './document-processor.js';
 import { type EmbeddingProvider, LocalEmbeddingProvider } from './embedding-provider.js';
 import { InMemoryVectorStore, type VectorStore, type VectorSearchResult } from './vector-store.js';
+import { WebCrawler, type CrawlOptions, type CrawlProgress, type CrawledPage } from './web-crawler.js';
+import { CrossEncoderReranker, type RerankerResult, type RerankerOptions } from './reranker.js';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -85,6 +87,8 @@ export class RagEngine {
   private collections = new Map<string, KBCollection>();
   private queryHistory: QueryHistoryEntry[] = [];
   private config: Required<RagConfig>;
+
+  private reranker = new CrossEncoderReranker();
 
   constructor(
     embeddings?: EmbeddingProvider,
@@ -635,5 +639,135 @@ ${context}
 
   getQueryHistory(limit = 20): QueryHistoryEntry[] {
     return this.queryHistory.slice(-limit).reverse();
+  }
+
+  // ─── Web Crawling ──────────────────────────────────────
+
+  /**
+   * Crawl a website and ingest all discovered pages into the knowledge base.
+   * Yields progress updates for streaming to the client.
+   */
+  async *crawlSite(startUrl: string, crawlOptions?: CrawlOptions, ingestOptions?: {
+    tags?: string[];
+    collectionId?: string;
+    chunkingOptions?: ChunkingOptions;
+  }): AsyncGenerator<CrawlProgress & { ingested: number }> {
+    const crawler = new WebCrawler(crawlOptions);
+    let ingested = 0;
+
+    for await (const progress of crawler.crawl(startUrl)) {
+      // Ingest newly crawled pages
+      for (const page of progress.pages.slice(ingested)) {
+        if (page.content.length > 50) { // skip almost-empty pages
+          try {
+            await this.ingestText(page.content, page.title, page.url, {
+              tags: [...(ingestOptions?.tags ?? []), 'web-crawl'],
+              collectionId: ingestOptions?.collectionId,
+              chunkingOptions: ingestOptions?.chunkingOptions,
+              customMetadata: { sourceUrl: page.url, importType: 'web-crawl', crawlDepth: String(page.depth) },
+            });
+          } catch { /* skip failed ingestion */ }
+        }
+        ingested++;
+      }
+
+      yield { ...progress, ingested };
+    }
+  }
+
+  // ─── Re-ranked Search ──────────────────────────────────
+
+  async searchWithReranking(
+    query: string,
+    options?: { topK?: number; collectionId?: string; rerankerOptions?: RerankerOptions },
+  ): Promise<RerankerResult[]> {
+    // Cast topK wider to get candidates for re-ranking
+    const candidateK = Math.max((options?.topK ?? 5) * 3, 15);
+    const vectorResults = await this.vectorStore.search(
+      await this.embeddings.embed([query]).then((e) => e[0]),
+      candidateK,
+    );
+
+    // Filter by collection if needed
+    let filteredResults = vectorResults;
+    if (options?.collectionId) {
+      const docsInCol = new Set<string>();
+      for (const [docId, meta] of this.documentMeta.entries()) {
+        if (meta.collectionId === options.collectionId && meta.enabled) docsInCol.add(docId);
+      }
+      filteredResults = vectorResults.filter((r) => docsInCol.has(r.chunk.documentId));
+    }
+
+    return this.reranker.rerank(
+      query,
+      filteredResults.map((r) => ({ chunk: r.chunk, score: r.score })),
+      { topK: options?.topK ?? 5, ...options?.rerankerOptions },
+    );
+  }
+
+  // ─── Knowledge Refresh ─────────────────────────────────
+
+  /**
+   * Get documents that may need re-indexing (imported from web, older than maxAgeMs).
+   */
+  getStaleDocuments(maxAgeMs: number = 7 * 24 * 60 * 60 * 1000): Array<{ id: string; title: string; source: string; age: number }> {
+    const now = Date.now();
+    const stale: Array<{ id: string; title: string; source: string; age: number }> = [];
+
+    for (const [id, doc] of this.documents.entries()) {
+      const meta = this.documentMeta.get(id);
+      if (!meta || !meta.enabled) continue;
+      const age = now - new Date(doc.updatedAt).getTime();
+      if (age > maxAgeMs && (meta.customMetadata?.importType === 'web' || meta.customMetadata?.importType === 'web-crawl')) {
+        stale.push({ id, title: doc.title, source: doc.source, age });
+      }
+    }
+
+    return stale.sort((a, b) => b.age - a.age);
+  }
+
+  /**
+   * Re-fetch and re-ingest a web-sourced document from its source URL.
+   */
+  async refreshDocument(documentId: string): Promise<RagDocument | null> {
+    const doc = this.documents.get(documentId);
+    const meta = this.documentMeta.get(documentId);
+    if (!doc || !meta) return null;
+
+    const sourceUrl = meta.customMetadata?.sourceUrl ?? doc.source;
+    if (!sourceUrl.startsWith('http')) return null;
+
+    try {
+      const res = await fetch(sourceUrl, {
+        headers: { 'User-Agent': 'xClaw-Bot/1.0 (Knowledge Refresh)' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const newContent = this.htmlToText(html);
+
+      // Only re-index if content actually changed
+      if (newContent === doc.content) {
+        doc.updatedAt = new Date().toISOString();
+        return doc;
+      }
+
+      doc.content = newContent;
+      doc.metadata = { ...doc.metadata, charCount: newContent.length, lastRefreshed: new Date().toISOString() };
+      return await this.reindexDocument(documentId, meta.chunkingOptions);
+    } catch {
+      return null;
+    }
+  }
+
+  // ─── Chunking Config ──────────────────────────────────
+
+  getDefaultChunkingOptions(): Required<ChunkingOptions> {
+    return { ...this.config.chunkingOptions } as Required<ChunkingOptions>;
+  }
+
+  setDefaultChunkingOptions(options: ChunkingOptions): void {
+    if (options.chunkSize !== undefined) this.config.chunkingOptions.chunkSize = options.chunkSize;
+    if (options.chunkOverlap !== undefined) this.config.chunkingOptions.chunkOverlap = options.chunkOverlap;
+    if (options.separator !== undefined) this.config.chunkingOptions.separator = options.separator;
   }
 }

@@ -1,6 +1,28 @@
 import { z } from 'zod';
 import { defineIntegration } from '../base/define-integration.js';
 
+const SLACK_API = 'https://slack.com/api';
+
+async function slackPost(
+  method: string,
+  token: string,
+  body: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${SLACK_API}/${method}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) throw new Error(`Slack HTTP error ${res.status}`);
+  const data = await res.json() as Record<string, unknown>;
+  if (!data.ok) throw new Error((data.error as string) ?? 'Slack API error');
+  return data;
+}
+
 export const slackApiIntegration = defineIntegration({
   id: 'slack-api',
   name: 'Slack',
@@ -37,7 +59,16 @@ export const slackApiIntegration = defineIntegration({
       }),
       riskLevel: 'moderate',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Slack send_message not implemented yet' };
+        const token = ctx.credentials.access_token ?? ctx.credentials.token;
+        if (!token) return { success: false, error: 'Slack token not configured' };
+        try {
+          const body: Record<string, unknown> = { channel: args.channel, text: args.text };
+          if (args.threadTs) body.thread_ts = args.threadTs;
+          const data = await slackPost('chat.postMessage', token, body);
+          return { success: true, data: { ts: data.ts, channel: data.channel } };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Slack send_message failed' };
+        }
       },
     },
     {
@@ -49,7 +80,14 @@ export const slackApiIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Slack list_channels not implemented yet' };
+        const token = ctx.credentials.access_token ?? ctx.credentials.token;
+        if (!token) return { success: false, error: 'Slack token not configured' };
+        try {
+          const data = await slackPost('conversations.list', token, { limit: args.limit, types: args.types });
+          return { success: true, data: { channels: data.channels } };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Slack list_channels failed' };
+        }
       },
     },
     {
@@ -61,7 +99,14 @@ export const slackApiIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Slack read_messages not implemented yet' };
+        const token = ctx.credentials.access_token ?? ctx.credentials.token;
+        if (!token) return { success: false, error: 'Slack token not configured' };
+        try {
+          const data = await slackPost('conversations.history', token, { channel: args.channel, limit: args.limit });
+          return { success: true, data: { messages: data.messages } };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Slack read_messages failed' };
+        }
       },
     },
     {
@@ -75,7 +120,20 @@ export const slackApiIntegration = defineIntegration({
       }),
       riskLevel: 'moderate',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Slack upload_file not implemented yet' };
+        const token = ctx.credentials.access_token ?? ctx.credentials.token;
+        if (!token) return { success: false, error: 'Slack token not configured' };
+        try {
+          const body: Record<string, unknown> = {
+            channels: args.channels,
+            filename: args.filename,
+            content: args.content,
+          };
+          if (args.title) body.title = args.title;
+          const data = await slackPost('files.upload', token, body);
+          return { success: true, data: { file: data.file } };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Slack upload_file failed' };
+        }
       },
     },
   ],

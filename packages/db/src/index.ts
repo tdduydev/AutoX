@@ -56,11 +56,20 @@ export {
   getMongo, connectMongo, closeMongo,
   sessionsCollection, messagesCollection, memoryEntriesCollection, agentConfigsCollection,
   auditLogsCollection, systemLogsCollection, channelConnectionsCollection,
+  activityLogsCollection, llmLogsCollection,
+  handoffSessionsCollection, escalationRulesCollection,
+  apiKeysCollection, retentionPoliciesCollection,
 } from './mongo.js';
 export type {
   MongoSession, MongoMessage, MongoMemoryEntry, MongoAgentConfig,
   MongoAuditLog, MongoSystemLog, MongoChannelConnection,
+  MongoActivityLog, MongoLLMLog,
+  MongoHandoffSession, MongoEscalationRule,
+  MongoApiKey, MongoRetentionPolicy,
 } from './mongo.js';
 
 // Monitoring store
 export { mongoMonitoringStore } from './monitoring-store.js';
+
+// LLM Pricing
+export { estimateCost, getModelPricing, listPricing } from './llm-pricing.js';

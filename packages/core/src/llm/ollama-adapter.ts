@@ -325,6 +325,15 @@ export class OllamaAdapter implements LLMAdapter {
   private toOllamaMessage(msg: LLMMessage): Record<string, unknown> {
     const result: Record<string, unknown> = { role: msg.role, content: msg.content };
 
+    // Pass images for vision models (qwen2.5vl, llava, etc.)
+    if (msg.images?.length) {
+      result.images = msg.images.map((img) => {
+        // Strip data URL prefix if present, Ollama expects raw base64
+        const base64Match = img.match(/^data:[^;]+;base64,(.+)$/);
+        return base64Match ? base64Match[1] : img;
+      });
+    }
+
     if (msg.role === 'assistant' && msg.toolCalls?.length) {
       result.tool_calls = msg.toolCalls.map((tc) => ({
         function: { name: tc.name, arguments: tc.arguments },

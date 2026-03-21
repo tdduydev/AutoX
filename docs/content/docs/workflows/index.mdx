@@ -1,0 +1,67 @@
+---
+title: Visual Workflows
+description: Build automation workflows with a drag-and-drop visual builder.
+---
+
+xClaw includes a **Visual Workflow Builder** — a canvas-based editor for creating automation pipelines that can be triggered manually, on a schedule, by keywords in chat, or via webhooks.
+
+## Key Features
+
+- **Drag-and-drop canvas** — Build workflows visually with 16 node types
+- **Multiple triggers** — Manual, cron schedule, message keyword, webhook
+- **Agent integration** — Agents can list and trigger workflows mid-conversation
+- **Real-time execution** — Watch workflow progress with step-by-step results
+
+## Workflow Concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Workflow** | A directed graph of nodes connected by edges |
+| **Node** | A single step — LLM call, HTTP request, condition, etc. |
+| **Edge** | Connects output of one node to input of another |
+| **Trigger** | What starts the workflow (manual, cron, message, webhook) |
+| **Execution** | A single run of the workflow with input data |
+
+## Trigger Types
+
+### Manual Trigger
+Start a workflow from the UI or API call.
+
+### Cron Schedule
+Run workflows on a recurring schedule using 5-field cron expressions:
+```
+┌─── minute (0-59)
+│ ┌─── hour (0-23)
+│ │ ┌─── day of month (1-31)
+│ │ │ ┌─── month (1-12)
+│ │ │ │ ┌─── day of week (0-6, Sun=0)
+│ │ │ │ │
+* * * * *
+```
+
+Example: `0 9 * * 1-5` — Every weekday at 9:00 AM
+
+### Message Trigger
+Auto-trigger when a chat message matches a regex/keyword pattern.
+
+### Webhook Trigger
+Trigger via HTTP POST to `/webhooks/workflow/:workflowId`. Optionally secured with `x-webhook-secret` header.
+
+## Agent as Workflow Tool
+
+Agents have access to two built-in workflow tools:
+
+| Tool | Description |
+|------|-------------|
+| `list_workflows` | List all enabled workflows for the current tenant |
+| `trigger_workflow` | Execute a workflow by ID with optional input data |
+
+This allows users to ask the agent: *"Run the daily report workflow"* — the agent will find and execute the matching workflow.
+
+## Getting Started
+
+1. Navigate to **Workflows** in the sidebar
+2. Click **Create Workflow**
+3. Add a trigger node and connect processing nodes
+4. Test with **Run** button
+5. Enable the workflow for automatic execution

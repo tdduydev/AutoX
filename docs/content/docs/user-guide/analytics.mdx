@@ -1,0 +1,109 @@
+---
+title: Analytics
+description: Conversation metrics, charts, platform breakdown, and data export
+---
+
+# Analytics
+
+![Analytics](/screenshots/09-analytics.png)
+
+The Analytics dashboard provides insights into conversation patterns, message volumes, platform distribution, and peak usage hours.
+
+---
+
+## Time Range Selector
+
+Use the dropdown in the top-right to select the time period:
+- **Last 7 days**
+- **Last 30 days** (default)
+- **Last 90 days**
+- **All time**
+
+Click the **Refresh** icon to reload data.
+
+---
+
+## Overview Metrics
+
+Four summary cards at the top:
+
+| Metric | Description |
+|--------|-------------|
+| **Conversations** | Total number of conversations in the selected period |
+| **Messages** | Total message count (user + assistant) |
+| **Avg Messages/Conv** | Average messages per conversation |
+| **Avg Duration** | Mean conversation duration |
+
+---
+
+## Daily Conversation Volume
+
+A bar chart showing conversation count per day. Use this to:
+- Identify trends (growing or declining usage)
+- Spot unusual spikes or drops
+- Plan capacity based on usage patterns
+
+---
+
+## Platform Breakdown
+
+Shows which platforms generate the most conversations:
+
+| Platform | Description |
+|----------|-------------|
+| **Web** | Conversations from the web interface |
+| **Telegram** | Messages from Telegram bot |
+| **Discord** | Messages from Discord bot |
+| **Slack** | Messages from Slack integration |
+| **WhatsApp** | Messages from WhatsApp Business |
+| **Zalo** | Messages from Zalo OA |
+| **Teams** | Messages from Microsoft Teams |
+| **Widget** | Messages from the embeddable widget |
+| **API** | Direct API calls |
+
+---
+
+## Peak Hours
+
+A bar chart showing message distribution across 24 hours (0h–23h). Helps identify:
+- When users are most active
+- Optimal times for maintenance windows
+- Staffing needs for human-in-the-loop workflows
+
+---
+
+## Exporting Data
+
+Click **Export CSV** to download the analytics data as a CSV file. The export includes:
+- Conversation ID
+- Start and end timestamps
+- Message count
+- Platform source
+- Domain used
+- Agent assigned
+- Duration
+
+---
+
+## Additional Analytics
+
+### PII Detection Report
+Available at `GET /api/analytics/pii`, this endpoint reports:
+- Total messages with detected PII
+- PII type breakdown (email, phone, national ID, credit card, etc.)
+- Recent detections with timestamps
+
+### Widget Analytics
+Available at `GET /api/widget/analytics`, showing:
+- Total widget events
+- Unique sessions
+- Event breakdown (widget_loaded, widget_opened, message_sent, etc.)
+
+---
+
+## Tips
+
+- Export data monthly for long-term trend analysis
+- Use platform breakdown to prioritize channel integrations
+- Monitor peak hours to schedule automated workflows during high-traffic periods
+- Review PII reports regularly for compliance monitoring

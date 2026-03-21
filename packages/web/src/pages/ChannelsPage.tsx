@@ -1,35 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
     Radio, Plus, Trash2, Power, PowerOff, TestTube, RefreshCw,
-    MessageSquare, ChevronRight, X, Eye, EyeOff, PawPrint,
+    MessageSquare, ChevronRight, X, Eye, EyeOff,
 } from 'lucide-react';
 import {
     getChannelTypes, getChannels, createChannel, deleteChannel,
     testChannel, activateChannel, deactivateChannel,
     getAgentSessions, getSessionMessages, getAgentConfigs,
 } from '../lib/api';
-
-interface ChannelTypeInfo {
-    id: string;
-    name: string;
-    icon: string;
-    description: string;
-    configFields: Array<{ key: string; label: string; type: string; required: boolean; placeholder?: string }>;
-    setupGuide: string;
-}
-
-interface ChannelConnection {
-    _id: string;
-    channelType: string;
-    name: string;
-    config: Record<string, any>;
-    status: string;
-    agentConfigId?: string;
-    lastConnectedAt?: string;
-    metadata?: Record<string, any>;
-    createdAt: string;
-    updatedAt: string;
-}
+import { useChannelsStore } from '../stores/index.js';
 
 interface AgentConfigInfo {
     _id: string;
@@ -53,12 +32,11 @@ interface MessageInfo {
     role: string;
     content: string;
     createdAt: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 export function ChannelsPage() {
-    const [channelTypes, setChannelTypes] = useState<ChannelTypeInfo[]>([]);
-    const [channels, setChannels] = useState<ChannelConnection[]>([]);
+    const { channels, channelTypes, setChannels, setChannelTypes } = useChannelsStore();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -332,7 +310,7 @@ export function ChannelsPage() {
                                                                 const linked = agentConfigs.find(a => a._id === ch.agentConfigId);
                                                                 return linked ? (
                                                                     <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--color-primary-light)' }}>
-                                                                        <PawPrint size={10} /> {linked.name}
+                                                                        <img src="/logo.png" alt="xClaw" className="w-2.5 h-2.5" /> {linked.name}
                                                                     </p>
                                                                 ) : null;
                                                             })()}
@@ -565,7 +543,7 @@ export function ChannelsPage() {
                                 {agentConfigs.length > 0 && (
                                     <div>
                                         <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>
-                                            <PawPrint size={12} className="inline mr-1" />
+                                            <img src="/logo.png" alt="xClaw" className="w-3 h-3 inline mr-1" />
                                             Agent Config
                                         </label>
                                         <select

@@ -522,6 +522,77 @@ export async function batchMoveToCollection(documentIds: string[], collectionId:
   return res.json();
 }
 
+// Web Crawling
+export async function crawlWebsite(url: string, options?: {
+  maxPages?: number; maxDepth?: number; sameDomain?: boolean;
+  includePatterns?: string[]; excludePatterns?: string[];
+  tags?: string[]; collectionId?: string; chunkSize?: number; chunkOverlap?: number;
+}) {
+  const res = await apiFetch('/api/knowledge/crawl', {
+    method: 'POST',
+    body: JSON.stringify({ url, ...options }),
+  });
+  if (!res.ok) throw new Error('Crawl failed');
+  return res.json();
+}
+
+// Stale Document Management
+export async function getStaleDocuments(maxAgeDays?: number) {
+  const qs = maxAgeDays ? `?maxAgeDays=${maxAgeDays}` : '';
+  const res = await apiFetch(`/api/knowledge/stale${qs}`);
+  if (!res.ok) throw new Error('Failed to fetch stale documents');
+  return res.json();
+}
+
+export async function refreshDocument(id: string) {
+  const res = await apiFetch(`/api/knowledge/refresh/${encodeURIComponent(id)}`, { method: 'POST' });
+  if (!res.ok) throw new Error('Refresh failed');
+  return res.json();
+}
+
+export async function refreshAllStaleDocuments(maxAgeDays?: number) {
+  const res = await apiFetch('/api/knowledge/refresh-all', {
+    method: 'POST',
+    body: JSON.stringify({ maxAgeDays }),
+  });
+  if (!res.ok) throw new Error('Refresh all failed');
+  return res.json();
+}
+
+// Chunking Config
+export async function getChunkingConfig() {
+  const res = await apiFetch('/api/knowledge/chunking-config');
+  if (!res.ok) throw new Error('Failed to fetch chunking config');
+  return res.json();
+}
+
+export async function updateChunkingConfig(config: { chunkSize?: number; chunkOverlap?: number; separator?: string }) {
+  const res = await apiFetch('/api/knowledge/chunking-config', {
+    method: 'PUT',
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) throw new Error('Failed to update chunking config');
+  return res.json();
+}
+
+// Re-ranked Search
+export async function searchKnowledgeReranked(query: string, topK?: number, collectionId?: string) {
+  const res = await apiFetch('/api/knowledge/search/reranked', {
+    method: 'POST',
+    body: JSON.stringify({ query, topK, collectionId }),
+  });
+  if (!res.ok) throw new Error('Search failed');
+  return res.json();
+}
+
+// Cost Analytics
+export async function getCostAnalytics(days = 30) {
+  const res = await apiFetch(`/api/analytics/cost?days=${days}`);
+  if (!res.ok) throw new Error('Failed to fetch cost analytics');
+  const data = await res.json();
+  return data.cost ?? data;
+}
+
 // ─── Models (Ollama) ────────────────────────────────────────
 
 export async function getModels() {
@@ -1182,5 +1253,169 @@ export async function validateWorkflow(id: string) {
 export async function getWorkflowExecutions(workflowId: string) {
   const res = await apiFetch(`/api/workflows/${encodeURIComponent(workflowId)}/executions`);
   if (!res.ok) throw new Error('Failed to fetch executions');
+  return res.json();
+}
+
+// ─── Marketplace ─────────────────────────────────────────────
+
+export async function getMarketplaceSkills() {
+  const res = await apiFetch('/api/marketplace/skills');
+  if (!res.ok) throw new Error('Failed to fetch marketplace skills');
+  return res.json() as Promise<{ skills: any[]; total: number }>;
+}
+
+export async function installMarketplaceSkill(id: string) {
+  const res = await apiFetch(`/api/marketplace/skills/${encodeURIComponent(id)}/install`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to install skill');
+  return res.json();
+}
+
+export async function uninstallMarketplaceSkill(id: string) {
+  const res = await apiFetch(`/api/marketplace/skills/${encodeURIComponent(id)}/uninstall`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to uninstall skill');
+  return res.json();
+}
+
+// ─── Analytics ──────────────────────────────────────────────
+export async function getAnalyticsOverview(days = 30) {
+  const res = await apiFetch(`/api/analytics/overview?days=${days}`);
+  if (!res.ok) throw new Error('Failed to fetch analytics');
+  const data = await res.json();
+  return data.analytics ?? data;
+}
+
+export async function getAnalyticsPerformance(days = 30) {
+  const res = await apiFetch(`/api/analytics/performance?days=${days}`);
+  if (!res.ok) throw new Error('Failed to fetch performance');
+  const data = await res.json();
+  const perf = data.performance ?? data;
+  // Normalize modelBreakdown from Record to Array
+  if (perf.modelBreakdown && !Array.isArray(perf.modelBreakdown)) {
+    perf.modelBreakdown = Object.entries(perf.modelBreakdown).map(([key, v]: [string, any]) => {
+      const [provider, ...rest] = key.split('/');
+      return { provider, model: rest.join('/'), calls: v.calls, avgLatency: v.avgLatency, cost: v.cost };
+    });
+  }
+  return perf;
+}
+
+export async function exportAnalyticsCSV(type: 'conversations' | 'llm') {
+  const res = await apiFetch(`/api/analytics/export?type=${type}`);
+  if (!res.ok) throw new Error('Failed to export');
+  return res.blob();
+}
+
+// ─── Handoff ────────────────────────────────────────────────
+export async function getHandoffQueue(status = 'pending') {
+  const res = await apiFetch(`/api/handoff/queue?status=${status}`);
+  if (!res.ok) throw new Error('Failed to fetch handoff queue');
+  return res.json();
+}
+
+export async function getHandoffStats() {
+  const res = await apiFetch('/api/handoff/stats');
+  if (!res.ok) throw new Error('Failed to fetch handoff stats');
+  return res.json();
+}
+
+export async function assignHandoff(handoffId: string) {
+  const res = await apiFetch(`/api/handoff/${encodeURIComponent(handoffId)}/assign`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to assign handoff');
+  return res.json();
+}
+
+export async function resolveHandoff(handoffId: string, summary?: string) {
+  const res = await apiFetch(`/api/handoff/${encodeURIComponent(handoffId)}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ summary }),
+  });
+  if (!res.ok) throw new Error('Failed to resolve handoff');
+  return res.json();
+}
+
+export async function getHandoffContext(handoffId: string) {
+  const res = await apiFetch(`/api/handoff/${encodeURIComponent(handoffId)}/context`);
+  if (!res.ok) throw new Error('Failed to fetch handoff context');
+  return res.json();
+}
+
+export async function getEscalationRules() {
+  const res = await apiFetch('/api/handoff/rules');
+  if (!res.ok) throw new Error('Failed to fetch rules');
+  return res.json();
+}
+
+export async function createEscalationRule(rule: { type: string; config: Record<string, unknown>; priority: number; enabled: boolean }) {
+  const res = await apiFetch('/api/handoff/rules', { method: 'POST', body: JSON.stringify(rule) });
+  if (!res.ok) throw new Error('Failed to create rule');
+  return res.json();
+}
+
+export async function deleteEscalationRule(ruleId: string) {
+  const res = await apiFetch(`/api/handoff/rules/${encodeURIComponent(ruleId)}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete rule');
+  return res.json();
+}
+
+// ─── API Keys ───────────────────────────────────────────────
+export async function getApiKeys() {
+  const res = await apiFetch('/api/api-keys');
+  if (!res.ok) throw new Error('Failed to fetch API keys');
+  return res.json();
+}
+
+export async function createApiKey(name: string, scopes?: string[], expiresInDays?: number) {
+  const res = await apiFetch('/api/api-keys', {
+    method: 'POST',
+    body: JSON.stringify({ name, scopes, expiresInDays }),
+  });
+  if (!res.ok) throw new Error('Failed to create API key');
+  return res.json();
+}
+
+export async function revokeApiKey(keyId: string) {
+  const res = await apiFetch(`/api/api-keys/${encodeURIComponent(keyId)}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to revoke API key');
+  return res.json();
+}
+
+// ─── Retention Policies ─────────────────────────────────────
+export async function getRetentionPolicies() {
+  const res = await apiFetch('/api/retention');
+  if (!res.ok) throw new Error('Failed to fetch retention policies');
+  return res.json();
+}
+
+export async function updateRetentionPolicy(resource: string, retentionDays: number, enabled: boolean) {
+  const res = await apiFetch(`/api/retention/${encodeURIComponent(resource)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ retentionDays, enabled }),
+  });
+  if (!res.ok) throw new Error('Failed to update retention policy');
+  return res.json();
+}
+
+export async function triggerRetentionCleanup() {
+  const res = await apiFetch('/api/retention/cleanup', { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to trigger cleanup');
+  return res.json();
+}
+
+// ─── Monitoring / Audit Logs ────────────────────────────────
+export async function getAuditLogs(limit = 100) {
+  const res = await apiFetch(`/api/monitoring/audit?limit=${limit}`);
+  if (!res.ok) throw new Error('Failed to fetch audit logs');
+  return res.json();
+}
+
+export async function getActivityLogs(limit = 100) {
+  const res = await apiFetch(`/api/monitoring/logs?limit=${limit}`);
+  if (!res.ok) throw new Error('Failed to fetch activity logs');
+  return res.json();
+}
+
+export async function getMonitoringDashboard() {
+  const res = await apiFetch('/api/monitoring/dashboard');
+  if (!res.ok) throw new Error('Failed to fetch dashboard');
   return res.json();
 }

@@ -1,0 +1,67 @@
+---
+title: Workflow Triggers
+description: Different ways to start a workflow — manual, cron, keyword, and webhook.
+---
+
+## Trigger Configuration
+
+Each workflow has exactly one trigger that determines how it starts.
+
+### Manual
+
+No configuration needed. Start from UI or API.
+
+```json
+{ "type": "manual", "name": "Manual Trigger" }
+```
+
+### Cron Schedule
+
+```json
+{
+  "type": "schedule",
+  "name": "Daily 9 AM",
+  "config": {
+    "cron": "0 9 * * *",
+    "timezone": "Asia/Ho_Chi_Minh"
+  }
+}
+```
+
+The scheduler runs every minute checking for workflows whose cron expression matches the current time.
+
+### Message Pattern
+
+```json
+{
+  "type": "message",
+  "name": "Report Keyword",
+  "config": {
+    "pattern": "báo cáo|report|tổng kết",
+    "matchType": "regex"
+  }
+}
+```
+
+When a user message matches the pattern, the workflow executes and its result is returned directly to the chat.
+
+### Webhook
+
+```json
+{
+  "type": "webhook",
+  "name": "External Trigger",
+  "config": {
+    "secret": "my-webhook-secret"
+  }
+}
+```
+
+Send a POST request to `/webhooks/workflow/:workflowId`:
+
+```bash
+curl -X POST https://your-xclaw/webhooks/workflow/wf-123 \
+  -H "Content-Type: application/json" \
+  -H "x-webhook-secret: my-webhook-secret" \
+  -d '{"data": "hello"}'
+```

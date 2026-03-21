@@ -1,0 +1,118 @@
+---
+title: Knowledge Base
+description: Document management, collections, RAG indexing, and semantic search
+---
+
+# Knowledge Base
+
+![Knowledge Base](/screenshots/05-knowledge.png)
+
+The Knowledge Base is where you upload and manage documents that power RAG (Retrieval-Augmented Generation). Documents are split into chunks, embedded as vectors, and used to enhance AI responses with relevant context.
+
+---
+
+## Overview
+
+### Statistics Cards
+
+| Metric | Description |
+|--------|-------------|
+| **Documents** | Total number of uploaded documents |
+| **Enabled** | Documents currently active for RAG retrieval |
+| **Chunks** | Total text segments after document splitting |
+| **Collections** | Number of document collections |
+
+---
+
+## Collections
+
+Collections help you organize documents by topic, project, or department.
+
+### Default Collection
+A **General** collection is created automatically. All documents without a specific collection go here.
+
+### Creating a Collection
+1. Click the **+** icon in the Collections sidebar
+2. Enter a collection name
+3. Optionally set a description
+4. Documents can be moved between collections later
+
+### Filtering
+Click a collection name in the sidebar to filter the document list. Click **All Documents** to see everything.
+
+---
+
+## Adding Documents
+
+Click **+ Add Document** to upload new content. Three input methods are supported:
+
+### Text Input
+Paste or type text content directly. Best for short notes, FAQs, or structured data.
+
+### File Upload
+Upload document files. Supported formats:
+- **PDF** — Extracted text with page boundaries
+- **TXT** — Plain text
+- **DOCX** — Microsoft Word documents
+- **MD** — Markdown files
+- **CSV** — Tabular data
+- **JSON** — Structured data
+
+### Web URL
+Enter a URL to fetch and index web page content. The system extracts the main text content, removing navigation and boilerplate.
+
+---
+
+## Document Processing Pipeline
+
+When a document is added, it goes through this pipeline:
+
+1. **Extraction** — Text is extracted from the source format
+2. **Splitting** — Text is divided into chunks (configurable size and overlap)
+3. **Embedding** — Each chunk is converted to a vector using the embedding model
+4. **Indexing** — Vectors are stored in MongoDB with metadata for retrieval
+
+### Configuration
+Chunk size and overlap can be configured in **Settings → RAG Engine**:
+- **Chunk Size**: Number of characters per chunk (default: 1000)
+- **Chunk Overlap**: Overlap between adjacent chunks (default: 200)
+- **Embedding Model**: The model used for vectorization
+
+---
+
+## Searching Documents
+
+### Full-Text Search
+Use the search bar to perform keyword-based search across all documents.
+
+### Semantic Search (RAG Search)
+Navigate to **RAG Search** in the sidebar for vector-similarity search:
+1. Enter a natural language query
+2. The system embeds your query and finds the most similar chunks
+3. Results are ranked by cosine similarity score
+4. Each result shows the source document, chunk text, and relevance score
+
+---
+
+## Document Management
+
+### Enable / Disable
+Toggle documents on or off without deleting them. Disabled documents are excluded from RAG retrieval.
+
+### Delete
+Permanently remove a document and all its chunks/embeddings.
+
+### Analytics
+Click **Analytics** to view:
+- Most queried documents
+- Retrieval frequency over time
+- Average relevance scores
+
+---
+
+## Tips
+
+- Keep documents focused on a single topic for better retrieval accuracy
+- Use collections to separate different knowledge domains
+- Regularly review analytics to identify gaps in your knowledge base
+- For large documents, consider splitting them manually before upload for better chunk boundaries

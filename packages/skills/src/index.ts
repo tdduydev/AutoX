@@ -1,4 +1,5 @@
 // @xclaw-ai/skills — Built-in skills collection
-// Skills will be registered here as they are created
 
-export const builtinSkills = [] as const;
+export { textToFhirSkill } from './text-to-fhir.js';
+
+export const builtinSkills = ['text-to-fhir'] as const;

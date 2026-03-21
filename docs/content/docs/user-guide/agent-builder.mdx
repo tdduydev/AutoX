@@ -1,0 +1,140 @@
+---
+title: Agent Builder
+description: Step-by-step agent design with persona, skills, tools, and configuration
+---
+
+# Agent Builder
+
+![Agent Builder](/screenshots/10-agent-builder.png)
+
+The Agent Builder is a guided interface for creating new agents. It organizes the configuration into four tabs: Persona, Skills, Tools, and Settings.
+
+---
+
+## Overview
+
+The builder provides:
+- **Agent Name**: A short title displayed in the agent selector
+- **Description**: What the agent does (shown in agent cards)
+- **Preview**: Test the agent before saving
+- **Save Agent**: Deploy the agent to production
+
+---
+
+## Tab 1: Persona
+
+Define your agent's personality and behavior.
+
+### Personality / Role
+Describe the agent's character in natural language:
+
+**Examples:**
+- "A friendly and professional customer support assistant who helps users resolve issues quickly."
+- "A senior software engineer who writes clean, well-documented code with thorough explanations."
+- "A medical knowledge assistant that provides evidence-based information while always recommending professional consultation."
+
+### System Prompt (Optional Override)
+Provide a custom system prompt that completely replaces the default. This gives you full control over the agent's behavior.
+
+**When to use:**
+- When the default persona + domain system prompt isn't enough
+- For highly specialized use cases
+- When you need precise control over response format
+
+---
+
+## Tab 2: Skills
+
+Select skills from the marketplace to attach to this agent.
+
+### How Skills Work
+- Each skill provides specialized **tools** (function calls) the agent can use
+- Skills also inject domain-specific **context** into the system prompt
+- Multiple skills can be combined on a single agent
+
+### Recommended Combinations
+
+| Agent Type | Recommended Skills |
+|------------|-------------------|
+| Customer Support | Text Generation, Web Research |
+| Developer Assistant | Code Generation, Git Operations, Docker & Containers |
+| Healthcare Bot | Drug Interaction Checker, ICD-10 Coding, Clinical Notes |
+| Data Analyst | Financial Analysis, Content Marketing |
+
+---
+
+## Tab 3: Tools
+
+Enable or disable built-in tools the agent can invoke during conversations.
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| **Web Search** | Search the web in real-time (requires Bing/Brave API key) |
+| **Code Execution** | Run code snippets in a sandboxed environment |
+| **RAG Retrieval** | Query the knowledge base for relevant documents |
+| **Workflow Trigger** | List and execute workflows from chat |
+| **File Processing** | Extract and analyze uploaded file contents |
+| **Image Analysis** | Process images using Vision capabilities |
+
+### Tool Configuration
+Some tools require additional setup:
+- **Web Search**: Configure the search provider and API key in Settings
+- **Code Execution**: Set allowed languages and execution timeout
+- **RAG Retrieval**: Requires documents in the Knowledge Base
+
+---
+
+## Tab 4: Settings
+
+Fine-tune the agent's technical configuration.
+
+### Model Selection
+| Setting | Description |
+|---------|-------------|
+| **Provider** | LLM provider (Ollama, OpenAI, Anthropic, etc.) |
+| **Model** | Specific model from the provider |
+| **Temperature** | 0.0–1.0 (lower = more deterministic, higher = more creative) |
+| **Max Tokens** | Maximum response length |
+
+### Memory
+| Setting | Description |
+|---------|-------------|
+| **Memory Window** | Number of previous messages to include as context (e.g., 100) |
+| **Memory Type** | Sliding window or summary-based |
+
+### Streaming
+| Setting | Description |
+|---------|-------------|
+| **Enable Streaming** | Toggle real-time token-by-token output |
+| **Typing Indicator** | Show "typing..." placeholder while generating |
+
+---
+
+## Preview
+
+Click **Preview** to test your agent before saving:
+1. A chat window opens with the agent's configuration
+2. Send test messages to verify the persona
+3. Check that skills and tools work as expected
+4. Adjust settings and re-preview as needed
+
+---
+
+## Save and Deploy
+
+Click **Save Agent** to create the agent. It immediately becomes available:
+- In the chat interface agent selector
+- For channel assignments
+- For workflow integrations
+- Via the REST API
+
+---
+
+## Tips
+
+- Start with a simple persona and iterate based on test results
+- Use low temperature (0.2–0.4) for factual agents, high temperature (0.7–0.9) for creative agents
+- Attach only the skills the agent actually needs — fewer skills means faster, more focused responses
+- Test with edge cases during Preview to ensure robust behavior

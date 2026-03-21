@@ -1,0 +1,47 @@
+---
+title: Integrations
+description: Connect xClaw to external services — Gmail, GitHub, Notion, Slack, and more.
+---
+
+xClaw provides **8 built-in integrations** that connect your AI agents to external services. Each integration exposes tools that agents can call during conversations.
+
+## Available Integrations
+
+| Integration | Tools | Description |
+|-------------|-------|-------------|
+| **Gmail** | `send_email`, `read_emails`, `create_draft` | Send/read emails, poll for new mail |
+| **GitHub** | `list_repos`, `create_issue`, `list_issues`, `create_pull_request`, `get_file_contents` | Repository and issue management |
+| **Notion** | `search`, `get_page`, `create_page`, `query_database` | Page and database operations |
+| **Slack API** | `send_message`, `list_channels`, `read_messages`, `upload_file` | Team messaging integration |
+| **Google Calendar** | `list_events`, `create_event`, `delete_event` | Calendar management with polling triggers |
+| **Brave Search** | `web_search`, `news_search` | Web and news search via Brave API |
+| **HuggingFace** | `inference`, `list_models`, `list_datasets`, `text_embedding` | ML model inference |
+| **W&B** | `log_run`, `list_runs`, `get_run`, `log_artifact` | Experiment tracking |
+
+## How Integrations Work
+
+1. **Configure** — Add API keys and credentials in **Settings** → **Integrations**
+2. **Install** — Enable the integration for your tenant
+3. **Agent Access** — Domain skills automatically wire integration tools into agent conversations
+4. **Trigger Workflows** — Some integrations support polling triggers (e.g., Gmail: new email, Calendar: event starting soon)
+
+## Configuration
+
+Each integration requires specific API keys:
+
+```bash
+# .env
+GMAIL_CLIENT_ID=...
+GMAIL_CLIENT_SECRET=...
+GITHUB_TOKEN=ghp_...
+NOTION_SECRET=secret_...
+SLACK_BOT_TOKEN=xoxb-...
+GOOGLE_CALENDAR_API_KEY=...
+BRAVE_API_KEY=BSA...
+HF_TOKEN=hf_...
+WANDB_API_KEY=...
+```
+
+## Adding Custom Integrations
+
+See the [API Reference](/docs/api) for the Integration SDK pattern used to build custom integrations.

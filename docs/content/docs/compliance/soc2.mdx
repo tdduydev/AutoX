@@ -1,0 +1,131 @@
+---
+title: SOC 2 Type II Compliance
+description: Mapping of xClaw platform controls to SOC 2 Trust Service Criteria.
+---
+
+# SOC 2 Type II Compliance
+
+This document maps xClaw's implemented security controls to the AICPA Trust Service Criteria (TSC) used in SOC 2 Type II audits.
+
+## CC1 — Control Environment
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| CC1.1 — Commitment to integrity and ethics | Code review process, security-first development practices | ✅ Implemented |
+| CC1.2 — Board/management oversight | Admin dashboard with tenant management, audit logs | ✅ Implemented |
+| CC1.3 — Organizational structure | Multi-tenant RBAC with roles, permissions, and user assignments | ✅ Implemented |
+| CC1.4 — Commitment to competence | TypeScript strict mode, ESLint, automated type checking | ✅ Implemented |
+| CC1.5 — Accountability | Audit logging with actor attribution for all admin actions | ✅ Implemented |
+
+## CC2 — Communication and Information
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| CC2.1 — Information quality | Structured data validation at API boundaries (Hono middleware) | ✅ Implemented |
+| CC2.2 — Internal communication | Structured logging, monitoring endpoints | ✅ Implemented |
+| CC2.3 — External communication | API documentation, webhook notifications | ✅ Implemented |
+
+## CC3 — Risk Assessment
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| CC3.1 — Risk identification | Human handoff escalation triggers (sentiment, keyword, confidence) | ✅ Implemented |
+| CC3.2 — Fraud risk assessment | Rate limiting per user/tenant, API key scoping | ✅ Implemented |
+| CC3.3 — Change impact analysis | Docker containerization, environment isolation | ✅ Implemented |
+
+## CC4 — Monitoring Activities
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| CC4.1 — Ongoing monitoring | Analytics dashboard (conversation volume, response time, error rates) | ✅ Implemented |
+| CC4.2 — Deficiency evaluation | Performance metrics (latency, token usage, cost per model) | ✅ Implemented |
+
+## CC5 — Control Activities
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| CC5.1 — Risk mitigation controls | Input validation, tenant isolation middleware, JWT auth | ✅ Implemented |
+| CC5.2 — Technology controls | RBAC enforcement, API key management, OAuth 2.0 | ✅ Implemented |
+| CC5.3 — Policy deployment | Configurable tenant settings, data retention policies | ✅ Implemented |
+
+## CC6 — Logical and Physical Access
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| CC6.1 — Logical access security | JWT authentication with configurable expiry | ✅ Implemented |
+| CC6.2 — Access provisioning | Role-based user management (Admin UI → Users tab) | ✅ Implemented |
+| CC6.3 — Access modification | Role assignment/revocation via API and Admin UI | ✅ Implemented |
+| CC6.4 — Access removal | User deactivation, API key revocation | ✅ Implemented |
+| CC6.5 — Access review | Audit log viewer with filtering by actor and action | ✅ Implemented |
+| CC6.6 — System access restrictions | Tenant middleware enforces cross-tenant data isolation | ✅ Implemented |
+| CC6.7 — Data access restrictions | MongoDB and PostgreSQL queries filtered by tenantId | ✅ Implemented |
+| CC6.8 — Unauthorized access prevention | Rate limiting, failed auth attempt tracking | ✅ Implemented |
+
+## CC7 — System Operations
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| CC7.1 — Infrastructure monitoring | Docker health checks, container orchestration | ✅ Implemented |
+| CC7.2 — Incident detection | Error rate monitoring, analytics alerts | ✅ Implemented |
+| CC7.3 — Incident response | Human handoff escalation, live agent dashboard | ✅ Implemented |
+| CC7.4 — Business continuity | Multi-container architecture, database persistence volumes | ✅ Implemented |
+
+## CC8 — Change Management
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| CC8.1 — Change authorization | Git-based version control, Docker image versioning | ✅ Implemented |
+
+## CC9 — Risk Mitigation
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| CC9.1 — Risk mitigation activities | Model fallback chains, workflow error handling | ✅ Implemented |
+| CC9.2 — Vendor management | Integration connection management with credential isolation | ✅ Implemented |
+
+## Availability (A1)
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| A1.1 — Processing capacity | Configurable max tokens, rate limiting, model routing by task complexity | ✅ Implemented |
+| A1.2 — Recovery objectives | Docker Compose restart policies, database volumes | ✅ Implemented |
+| A1.3 — Recovery testing | Idempotent seed data, migration rollback support | ✅ Implemented |
+
+## Processing Integrity (PI1)
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| PI1.1 — Processing accuracy | Structured LLM response parsing, tool call validation | ✅ Implemented |
+| PI1.2 — Processing completeness | Workflow execution logging, conversation message tracking | ✅ Implemented |
+| PI1.3 — Processing timeliness | Response latency tracking in analytics | ✅ Implemented |
+
+## Confidentiality (C1)
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| C1.1 — Confidential information identification | Tenant-scoped data classification | ✅ Implemented |
+| C1.2 — Confidential information disposal | Data retention policies with configurable auto-deletion | ✅ Implemented |
+
+## Privacy (P1–P8)
+
+| Control | Implementation | Status |
+|---------|---------------|--------|
+| P1.1 — Privacy notice | Configurable tenant settings for data handling notices | ✅ Implemented |
+| P2.1 — Consent | OAuth 2.0 consent flows for third-party integrations | ✅ Implemented |
+| P3.1 — Collection limitation | Minimal data collection — only conversation data needed for AI responses | ✅ Implemented |
+| P4.1 — Use limitation | Data used only for configured AI agent purposes per tenant | ✅ Implemented |
+| P5.1 — Data retention | Configurable retention policies (auto-delete after N days) | ✅ Implemented |
+| P6.1 — Access | User-scoped data access via authenticated API | ✅ Implemented |
+| P7.1 — Disclosure | Audit logging of data access and exports | ✅ Implemented |
+| P8.1 — Quality | Embedding-based RAG with source citations for response accuracy | ✅ Implemented |
+
+## Recommendations for Full Certification
+
+The following items are recommended for production SOC 2 Type II certification:
+
+1. **PII detection and redaction** — Add automated PII scanning in conversation data (planned)
+2. **Penetration testing** — Schedule regular third-party penetration tests
+3. **Incident response plan** — Formalize and document incident response procedures
+4. **Business continuity plan** — Document RTO/RPO targets with failover procedures
+5. **Vendor risk assessments** — Document risk posture of LLM providers (OpenAI, Anthropic, Google, etc.)
+6. **Employee security training** — Establish security awareness program

@@ -1,13 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { streamToSSE } from '@xclaw-ai/core';
+import type { AdditionalTool } from '@xclaw-ai/core';
 import { ChatRequestSchema } from '@xclaw-ai/shared';
-import type { StreamEvent } from '@xclaw-ai/shared';
+import type { StreamEvent, Workflow, ToolDefinition, ToolParameter } from '@xclaw-ai/shared';
+import type { DomainPack } from '@xclaw-ai/domains';
 import type { GatewayContext } from './gateway.js';
 import { getInstalledDomainIds } from './domains.js';
 import { getLanguageInstruction } from './settings.js';
 import { tavilyWebSearch } from '@xclaw-ai/integrations';
 import { getTenantLanguageInstruction } from './tenant.js';
+import { scanPII } from './pii.js';
+import { llmLogsCollection, estimateCost, getDB, workflows, eq, and } from '@xclaw-ai/db';
+import type { MongoLLMLog } from '@xclaw-ai/db';
 import type { TenantSettingsInfo } from './tenant.js';
 import {
   sessionsCollection, messagesCollection,
@@ -16,6 +21,120 @@ import {
 
 // In-memory attachment store (per session) — attachments are ephemeral
 const attachmentStore = new Map<string, Array<{ id: string; name: string; mimeType: string; size: number; dataUrl: string }>>();
+
+// ─── Workflow-as-Tool ────────────────────────────────────────
+
+/**
+ * Build AdditionalTool[] that let the agent list and trigger workflows
+ * mid-conversation. The agent calls trigger_workflow(workflowId, inputData)
+ * and receives the execution result inline.
+ */
+function buildWorkflowTools(ctx: GatewayContext, tenantId: string): AdditionalTool[] {
+  return [
+    {
+      definition: {
+        name: 'list_workflows',
+        description: 'List all enabled workflows available for this tenant. Returns workflow id, name, and description.',
+        category: 'automation',
+        parameters: [],
+      },
+      handler: async () => {
+        const db = getDB();
+        const rows = await db
+          .select({ id: workflows.id, name: workflows.name, description: workflows.description })
+          .from(workflows)
+          .where(and(eq(workflows.tenantId, tenantId), eq(workflows.enabled, true)));
+        return rows;
+      },
+    },
+    {
+      definition: {
+        name: 'trigger_workflow',
+        description: 'Execute a workflow by its ID with optional input data. Returns a summary of the execution result.',
+        category: 'automation',
+        parameters: [
+          { name: 'workflow_id', type: 'string' as const, description: 'The ID of the workflow to execute', required: true },
+          { name: 'input_data', type: 'object' as const, description: 'Input data passed to the workflow trigger', required: false },
+        ],
+      },
+      handler: async (args: Record<string, unknown>) => {
+        const workflowId = args.workflow_id as string;
+        const inputData = (args.input_data as Record<string, unknown>) ?? {};
+        const db = getDB();
+        const [row] = await db
+          .select()
+          .from(workflows)
+          .where(and(eq(workflows.id, workflowId), eq(workflows.tenantId, tenantId)))
+          .limit(1);
+        if (!row) return { error: `Workflow '${workflowId}' not found` };
+
+        // Build the Workflow object from DB row (inline to avoid circular import)
+        const def = row.definition as any;
+        const workflow: Workflow = {
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          version: row.version,
+          nodes: def.nodes ?? [],
+          edges: def.edges ?? [],
+          variables: Array.isArray(def.variables) ? def.variables : [],
+          trigger: def.trigger ?? { id: 'manual', type: 'manual', name: 'Manual', description: 'Manual trigger', config: {} },
+          createdAt: typeof row.createdAt === 'string' ? row.createdAt : row.createdAt.toISOString(),
+          updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : row.updatedAt.toISOString(),
+          enabled: row.enabled,
+        };
+
+        const execution = await ctx.workflowEngine!.execute(workflow, inputData);
+        return {
+          executionId: execution.id,
+          status: execution.status,
+          error: execution.error,
+          nodeCount: Object.keys(execution.nodeResults ?? {}).length,
+          summary: execution.status === 'completed'
+            ? `Workflow "${row.name}" completed successfully (${Object.keys(execution.nodeResults ?? {}).length} nodes executed)`
+            : `Workflow "${row.name}" ${execution.status}: ${execution.error ?? 'unknown error'}`,
+        };
+      },
+    },
+  ];
+}
+
+// ─── Domain Tool Conversion ──────────────────────────────────
+
+/**
+ * Convert a DomainPack's skills/tools into AdditionalTool[] that can be passed
+ * to agent.chat() / agent.chatStream() without mutating the shared ToolRegistry.
+ */
+function buildDomainTools(domain: DomainPack): AdditionalTool[] {
+  const tools: AdditionalTool[] = [];
+  for (const skill of domain.skills) {
+    for (const domainTool of skill.tools) {
+      // Convert JSON Schema style params → ToolParameter[]
+      const parameters: ToolParameter[] = Object.entries(domainTool.parameters.properties ?? {}).map(([name, prop]) => ({
+        name,
+        type: (prop.type === 'array' ? 'array' : prop.type === 'number' ? 'number' : prop.type === 'boolean' ? 'boolean' : 'string') as ToolParameter['type'],
+        description: prop.description ?? '',
+        required: domainTool.parameters.required?.includes(name) ?? false,
+      }));
+
+      const definition: ToolDefinition = {
+        name: domainTool.name,
+        description: domainTool.description,
+        category: skill.category,
+        parameters,
+      };
+
+      tools.push({
+        definition,
+        handler: async (args) => {
+          const result = await domainTool.execute(args);
+          return result.data ?? result.error ?? result;
+        },
+      });
+    }
+  }
+  return tools;
+}
 
 // ─── MongoDB-backed Conversation Store ──────────────────────
 
@@ -130,6 +249,74 @@ async function webSearch(query: string, maxResults = 5, tenantSettings?: TenantS
   return bingFallback(query, maxResults);
 }
 
+// Check for workflow message triggers that match the incoming message
+async function checkWorkflowTriggers(
+  ctx: GatewayContext,
+  tenantId: string,
+  message: string,
+): Promise<{ triggered: boolean; workflowResult?: string }> {
+  if (!ctx.workflowEngine) return { triggered: false };
+
+  try {
+    const db = getDB();
+    const rows = await db
+      .select()
+      .from(workflows)
+      .where(and(eq(workflows.tenantId, tenantId), eq(workflows.enabled, true)));
+
+    for (const row of rows) {
+      const def = row.definition as any;
+      const trigger = def.trigger;
+      if (!trigger || trigger.type !== 'message') continue;
+
+      // Check if message matches trigger pattern (keyword or regex)
+      const pattern = trigger.config?.pattern as string | undefined;
+      const keywords = trigger.config?.keywords as string[] | undefined;
+
+      let matches = false;
+      if (pattern) {
+        try { matches = new RegExp(pattern, 'i').test(message); } catch { /* invalid regex */ }
+      }
+      if (!matches && keywords?.length) {
+        const msgLower = message.toLowerCase();
+        matches = keywords.some((kw) => msgLower.includes(kw.toLowerCase()));
+      }
+
+      if (matches) {
+        const wf: Workflow = {
+          id: row.id,
+          name: row.name,
+          description: (row as any).description ?? '',
+          version: row.version,
+          nodes: (def.nodes ?? []),
+          edges: (def.edges ?? []),
+          variables: Array.isArray(def.variables) ? def.variables : [],
+          trigger: trigger,
+          createdAt: typeof row.createdAt === 'string' ? row.createdAt : row.createdAt!.toISOString(),
+          updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : row.updatedAt!.toISOString(),
+          enabled: row.enabled,
+        };
+
+        const execution = await ctx.workflowEngine.execute(wf, { message, tenantId });
+
+        if (execution.status === 'completed') {
+          // Extract output from the last output node, or return a summary
+          const outputNode = wf.nodes.find((n: any) => n.type === 'output');
+          if (outputNode) {
+            const result = execution.nodeResults.get(outputNode.id);
+            if (result?.output) return { triggered: true, workflowResult: String(result.output) };
+          }
+          return { triggered: true, workflowResult: `✅ Workflow "${wf.name}" executed successfully.` };
+        }
+      }
+    }
+  } catch {
+    // Workflow trigger check failure is non-fatal
+  }
+
+  return { triggered: false };
+}
+
 // Wraps agent stream with meta events for debug info
 async function* wrapStreamWithMeta(
   agent: import('@xclaw-ai/core').Agent,
@@ -140,6 +327,8 @@ async function* wrapStreamWithMeta(
   ragContext: string,
   enableWebSearch: boolean,
   tenantSettings?: TenantSettingsInfo,
+  logMeta?: { tenantId: string; userId: string },
+  additionalTools?: AdditionalTool[],
 ): AsyncGenerator<StreamEvent> {
   const timing: Record<string, number> = {};
 
@@ -170,12 +359,38 @@ async function* wrapStreamWithMeta(
 
   // Stream from agent
   const llmStart = Date.now();
-  const generator = agent.chatStream(sid, fullMessage, ragContext);
+  const generator = agent.chatStream(sid, fullMessage, ragContext, undefined, additionalTools);
+  let toolCallCount = 0;
 
   for await (const event of generator) {
+    if (event.type === 'tool-call-start') toolCallCount++;
     if (event.type === 'finish') {
       timing.llmMs = Date.now() - llmStart;
       yield { type: 'meta', key: 'timing', data: timing };
+
+      // Fire-and-forget LLM log
+      if (logMeta) {
+        const provider = agent.config.llm.provider;
+        const model = agent.config.llm.model;
+        llmLogsCollection().insertOne({
+          _id: `llm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          tenantId: logMeta.tenantId,
+          userId: logMeta.userId,
+          sessionId: sid,
+          provider,
+          model,
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          duration: timing.llmMs,
+          costUsd: estimateCost(provider, model, 0, 0),
+          platform: 'web',
+          success: true,
+          toolCalls: toolCallCount,
+          streaming: true,
+          createdAt: new Date(),
+        }).catch(() => {});
+      }
     }
     yield event;
   }
@@ -253,25 +468,37 @@ export function createChatRoutes(ctx: GatewayContext) {
       ? await ctx.agentManager.getAgent(agentConfigId, tenantId)
       : ctx.agent;
 
-    // Resolve domain persona if a domain is selected and installed
+    // Resolve domain persona + tools if a domain is selected and installed
     let domainPersona = '';
+    let domainTools: AdditionalTool[] = [];
     if (domainId && domainId !== 'general' && ctx.domainPacks) {
       const installedIds = getInstalledDomainIds();
       if (installedIds.has(domainId)) {
         const domain = ctx.domainPacks.find((d) => d.id === domainId);
-        if (domain?.agentPersona) {
-          domainPersona = domain.agentPersona;
+        if (domain) {
+          if (domain.agentPersona) domainPersona = domain.agentPersona;
+          domainTools = buildDomainTools(domain);
         }
       }
     }
 
+    // Always inject workflow tools so the agent can trigger workflows
+    if (ctx.workflowEngine) {
+      domainTools = [...domainTools, ...buildWorkflowTools(ctx, tenantId)];
+    }
+
+    // PII scan — detect sensitive info in user message, store redacted version
+    const piiResult = scanPII(message);
+    const storedMessage = piiResult.hasPII ? piiResult.redacted : message;
+
     // Track conversation — save user message to MongoDB
     await getOrCreateSession(sid, tenantId, userId, message, agentConfigId);
-    await addMessage(sid, 'user', message);
+    await addMessage(sid, 'user', storedMessage, piiResult.hasPII ? { metadata: { piiDetected: true, piiTypes: [...new Set(piiResult.matches.map(m => m.type))] } } : undefined);
 
     // Build message with attachment context
     let fullMessage = message;
     const attachmentIds: string[] = (body.attachmentIds as string[]) || [];
+    const imageDataUrls: string[] = [];
     if (attachmentIds.length > 0) {
       const sessionAttachments = attachmentStore.get(sid) || [];
       const matchedAttachments = sessionAttachments.filter((a) => attachmentIds.includes(a.id));
@@ -280,6 +507,13 @@ export function createChatRoutes(ctx: GatewayContext) {
           .map((a) => `[Attached file: ${a.name} (${a.mimeType}, ${Math.round(a.size / 1024)}KB)]`)
           .join('\n');
         fullMessage = `${attachmentInfo}\n\n${message}`;
+
+        // Collect image data URLs for vision/OCR models
+        for (const att of matchedAttachments) {
+          if (att.mimeType.startsWith('image/')) {
+            imageDataUrls.push(att.dataUrl);
+          }
+        }
       }
     }
 
@@ -292,6 +526,13 @@ export function createChatRoutes(ctx: GatewayContext) {
       }
     } catch {
       // RAG retrieval failure is non-fatal
+    }
+
+    // Check for workflow message triggers — if matched, return workflow result directly
+    const workflowCheck = await checkWorkflowTriggers(ctx, tenantId, message);
+    if (workflowCheck.triggered && workflowCheck.workflowResult) {
+      await addMessage(sid, 'assistant', workflowCheck.workflowResult);
+      return c.json({ sessionId: sid, content: workflowCheck.workflowResult, workflow: true });
     }
 
     // Prepend domain persona to message for domain-aware responses
@@ -307,7 +548,7 @@ export function createChatRoutes(ctx: GatewayContext) {
     }
 
     if (stream) {
-      const generator = wrapStreamWithMeta(activeAgent, ctx, sid, fullMessage, message, ragContext, enableWebSearch, tSettings);
+      const generator = wrapStreamWithMeta(activeAgent, ctx, sid, fullMessage, message, ragContext, enableWebSearch, tSettings, { tenantId, userId }, domainTools.length > 0 ? domainTools : undefined);
       const sseStream = streamToSSE(generator);
 
       return new Response(sseStream, {
@@ -319,9 +560,34 @@ export function createChatRoutes(ctx: GatewayContext) {
       });
     }
 
-    const response = await activeAgent.chat(sid, fullMessage, ragContext);
+    const llmStart = Date.now();
+    const response = await activeAgent.chat(sid, fullMessage, ragContext, imageDataUrls.length > 0 ? imageDataUrls : undefined, domainTools.length > 0 ? domainTools : undefined);
+    const llmDuration = Date.now() - llmStart;
     // Track assistant response in MongoDB
     await addMessage(sid, 'assistant', response);
+
+    // Fire-and-forget LLM log for non-streaming
+    const nProvider = activeAgent.config.llm.provider;
+    const nModel = activeAgent.config.llm.model;
+    llmLogsCollection().insertOne({
+      _id: `llm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      tenantId,
+      userId,
+      sessionId: sid,
+      provider: nProvider,
+      model: nModel,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      duration: llmDuration,
+      costUsd: estimateCost(nProvider, nModel, 0, 0),
+      platform: 'web',
+      success: true,
+      toolCalls: 0,
+      streaming: false,
+      createdAt: new Date(),
+    }).catch(() => {});
+
     return c.json({ sessionId: sid, content: response });
   });
 
@@ -344,16 +610,25 @@ export function createChatRoutes(ctx: GatewayContext) {
       ? await ctx.agentManager.getAgent(streamAgentConfigId, streamTenantId)
       : ctx.agent;
 
-    // Resolve domain persona
+    // Resolve domain persona + tools
     let streamMessage = message;
+    let streamDomainTools: AdditionalTool[] = [];
     if (streamDomainId && streamDomainId !== 'general' && ctx.domainPacks) {
       const installedIds = getInstalledDomainIds();
       if (installedIds.has(streamDomainId)) {
         const domain = ctx.domainPacks.find((d) => d.id === streamDomainId);
-        if (domain?.agentPersona) {
-          streamMessage = `[System instruction — Domain specialist mode]\n${domain.agentPersona}\n\n[User message]\n${message}`;
+        if (domain) {
+          if (domain.agentPersona) {
+            streamMessage = `[System instruction — Domain specialist mode]\n${domain.agentPersona}\n\n[User message]\n${message}`;
+          }
+          streamDomainTools = buildDomainTools(domain);
         }
       }
+    }
+
+    // Inject workflow tools for streaming endpoint too
+    if (ctx.workflowEngine) {
+      streamDomainTools = [...streamDomainTools, ...buildWorkflowTools(ctx, streamTenantId)];
     }
 
     // Inject per-tenant language instruction
@@ -374,7 +649,9 @@ export function createChatRoutes(ctx: GatewayContext) {
       // RAG retrieval failure is non-fatal
     }
 
-    const generator = wrapStreamWithMeta(streamActiveAgent, ctx, sid, streamMessage, message, ragContext, enableWebSearch, streamTSettings);
+    const streamUserId = streamUser?.sub || 'anonymous';
+
+    const generator = wrapStreamWithMeta(streamActiveAgent, ctx, sid, streamMessage, message, ragContext, enableWebSearch, streamTSettings, { tenantId: streamTenantId, userId: streamUserId }, streamDomainTools.length > 0 ? streamDomainTools : undefined);
     const sseStream = streamToSSE(generator);
 
     return new Response(sseStream, {

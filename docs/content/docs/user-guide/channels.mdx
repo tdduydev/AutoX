@@ -1,0 +1,150 @@
+---
+title: Channels
+description: Connect AI agents to Telegram, Discord, Slack, WhatsApp, and other messaging platforms
+---
+
+# Channels
+
+![Channels](/screenshots/12-channels.png)
+
+Channels allow your AI agents to communicate through external messaging platforms. Connect once, and the agent automatically receives and responds to messages.
+
+---
+
+## Supported Channels
+
+### Telegram
+Connect a Telegram Bot to receive and respond to messages.
+
+**Setup:**
+1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram
+2. Copy the **Bot Token**
+3. In xClaw, click **Connect** on the Telegram card
+4. Paste the Bot Token and save
+5. The agent will now respond to messages sent to your bot
+
+**Features:**
+- Text messages, images, and documents
+- Group chat support
+- Inline commands (`/start`, `/help`)
+- Markdown formatting in responses
+
+### Discord
+Connect a Discord Bot to your server.
+
+**Setup:**
+1. Create an application at the [Discord Developer Portal](https://discord.com/developers/applications)
+2. Create a Bot and copy the **Bot Token**
+3. Invite the bot to your server using the OAuth2 URL with `bot` and `applications.commands` scopes
+4. In xClaw, click **Connect** on the Discord card
+5. Paste the Bot Token and save
+
+**Features:**
+- Direct messages and server channels
+- Slash commands
+- Rich embeds in responses
+- Thread support
+
+### Facebook Messenger
+Connect via a Facebook Page.
+
+**Setup:**
+1. Create a Facebook App at [Facebook Developers](https://developers.facebook.com)
+2. Add the Messenger product
+3. Generate a **Page Access Token**
+4. Configure the webhook URL to `{your-domain}/api/channels/facebook/webhook`
+5. In xClaw, paste the Page Access Token
+
+### Slack
+Connect to a Slack workspace.
+
+**Setup:**
+1. Create a Slack App at [api.slack.com](https://api.slack.com/apps)
+2. Enable **Bot Token Scopes**: `chat:write`, `app_mentions:read`, `im:history`
+3. Install the app to your workspace
+4. Copy the **Bot User OAuth Token**
+5. Configure Events API URL to `{your-domain}/api/channels/slack/events`
+6. In xClaw, paste the token
+
+**Features:**
+- Direct messages and channel mentions
+- Thread replies
+- Rich Block Kit formatting
+- Slash commands
+
+### WhatsApp
+Connect via WhatsApp Business API.
+
+**Setup:**
+1. Apply for WhatsApp Business API access via [Meta for Developers](https://developers.facebook.com)
+2. Configure a phone number
+3. Generate an **Access Token**
+4. Set the webhook URL to `{your-domain}/api/channels/whatsapp/webhook`
+5. In xClaw, paste the token and phone number ID
+
+### Zalo OA
+Connect a Zalo Official Account for the Vietnamese market.
+
+**Setup:**
+1. Register at [Zalo Developers](https://developers.zalo.me)
+2. Create an Official Account app
+3. Generate an **OA Access Token**
+4. Configure the webhook URL
+5. In xClaw, paste the token
+
+### Microsoft Teams
+Connect via Microsoft Teams Bot Framework.
+
+**Setup:**
+1. Register a bot at the [Azure Bot Framework](https://dev.botframework.com)
+2. Create an Azure Bot resource
+3. Copy the **Microsoft App ID** and **App Password**
+4. Configure the messaging endpoint to `{your-domain}/api/channels/teams/messages`
+5. In xClaw, enter the App ID and Password
+
+### Webhook
+A generic webhook integration for custom platforms.
+
+**Setup:**
+1. Click **Connect** on the Webhook card
+2. Copy the generated webhook URL
+3. Configure your external system to POST messages to this URL
+4. Responses are returned in the HTTP response body
+
+**Payload format:**
+```json
+{
+  "message": "User message text",
+  "userId": "unique-user-id",
+  "metadata": {}
+}
+```
+
+---
+
+## Chat History
+
+Switch to the **Chat History** tab to view all messages from connected channels:
+
+- Filter by channel type, date range, or user
+- View full conversation threads
+- Export conversation data
+- Monitor response quality across channels
+
+---
+
+## Agent Assignment
+
+By default, channels use the **Default** agent. To assign a different agent:
+1. Click **Connect** or edit an existing channel
+2. Select the agent from the **Agent** dropdown
+3. Save — all new messages will use the selected agent
+
+---
+
+## Tips
+
+- Test each channel with a few messages before going live
+- Use the Chat History tab to monitor response quality
+- Create dedicated agents for each channel if they serve different audiences
+- Configure channel-specific system prompts for platform-appropriate responses (e.g., shorter for Telegram, richer for Slack)

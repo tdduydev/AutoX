@@ -21,6 +21,10 @@ COPY packages/server/package.json ./packages/server/
 COPY packages/cli/package.json ./packages/cli/
 COPY packages/channels/telegram/package.json ./packages/channels/telegram/
 COPY packages/channels/discord/package.json ./packages/channels/discord/
+COPY packages/channels/slack/package.json ./packages/channels/slack/
+COPY packages/channels/whatsapp/package.json ./packages/channels/whatsapp/
+COPY packages/channels/zalo/package.json ./packages/channels/zalo/
+COPY packages/channels/msteams/package.json ./packages/channels/msteams/
 COPY packages/web/package.json ./packages/web/
 RUN npm install
 
@@ -39,6 +43,11 @@ RUN npx tsc -b packages/shared && \
     npx tsc -b packages/skills && \
     npx tsc -b packages/skill-hub && \
     npx tsc -b packages/channels/telegram && \
+    npx tsc -b packages/channels/discord && \
+    npx tsc -b packages/channels/slack && \
+    npx tsc -b packages/channels/whatsapp && \
+    npx tsc -b packages/channels/zalo && \
+    npx tsc -b packages/channels/msteams && \
     npx tsc -b packages/gateway && \
     npx tsc -b packages/server
 
@@ -66,6 +75,16 @@ COPY --from=builder /app/packages/skill-hub/dist ./packages/skill-hub/dist
 COPY --from=builder /app/packages/skill-hub/package.json ./packages/skill-hub/
 COPY --from=builder /app/packages/channels/telegram/dist ./packages/channels/telegram/dist
 COPY --from=builder /app/packages/channels/telegram/package.json ./packages/channels/telegram/
+COPY --from=builder /app/packages/channels/discord/dist ./packages/channels/discord/dist
+COPY --from=builder /app/packages/channels/discord/package.json ./packages/channels/discord/
+COPY --from=builder /app/packages/channels/slack/dist ./packages/channels/slack/dist
+COPY --from=builder /app/packages/channels/slack/package.json ./packages/channels/slack/
+COPY --from=builder /app/packages/channels/whatsapp/dist ./packages/channels/whatsapp/dist
+COPY --from=builder /app/packages/channels/whatsapp/package.json ./packages/channels/whatsapp/
+COPY --from=builder /app/packages/channels/zalo/dist ./packages/channels/zalo/dist
+COPY --from=builder /app/packages/channels/zalo/package.json ./packages/channels/zalo/
+COPY --from=builder /app/packages/channels/msteams/dist ./packages/channels/msteams/dist
+COPY --from=builder /app/packages/channels/msteams/package.json ./packages/channels/msteams/
 COPY --from=builder /app/packages/gateway/dist ./packages/gateway/dist
 COPY --from=builder /app/packages/gateway/package.json ./packages/gateway/
 COPY --from=builder /app/packages/server/dist ./packages/server/dist

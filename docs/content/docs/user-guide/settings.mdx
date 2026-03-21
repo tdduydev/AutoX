@@ -1,0 +1,173 @@
+---
+title: Settings
+description: Platform configuration, LLM models, RBAC, language, RAG engine, and security
+---
+
+# Settings
+
+![Settings](/screenshots/13-settings.png)
+
+The Settings page provides centralized configuration for the entire xClaw platform.
+
+---
+
+## Overview
+
+The Overview section displays real-time system information:
+
+### Status Bar
+Four cards showing:
+- **Server**: Online/Offline with version (e.g., v2.0.0)
+- **LLM Model**: Active model name with available model count
+- **Domains**: Loaded domain packs and total skills
+- **Uptime**: System uptime with last check timestamp
+
+### Server Information Detail
+| Field | Description |
+|-------|-------------|
+| **Status** | Health check result (ok / error) |
+| **Version** | xClaw version |
+| **Uptime** | Formatted uptime |
+| **Last Check** | Most recent health check timestamp |
+| **Platform** | Platform identifier (e.g., "xClaw v2") |
+| **Runtime** | Server runtime (Node.js + Hono) |
+
+### Active LLM
+| Field | Description |
+|-------|-------------|
+| **Model** | Currently active model name |
+| **Available Models** | Total models accessible |
+| **Total Size** | Combined model size on disk |
+
+### Domain Packs
+| Field | Description |
+|-------|-------------|
+| **Loaded Domains** | Number of active domain packs |
+| **Total Skills** | Sum of skills across all domains |
+| **Status** | Active / Inactive |
+
+---
+
+## Users & RBAC
+
+Manage users and role-based access control.
+
+### User Management
+- View all users with their roles and status
+- Create new user accounts
+- Edit user details and reset passwords
+- Deactivate or delete user accounts
+
+### Roles
+xClaw includes pre-defined roles:
+
+| Role | Description |
+|------|-------------|
+| **Owner** | Full platform access, can manage tenants |
+| **Admin** | Administrative access, can manage users and settings |
+| **Manager** | Can manage agents, workflows, and knowledge base |
+| **Operator** | Can use chat and view analytics |
+| **Viewer** | Read-only access to conversations and analytics |
+
+### Permissions
+60 granular permissions organized into groups:
+- **Chat**: Send messages, view history, manage sessions
+- **Knowledge**: Upload, edit, delete documents
+- **Agents**: Create, edit, delete, assign agents
+- **Workflows**: Create, edit, run, delete workflows
+- **Analytics**: View dashboards, export data
+- **Settings**: Modify platform configuration
+- **Admin**: Manage users, roles, tenants, API keys
+- **Channels**: Connect, configure, disconnect channels
+- **Marketplace**: Install, uninstall, manage skills
+- **Security**: View audit logs, manage retention
+
+### Custom Roles
+Create custom roles by selecting specific permissions:
+1. Click **+ New Role**
+2. Name the role
+3. Select permissions from each group
+4. Save — the role is immediately available for assignment
+
+---
+
+## LLM / Models
+
+Configure AI model providers and manage available models.
+
+### Supported Providers
+
+| Provider | Models |
+|----------|--------|
+| **Ollama** | Any locally hosted model (qwen, llama, codellama, mistral, etc.) |
+| **OpenAI** | GPT-4o, GPT-4, GPT-3.5 Turbo |
+| **Anthropic** | Claude 3.5 Sonnet, Claude 3 Opus, Claude 3 Haiku |
+| **DeepSeek** | DeepSeek Coder, DeepSeek Chat |
+| **xAI** | Grok |
+| **OpenRouter** | Any model available on OpenRouter |
+| **Perplexity** | pplx-7b, pplx-70b |
+| **Google** | Gemini Pro, Gemini Ultra |
+| **Groq** | LLaMA, Mixtral (ultra-fast inference) |
+| **Mistral** | Mistral Large, Mistral Medium |
+
+### Configuration
+For each provider:
+1. Enter the **API Key** (or base URL for Ollama)
+2. Select the **default model**
+3. Test the connection
+4. Save
+
+### Ollama Integration
+If Ollama is running locally, xClaw auto-detects available models. Manage them from the **Ollama Models** page in the sidebar.
+
+---
+
+## Language
+
+Configure the interface language.
+- English (default)
+- Vietnamese
+- Additional languages via translation files
+
+---
+
+## RAG Engine
+
+Configure the document processing and retrieval pipeline.
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Chunk Size** | Characters per text chunk | 1000 |
+| **Chunk Overlap** | Overlapping characters between chunks | 200 |
+| **Embedding Model** | Model for vector embeddings | Ollama default |
+| **Similarity Threshold** | Minimum cosine similarity for results | 0.7 |
+| **Top K** | Maximum results returned per query | 5 |
+
+---
+
+## Domains
+
+Manage the 13 built-in domain packs:
+- Enable or disable domains
+- View skills associated with each domain
+- Configure domain-specific settings
+
+---
+
+## Security
+
+### PII Detection
+- Toggle automatic PII scanning on incoming messages
+- Configure which PII types to detect (email, phone, SSN, credit card, etc.)
+- View detection reports in Analytics
+
+### Data Retention
+- Set retention periods for conversations and messages
+- Configure automatic cleanup schedules
+- Manage compliance policies
+
+---
+
+## Refresh
+
+Click the **Refresh** button at the bottom to reload all settings from the server.

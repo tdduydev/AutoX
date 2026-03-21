@@ -1,6 +1,55 @@
 import { z } from 'zod';
 import { defineIntegration } from '../base/define-integration.js';
 
+const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me';
+
+async function gmailRequest(
+  method: string,
+  path: string,
+  accessToken: string,
+  body?: unknown,
+  params?: Record<string, string>
+): Promise<unknown> {
+  const url = new URL(`${GMAIL}${path}`);
+  if (params) for (const [k, v] of Object.entries(params)) if (v) url.searchParams.set(k, v);
+  const res = await fetch(url.toString(), {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gmail API error ${res.status}: ${err}`);
+  }
+  if (res.status === 204) return {};
+  return res.json();
+}
+
+function buildMimeMessage(
+  to: string,
+  subject: string,
+  body: string,
+  cc?: string[],
+  bcc?: string[]
+): string {
+  const lines: string[] = [
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    ...(cc?.length ? [`Cc: ${cc.join(', ')}`] : []),
+    ...(bcc?.length ? [`Bcc: ${bcc.join(', ')}`] : []),
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+    '',
+    body,
+  ];
+  const raw = lines.join('\r\n');
+  return Buffer.from(raw).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 export const gmailIntegration = defineIntegration({
   id: 'gmail',
   name: 'Gmail',
@@ -38,8 +87,15 @@ export const gmailIntegration = defineIntegration({
       riskLevel: 'moderate',
       requiresApproval: true,
       execute: async (args, ctx) => {
-        // TODO: Implement Gmail API send
-        return { success: false, error: 'Gmail send_email not implemented yet' };
+        const accessToken = ctx.credentials.access_token;
+        if (!accessToken) return { success: false, error: 'Gmail access token not configured' };
+        try {
+          const raw = buildMimeMessage(args.to, args.subject, args.body, args.cc, args.bcc);
+          const data = await gmailRequest('POST', '/messages/send', accessToken, { raw });
+          return { success: true, data };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Gmail send_email failed' };
+        }
       },
     },
     {
@@ -51,8 +107,26 @@ export const gmailIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        // TODO: Implement Gmail API read
-        return { success: false, error: 'Gmail read_emails not implemented yet' };
+        const accessToken = ctx.credentials.access_token;
+        if (!accessToken) return { success: false, error: 'Gmail access token not configured' };
+        try {
+          const params: Record<string, string> = { maxResults: String(args.maxResults) };
+          if (args.query) params.q = args.query;
+          const list = await gmailRequest('GET', '/messages', accessToken, undefined, params) as Record<string, unknown>;
+          const messageIds = (list.messages as Array<{ id: string }> | undefined) ?? [];
+          const messages = await Promise.all(
+            messageIds.slice(0, 10).map(async ({ id }) => {
+              const msg = await gmailRequest('GET', `/messages/${id}`, accessToken, undefined, {
+                format: 'metadata',
+                metadataHeaders: 'From',
+              }) as Record<string, unknown>;
+              return msg;
+            })
+          );
+          return { success: true, data: { messages, resultSizeEstimate: list.resultSizeEstimate } };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Gmail read_emails failed' };
+        }
       },
     },
     {
@@ -65,7 +139,15 @@ export const gmailIntegration = defineIntegration({
       }),
       riskLevel: 'safe',
       execute: async (args, ctx) => {
-        return { success: false, error: 'Gmail create_draft not implemented yet' };
+        const accessToken = ctx.credentials.access_token;
+        if (!accessToken) return { success: false, error: 'Gmail access token not configured' };
+        try {
+          const raw = buildMimeMessage(args.to, args.subject, args.body);
+          const data = await gmailRequest('POST', '/drafts', accessToken, { message: { raw } });
+          return { success: true, data };
+        } catch (err) {
+          return { success: false, error: err instanceof Error ? err.message : 'Gmail create_draft failed' };
+        }
       },
     },
   ],
@@ -83,8 +165,38 @@ export const gmailIntegration = defineIntegration({
       }),
       pollInterval: 30_000,
       poll: async (lastPollTime, credentials) => {
-        // TODO: Implement Gmail polling
-        return [];
+        const accessToken = credentials.access_token;
+        if (!accessToken) return [];
+        try {
+          const since = lastPollTime.toISOString();
+          const params: Record<string, string> = { maxResults: '10', q: `after:${Math.floor(lastPollTime.getTime() / 1000)}` };
+          const list = await gmailRequest('GET', '/messages', accessToken, undefined, params) as Record<string, unknown>;
+          const messageIds = (list.messages as Array<{ id: string }> | undefined) ?? [];
+          return await Promise.all(
+            messageIds.map(async ({ id }) => {
+              const msg = await gmailRequest('GET', `/messages/${id}`, accessToken, undefined, {
+                format: 'metadata',
+                metadataHeaders: 'From,Subject,Date',
+              }) as Record<string, unknown>;
+              const headers = (msg.payload as Record<string, unknown>)?.headers as Array<{ name: string; value: string }> ?? [];
+              const getHeader = (name: string) => headers.find(h => h.name === name)?.value ?? '';
+              return {
+                integrationId: 'gmail',
+                triggerName: 'new_email',
+                data: {
+                  messageId: id,
+                  from: getHeader('From'),
+                  subject: getHeader('Subject'),
+                  snippet: (msg.snippet as string) ?? '',
+                  receivedAt: getHeader('Date') || since,
+                },
+                timestamp: new Date(),
+              };
+            })
+          );
+        } catch {
+          return [];
+        }
       },
     },
   ],

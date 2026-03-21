@@ -1,0 +1,131 @@
+---
+title: AI Chat
+description: Conversational AI interface with multi-domain support, voice input, image analysis, and web search
+---
+
+# AI Chat
+
+![AI Chat](/screenshots/04-chat.png)
+
+The AI Chat is the primary interaction interface. It supports multi-domain conversations, RAG-enhanced responses, streaming output, voice input, image analysis, and real-time web search.
+
+---
+
+## Chat History Sidebar
+
+The left panel shows all your previous conversations, organized chronologically:
+
+- **Today** — Conversations from the current day
+- **Yesterday** — Previous day's conversations
+- **Previous 7 Days** — Older conversations within the past week
+
+### Actions
+- Click **+** (top of sidebar) to start a new conversation
+- Click any conversation to resume it
+- Each entry shows the first message and a preview of the AI response
+- Conversations are persisted in MongoDB and survive server restarts
+
+---
+
+## Starting a New Chat
+
+### 1. Select a Domain
+
+Click one of the domain chips to specialize the AI:
+
+| Domain | Specialization |
+|--------|---------------|
+| **General Purpose** | Broad knowledge, everyday tasks |
+| **Software Development** | Code generation, debugging, architecture |
+| **Healthcare & Medical** | Clinical knowledge, drug interactions, ICD-10 |
+| **Finance & Accounting** | Financial analysis, invoice processing |
+| **Legal** | Contract review, legal research |
+| **Education & Training** | Tutoring, curriculum design |
+| **Marketing & Social Media** | Content creation, ad copy |
+| **Human Resources** | Recruitment, job descriptions |
+| **Research & Academic** | Paper analysis, citations |
+| **Agriculture** | Crop management, sustainability |
+| **Customer Service** | Support automation, FAQ handling |
+| **IoT & Smart Systems** | Device management, sensor data |
+| **Security & Compliance** | Threat analysis, policy review |
+
+Each domain loads specialized skills and system prompts optimized for that industry.
+
+### 2. Use Quick Start Templates
+
+Six one-click templates to begin common tasks:
+
+- **Summarize** — Condense long text into key points
+- **Explain** — Break down complex topics simply
+- **Translate** — Translate text between languages
+- **Code Review** — Review and improve code quality
+- **Write Email** — Draft professional emails
+- **Analyze Data** — Interpret and visualize data
+
+---
+
+## Input Toolbar
+
+The bottom toolbar provides four tools:
+
+### 📎 Attach File
+Upload documents (PDF, TXT, DOCX, etc.) as context for the conversation. The AI will reference the file content when responding.
+
+### 🖼️ Send Image
+Upload images for AI analysis using Vision capabilities. The agent must have **Vision** enabled. Supported formats: PNG, JPG, GIF, WebP.
+
+**Example use cases:**
+- Analyze charts and diagrams
+- Extract text from screenshots (OCR)
+- Describe image contents
+- Compare visual layouts
+
+### 🔍 Web Search
+Perform real-time web searches using Bing or Brave Search API. Results are injected into the conversation context for up-to-date information.
+
+**How it works:**
+1. Click the search icon
+2. Enter your search query
+3. The AI receives search results and incorporates them into its response
+
+### 🎤 Voice Input
+Use speech-to-text to dictate messages. Click the microphone icon, speak, and the text is automatically transcribed.
+
+> Requires browser microphone permission. Works best in Chrome and Edge.
+
+---
+
+## Agent Selector
+
+The top-right dropdown shows the currently active agent. Click it to switch between agents:
+
+- Each agent has its own persona, skills, and model configuration
+- The **Default** agent is pre-selected on new conversations
+- The model name is displayed below the agent name (e.g., `qwen2.5:14b`)
+
+---
+
+## Response Features
+
+### Streaming
+Responses are streamed in real-time, token by token. You can see the AI "thinking" as it generates the response.
+
+### Markdown Rendering
+Responses support full Markdown:
+- **Bold**, *italic*, `code`
+- Code blocks with syntax highlighting
+- Tables, lists, and headings
+- LaTeX math equations
+
+### RAG Integration
+When a Knowledge Base is configured, the AI automatically retrieves relevant documents and includes them as context. RAG-enhanced responses show the source model and domain at the bottom of each message.
+
+---
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Send message |
+| `Shift + Enter` | Insert new line |
+| `Escape` | Close current dialog |

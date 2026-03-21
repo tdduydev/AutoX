@@ -1,19 +1,21 @@
 {
   "title": "xClaw Documentation",
   "pages": [
-    "---Getting Started---",
     "getting-started",
-    "---Architecture---",
+    "user-guide",
+    "---Platform---",
     "architecture",
-    "---Channels---",
     "channels",
-    "---AI Providers---",
     "ai-providers",
-    "---Skills---",
+    "integrations",
+    "---Agent & Skills---",
     "skills",
-    "---API Reference---",
+    "workflows",
+    "agent-hub",
+    "---Developer---",
     "api",
-    "---Agent Hub---",
-    "agent-hub"
+    "widget",
+    "---Governance---",
+    "compliance"
   ]
 }

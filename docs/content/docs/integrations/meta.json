@@ -1,0 +1,14 @@
+{
+    "title": "Integrations",
+    "pages": [
+        "index",
+        "gmail",
+        "github",
+        "notion",
+        "slack-api",
+        "google-calendar",
+        "brave-search",
+        "huggingface",
+        "wandb"
+    ]
+}

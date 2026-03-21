@@ -1,0 +1,23 @@
+{
+    "title": "User Guide",
+    "pages": [
+        "index",
+        "dashboard",
+        "chat",
+        "knowledge-base",
+        "rag-search",
+        "domain-store",
+        "agents",
+        "workflows",
+        "marketplace",
+        "analytics",
+        "agent-builder",
+        "prompt-lab",
+        "channels",
+        "ollama-models",
+        "ml-automl",
+        "mcp-servers",
+        "settings",
+        "admin"
+    ]
+}

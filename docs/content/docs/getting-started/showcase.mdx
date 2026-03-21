@@ -1,0 +1,624 @@
+---
+title: Platform Showcase
+description: Step-by-step visual walkthrough of xClaw AI Agent Platform with feature configuration guides
+---
+
+# Platform Showcase
+
+A complete visual walkthrough of xClaw AI Agent Platform — from login to administration. Each section includes real screenshots and step-by-step configuration guides.
+
+---
+
+## 1. Login
+
+![Login](/screenshots/02-login.png)
+
+Navigate to `http://localhost:3000` to access the login page.
+
+### How to Log In
+1. Open `http://localhost:3000` in your browser
+2. Enter your **Email** (default: `admin@xclaw.io`)
+3. Enter your **Password** (default: `password123`)
+4. Click **Sign In**
+
+The left panel displays the xClaw logo, version badge (v2.0), and platform highlights:
+- **Multi-LLM AI Engine** — OpenAI, Anthropic, Ollama & more
+- **RAG-Powered Search** — Semantic knowledge retrieval
+- **Enterprise Security** — RBAC with 60+ permissions
+- **13 Domain Packs** — Industry-specialized solutions
+
+> The admin account is automatically created during initial seed. Change the password in **Settings → Users & RBAC** after first login.
+
+---
+
+## 2. Dashboard
+
+![Dashboard](/screenshots/03-dashboard.png)
+
+The Dashboard is the landing page after login. It shows the xClaw logo in the sidebar header alongside the "v2" badge.
+
+### System Status Cards
+Four cards at the top provide real-time metrics:
+
+| Card | Description |
+|------|-------------|
+| **System Status** | Server health — Online (green) or Offline (red) |
+| **Uptime** | Time since last restart with version number |
+| **Documents** | Total documents with chunk count |
+| **KB Size** | Vector embeddings storage count |
+
+### Quick Actions
+Six one-click shortcuts to the most used features:
+
+| Action | Description | How to Use |
+|--------|-------------|------------|
+| **AI Chat** | Start a conversation | Click → opens Chat page with new conversation |
+| **Knowledge Base** | Upload & manage documents | Click → opens document management |
+| **RAG Search** | Semantic knowledge search | Click → opens vector search interface |
+| **Workflows** | Visual automation builder | Click → opens workflow canvas |
+| **Agent Manager** | Configure AI agents | Click → opens agent list |
+| **Channels** | Messaging integrations | Click → opens channel connections |
+
+### Platform Capabilities
+- **13 Domain Packs** — Industry-specialized AI
+- **Multi-LLM** — OpenAI, Anthropic, Ollama & more
+- **RBAC** — 60 granular permissions
+- **ML/AutoML** — 12 ML algorithms
+
+### System Information
+The bottom panel shows server health with version, status, uptime, and last health check timestamp. A green **Healthy** badge confirms all services are operational.
+
+---
+
+## 3. AI Chat
+
+![Chat](/screenshots/04-chat.png)
+
+The primary conversational AI interface with RAG-enhanced responses.
+
+### Chat History Sidebar (Left)
+- Conversations grouped by **Today**, **Yesterday**, and **Previous 7 Days**
+- Click **+** to start a new conversation
+- Click 🗂️ to toggle sidebar view
+- Each entry shows the first message and AI response preview
+
+### Starting a New Chat
+1. Click **+** or open a new conversation
+2. Select a **Domain** chip (e.g., General Purpose) to specialize the AI
+3. Optionally use a **Quick Start** template: Summarize, Explain, Translate, Code Review, Write Email, Analyze Data
+4. Type your message and press `Enter`
+
+### Input Toolbar (Bottom)
+| Tool | Function |
+|------|----------|
+| 📎 | Attach file (PDF, TXT, DOCX, etc.) for context |
+| 🖼️ | Send image for Vision analysis |
+| 🔍 | Web search (Bing/Brave) for real-time information |
+| 🎤 | Voice input (speech-to-text) |
+
+### Agent Selector (Top Right)
+- Displays the active agent name and model (e.g., "Support Bot (Agent)")
+- Click to switch between configured agents
+- Click ⚙️ to access agent settings
+
+### Response Features
+- **Streaming**: Real-time token-by-token output
+- **Markdown**: Full markdown with syntax highlighting, tables, LaTeX
+- **RAG Integration**: Auto-retrieves relevant documents from Knowledge Base
+- Status bar shows: RAG-enhanced model, domain
+
+---
+
+## 4. Knowledge Base
+
+![Knowledge Base](/screenshots/05-knowledge.png)
+
+Manage documents that power RAG (Retrieval-Augmented Generation).
+
+### How to Upload a Document
+1. Navigate to **Knowledge Base** in the sidebar
+2. Click **+ Add Document**
+3. Choose input method:
+   - **Text**: Paste content directly
+   - **File Upload**: Upload PDF, TXT, DOCX, MD, CSV, JSON
+   - **Web URL**: Fetch and index a web page
+4. Select a collection (or use "General")
+5. Click **Save** — document is automatically chunked and embedded
+
+### Collections
+- **General**: Default collection for uncategorized documents
+- Click **+** in the Collections sidebar to create custom collections
+- Filter documents by clicking a collection name
+
+### Statistics
+| Metric | Description |
+|--------|-------------|
+| **Documents** | Total uploaded documents |
+| **Enabled** | Documents active for RAG retrieval |
+| **Chunks** | Text segments after splitting |
+| **Collections** | Number of collections |
+
+### Document Management
+- **Enable/Disable**: Toggle documents on/off without deleting
+- **Delete**: Permanently remove a document and its chunks
+- **Analytics**: View retrieval frequency and relevance scores
+
+---
+
+## 5. RAG Search
+
+![RAG Search](/screenshots/15-search.png)
+
+Test retrieval quality by searching your knowledge base with natural language.
+
+### How RAG Search Works
+The interface shows a 4-step pipeline:
+1. **Query Embedding** — Your query is converted to a vector embedding
+2. **Similarity Search** — Finds most similar document chunks by cosine distance
+3. **Context Building** — Top chunks form the context for the LLM
+4. **Augmented Answer** — LLM generates an answer grounded in retrieved context
+
+### How to Search
+1. Navigate to **RAG Search** in the sidebar
+2. Enter a natural language query in the search box
+3. Select collection filter (default: **All Collections**)
+4. Set **Top K** results count (default: **Top 5**)
+5. Click **Search**
+6. Results show source document, chunk text, and relevance score
+
+### History
+Click **History** (top right) to view previous searches.
+
+---
+
+## 6. AI Agents
+
+![Agents](/screenshots/06-agents.png)
+
+Create and manage AI agent instances.
+
+### Agent Card
+Each agent card shows:
+- **Name** and description
+- **Model**: Active LLM (e.g., `ollama/qwen2.5:14b`)
+- **Temperature**: Creativity level (0.0–1.0)
+- **Capabilities**: Vision, Audio, Streaming, Tools, Memory
+- **Default** badge for the primary agent
+- **Edit** ✏️ and **Delete** 🗑️ buttons
+
+### Creating a New Agent
+1. Click **+ New Agent**
+2. Enter **Name** and **Description**
+3. Configure **Persona** — personality/role and system prompt
+4. Set **Model** — provider, model, temperature, max tokens
+5. Toggle **Capabilities** — Vision, Audio, Streaming, Tools, Memory
+6. Attach **Skills** from the marketplace
+7. Click **Save**
+
+### Setting the Default Agent
+1. Edit the desired agent
+2. Toggle **Default** on
+3. Save — previous default is automatically unset
+
+---
+
+## 7. Workflows
+
+![Workflows](/screenshots/07-workflows.png)
+
+Visual workflow builder with drag-and-drop canvas.
+
+### Creating Your First Workflow
+1. Click **+ New Workflow** or **Create Your First Workflow**
+2. Enter a **Name** and **Description**
+3. Select a **Trigger** type:
+   - **Manual**: Run on demand
+   - **Cron Schedule**: Run on a schedule (e.g., `0 9 * * 1-5`)
+   - **Message Event**: Trigger on keyword/domain/channel match
+   - **Webhook**: Receive external HTTP requests
+4. Drag **nodes** from the palette onto the canvas
+5. Connect nodes by dragging output→input ports
+6. Configure each node's parameters
+7. Click **Run** to test, then **Save** and activate
+
+### Node Types (16)
+- **AI**: LLM Call, RAG Query, Sentiment Analysis, Text Classification
+- **Logic**: Condition, Switch, Loop, Delay
+- **Action**: HTTP Request, Send Message, Send Email, Code Execute
+- **Data**: Data Transform, JSON Parse, Template, Aggregate
+
+---
+
+## 8. Skill Marketplace
+
+![Marketplace](/screenshots/08-marketplace.png)
+
+Browse and install 24 AI skills.
+
+### How to Install a Skill
+1. Navigate to **Marketplace** in the sidebar
+2. Browse or search for a skill
+3. Filter by category: All, Productivity, Development, Healthcare, Security, AI/ML, Integrations, Analytics
+4. Click a skill card to view details
+5. Click **Install** — the skill becomes available for agent assignment
+6. Installed skills show a green **Installed** badge
+
+### Featured Skills
+
+| Skill | Domain | Description |
+|-------|--------|-------------|
+| Text Generation | General | Write emails, reports, social posts |
+| Web Research | General | Search the web and summarize findings |
+| Code Generation | Development | Generate, refactor, and review code |
+| Drug Interaction Checker | Healthcare | Check drug-drug interactions |
+| ICD-10 Coding Assistant | Healthcare | Suggest ICD-10 codes |
+| Financial Analysis | Finance | Analyze financial data and ratios |
+
+---
+
+## 9. Analytics
+
+![Analytics](/screenshots/09-analytics.png)
+
+Conversation metrics dashboard with charts and export.
+
+### Overview Metrics
+| Metric | Description |
+|--------|-------------|
+| **Conversations** | Total conversation count |
+| **Messages** | Total message count |
+| **Avg Messages/Conv** | Average messages per conversation |
+| **Avg Duration** | Mean conversation duration |
+
+### Charts
+- **Daily Conversation Volume** — Bar chart showing conversations per day
+- **Platform Breakdown** — Distribution across Web, Telegram, Discord, Slack, etc.
+- **Peak Hours** — Hourly activity distribution (0h–23h)
+
+### Export
+1. Select a time range (Last 7/30/90 days or All time)
+2. Click **Export CSV** to download analytics data
+
+---
+
+## 10. Agent Builder
+
+![Agent Builder](/screenshots/10-agent-builder.png)
+
+Step-by-step agent design interface with 4 tabs.
+
+### Build an Agent Step-by-Step
+1. Enter **Agent Name** and **Description**
+2. **Persona Tab** — Set personality/role and optional system prompt override
+3. **Skills Tab** — Select skills from the marketplace to attach
+4. **Tools Tab** — Enable/disable: Web Search, Code Execution, RAG Retrieval, Workflow Trigger, File Processing, Image Analysis
+5. **Settings Tab** — Select provider, model, temperature, max tokens
+6. Click **Preview** to test in real-time
+7. Click **Save Agent** to deploy
+
+---
+
+## 11. Prompt Lab
+
+![Prompt Lab](/screenshots/11-prompt-lab.png)
+
+Prompt templates and interactive playground.
+
+### Templates
+Six ready-made agent templates:
+
+| Template | Description | Tags |
+|----------|-------------|------|
+| **Customer Support** | Friendly support agent | support, customer-facing |
+| **Code Assistant** | Technical coding helper | developer, technical |
+| **Data Analyst** | Data interpretation expert | analytics, data |
+| **Content Writer** | Marketing copy generator | marketing, content |
+| **Healthcare Assistant** | Medical knowledge (non-diagnostic) | healthcare, medical |
+| **Multilingual Agent** | Auto-detect language & respond | multilingual, general |
+
+### Using a Template
+1. Click a template card
+2. Review the pre-configured persona, skills, and settings
+3. Click **Use Template** to create an agent based on it
+4. Customize any fields as needed
+5. Save the agent
+
+### Playground
+Switch to the **Playground** tab for interactive testing:
+- Select a model, write system prompts, adjust temperature
+- Send test messages and see responses immediately
+- Monitor token count and response time
+
+---
+
+## 12. Channels
+
+![Channels](/screenshots/12-channels.png)
+
+Connect AI agents to 8 messaging platforms.
+
+### How to Connect a Channel
+1. Navigate to **Channels** in the sidebar
+2. Find the desired channel card
+3. Click **Connect >**
+4. Enter the required credentials:
+
+| Channel | Required Credentials |
+|---------|---------------------|
+| **Telegram** | Bot Token (from @BotFather) |
+| **Discord** | Bot Token (from Discord Developer Portal) |
+| **Facebook** | Page Access Token |
+| **Slack** | Bot User OAuth Token |
+| **WhatsApp** | Access Token + Phone Number ID |
+| **Zalo OA** | OA Access Token |
+| **Microsoft Teams** | App ID + App Password |
+| **Webhook** | Auto-generated URL |
+
+5. Save — the agent starts responding to messages automatically
+
+### Chat History
+Switch to the **Chat History** tab to monitor all channel messages.
+
+---
+
+## 13. Settings
+
+![Settings](/screenshots/13-settings.png)
+
+Centralized platform configuration.
+
+### Settings Sections
+
+| Section | What to Configure |
+|---------|-------------------|
+| **Overview** | View server status, active LLM, domains, uptime |
+| **Users & RBAC** | Create users, assign roles (Owner/Admin/Manager/Operator/Viewer), manage 60 permissions |
+| **LLM / Models** | Add API keys for OpenAI, Anthropic, etc.; configure Ollama base URL |
+| **Language** | Switch UI language (English, Vietnamese) |
+| **RAG Engine** | Set chunk size (1000), overlap (200), embedding model, similarity threshold (0.7), top K (5) |
+| **Domains** | Enable/disable domain packs |
+| **Security** | PII detection, data retention |
+
+### Configuring an LLM Provider
+1. Go to **Settings → LLM / Models**
+2. Click the provider tab (e.g., OpenAI)
+3. Enter the **API Key**
+4. Select the **default model**
+5. Click **Test Connection** to verify
+6. Save
+
+---
+
+## 14. Admin Panel
+
+![Admin](/screenshots/14-admin.png)
+
+System administration (requires **Owner** or **Admin** role).
+
+### Admin Tabs
+
+| Tab | Functionality |
+|-----|---------------|
+| **Tenants** | Create, edit, suspend, delete tenants — each with isolated data |
+| **Audit** | Review activity logs (authentication, user changes, agent edits, etc.) |
+| **API Keys** | Generate/revoke API keys for external integrations |
+| **Retention** | Set data retention policies (conversation, message, audit, analytics, file) |
+
+### Creating a New Tenant
+1. Go to **Admin → Tenants**
+2. Click **+ New Tenant**
+3. Fill in: Name, Slug, Description, Owner Email
+4. Save — the tenant gets isolated data, agents, LLM settings, and user base
+
+### Generating an API Key
+1. Go to **Admin → API Keys**
+2. Click **+ New API Key**
+3. Enter name, expiration date, and scopes
+4. Click **Create** — copy the key immediately (shown only once)
+5. Use in API calls: `Authorization: Bearer xclaw_sk_xxxxx`
+
+---
+
+## 15. Domain Store
+
+![Domain Store](/screenshots/17-domains.png)
+
+Browse and install 13 AI domain specializations.
+
+### Available Domains
+| Domain | Description | Skills |
+|--------|-------------|--------|
+| **General Purpose** | Writing, summarization, Q&A, brainstorming | 2 |
+| **Software Development** | Code review, architecture, debugging, DevOps | 2 |
+| **Healthcare & Medical** | Drug interactions, ICD-10 coding, clinical notes | 3 |
+| **Finance & Accounting** | Financial analysis, budgeting, invoice processing | 2 |
+| **Marketing & Social Media** | Content marketing, SEO, email campaigns | 1 |
+| **Education & Training** | Tutoring, curriculum design, quiz generation | 1 |
+| **Research & Academic** | Literature review, paper summarization, citations | 1 |
+| **DevOps & Infrastructure** | CI/CD, Docker, Kubernetes, monitoring | 2 |
+| **Legal** | Contract review, compliance checking, document drafting | 1 |
+| **Human Resources** | Job descriptions, interview prep, onboarding | 1 |
+| **Sales & CRM** | Lead management, sales pitches, pipeline tracking | 1 |
+| **E-Commerce** | Product descriptions, pricing strategies, customer support | 2 |
+
+### How to Install a Domain
+1. Navigate to **Domain Hub** (sidebar → All Domains)
+2. Browse all 13 domains or filter by **Installed** / **Available**
+3. Use the search bar to find a specific domain
+4. Click **Install** on the domain card
+5. Click **Details →** to view included skills and configuration
+6. Installed domains show a green **Installed** badge and **Default** option
+
+---
+
+## 16. Ollama Models
+
+![Ollama Models](/screenshots/16-models.png)
+
+Manage locally-hosted Ollama models.
+
+### Status Overview
+Three cards at the top:
+- **Status**: Running / Offline (with Ollama version)
+- **Models**: Total installed model count
+- **GPU**: GPU status (e.g., "CPU Only" or GPU model)
+
+### Installed Models
+A list of all locally installed models showing:
+- Model name (e.g., `qwen2.5:14b`, `llama3.2:1b`)
+- Family, quantization, and size
+- **Active** badge for the currently selected model
+- **Use** button to set as active model
+- **Delete** 🗑️ button to remove
+
+### How to Pull a New Model
+1. Navigate to **Ollama Models** in the sidebar
+2. Enter a model name in the "Pull New Model" input (e.g., `llama3.2:3b`)
+3. Click the download button or select from the suggested models grid:
+   - `llama3.2:3b`, `qwen2.5:7b`, `qwen2.5:3b`, `gemma2:2b`, `phi3.5:3.8b`, `mistral:7b`
+4. Wait for the download to complete
+5. Click **Use** to activate the model
+
+### Switching the Active Model
+1. Click **Use** on any installed model
+2. The model becomes the default for all AI interactions
+3. The previous active model remains installed
+
+---
+
+## 17. ML / AutoML
+
+![ML / AutoML](/screenshots/18-ml.png)
+
+Machine learning toolkit with 12 algorithms.
+
+### Four Tabs
+| Tab | Description |
+|-----|-------------|
+| **Algorithms** | Browse all 12 ML algorithms with descriptions |
+| **Train Model** | Upload data and train a model |
+| **AutoML** | Automatic model selection and tuning |
+| **Model Registry** | View and manage trained models |
+
+### Available Algorithms (12)
+
+| Algorithm | Type | Description |
+|-----------|------|-------------|
+| **Linear Regression** | Regression | Standard linear regression with L1/L2 regularization |
+| **Logistic Regression** | Classification | Binary and multi-class classification |
+| **Decision Tree** | Both | Classification and regression |
+| **Random Forest** | Both | Ensemble of decision trees with bagging |
+| **Gradient Boosting** | Both | XGBoost-style gradient boosted trees |
+| **K-Nearest Neighbors** | Both | Instance-based learning |
+| **Naive Bayes** | Classification | Probabilistic classifier |
+| **Support Vector Machine** | Both | SVM for classification and regression |
+| **K-Means Clustering** | Clustering | Partition data into K groups |
+| **DBSCAN** | Clustering | Density-based clustering |
+| **PCA** | Dimensionality Reduction | Principal Component Analysis |
+| **Isolation Forest** | Anomaly Detection | Unsupervised anomaly detection |
+
+### How to Train a Model
+1. Switch to the **Train Model** tab
+2. Select an algorithm
+3. Upload training data (CSV format)
+4. Configure hyperparameters
+5. Click **Train** — monitor progress
+6. View results in the **Model Registry**
+
+---
+
+## 18. MCP Servers
+
+![MCP Servers](/screenshots/19-mcp.png)
+
+Model Context Protocol server management.
+
+### Overview
+The page shows all configured MCP servers with connection status:
+- **Servers** tab: View all servers
+- **Tools** tab: Browse available tools across all servers
+- **MCP Info** tab: Server metadata
+
+### Pre-configured Servers
+| Server | Transport | Description |
+|--------|-----------|-------------|
+| **Chrome DevTools** | stdio | Control Chrome: navigate, click, screenshot, evaluate JS |
+| **GitHub** | stdio | Repos, issues, PRs, code search, branch management |
+| **PostgreSQL** | stdio | Query databases, inspect schemas, run migrations |
+| **Filesystem** | stdio | Read/write files, list directories, search |
+| **Brave Search** | stdio | Web search via Brave Search API |
+
+### How to Add a Server
+1. Click **+ Add Server** (top right)
+2. Enter server name, transport type, and command/URL
+3. Click **Save**
+4. Click the connect icon to establish connection
+5. Connected servers show a green **connected** badge; tools become available
+
+### How to Connect a Server
+1. Click the connect icon (🔗) on a disconnected server
+2. Wait for the connection to establish
+3. The **Tools** count updates to show available tools
+4. Tools are now accessible by AI agents during conversations
+
+---
+
+## 19. Medical Tools
+
+![Medical Tools](/screenshots/20-medical.png)
+
+Specialized medical tools for healthcare workflows.
+
+### Features
+- **Drug Interaction Checker** — Check potential drug-drug interactions
+- **ICD-10 Coding** — Suggest ICD-10 codes from clinical descriptions
+- **Clinical Notes** — Generate structured SOAP, discharge summaries
+- **Medical Knowledge** — Evidence-based medical information
+
+> Medical tools require the Healthcare domain pack to be installed.
+
+---
+
+## Quick Reference
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Send message |
+| `Shift + Enter` | New line |
+| `⌘ + K` | Search docs |
+
+### URL Map
+
+| URL | Page |
+|-----|------|
+| `localhost:3000` | Dashboard |
+| `localhost:3000/chat` | AI Chat |
+| `localhost:3000/knowledge` | Knowledge Base |
+| `localhost:3000/search` | RAG Search |
+| `localhost:3000/domains` | Domain Store |
+| `localhost:3000/agents` | Agent Manager |
+| `localhost:3000/workflows` | Workflows |
+| `localhost:3000/marketplace` | Skill Marketplace |
+| `localhost:3000/analytics` | Analytics |
+| `localhost:3000/agent-builder` | Agent Builder |
+| `localhost:3000/prompt-lab` | Prompt Lab |
+| `localhost:3000/channels` | Channels |
+| `localhost:3000/models` | Ollama Models |
+| `localhost:3000/ml` | ML / AutoML |
+| `localhost:3000/medical` | Medical Tools |
+| `localhost:3000/mcp` | MCP Servers |
+| `localhost:3000/settings` | Settings |
+| `localhost:3000/admin` | Admin Panel |
+| `localhost:5001/api` | REST API |
+
+### Sidebar Navigation
+
+The left sidebar displays the xClaw logo with "v2" badge and is organized into groups:
+- **MAIN**: Dashboard, Chat
+- **KNOWLEDGE**: Knowledge Base, RAG Search
+- **DOMAINS**: All Domains (13 domain packs with expandable list)
+- **AGENTS**: Agents, Channels, Workflows, Marketplace, Analytics, Prompt Lab, Agent Builder, Admin
+- **TOOLS**: Ollama Models, ML/AutoML, Medical Tools, MCP Servers
+- **SYSTEM**: Settings, user profile, and logout

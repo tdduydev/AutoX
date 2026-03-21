@@ -1,0 +1,112 @@
+---
+title: AI Agents
+description: Create, configure, and manage AI agent instances with custom personas and capabilities
+---
+
+# AI Agents
+
+![AI Agents](/screenshots/06-agents.png)
+
+AI Agents are the core entities that handle conversations in xClaw. Each agent has a unique persona, model configuration, skills, tools, and memory settings.
+
+---
+
+## Agent List
+
+The main page displays all configured agents as cards. Each card shows:
+
+| Field | Description |
+|-------|-------------|
+| **Name** | Agent identifier (e.g., "Support Bot") |
+| **Description** | Brief description of the agent's purpose |
+| **Model** | LLM model in use (e.g., `ollama/qwen2.5:14b`) |
+| **Temperature** | Creativity level (0.0 = deterministic, 1.0 = creative) |
+| **Default** | Badge indicating the primary agent |
+
+### Capability Badges
+Each agent shows its enabled capabilities:
+- **Vision** — Can process images
+- **Audio** — Can handle voice input
+- **Streaming** — Responses stream token by token
+- **Tools** — Can use function calling (web search, code execution, etc.)
+- **Memory (N)** — Remembers N messages of conversation history
+
+---
+
+## Creating a New Agent
+
+Click **+ New Agent** to open the creation form.
+
+### Required Fields
+- **Name**: A unique identifier (e.g., "Sales Assistant")
+- **Description**: What the agent does (displayed in the agent selector)
+
+### Persona Configuration
+- **Personality / Role**: Describe the agent's behavior (e.g., "A friendly and professional customer support assistant")
+- **System Prompt**: Optional custom system prompt that overrides the default
+
+### Model Settings
+- **Provider**: Select LLM provider (Ollama, OpenAI, Anthropic, etc.)
+- **Model**: Choose specific model from the provider
+- **Temperature**: 0.0–1.0 slider for response creativity
+- **Max Tokens**: Maximum response length
+
+### Capabilities
+Toggle each capability on or off:
+- **Vision**: Enable image analysis
+- **Audio**: Enable voice processing
+- **Streaming**: Enable real-time response streaming
+- **Tools**: Enable function calling and tool use
+- **Memory**: Set conversation history window size
+
+### Skills
+Attach skills from the marketplace to extend the agent's abilities. Skills provide domain-specific tools and knowledge.
+
+---
+
+## Editing an Agent
+
+Click the **Edit** ✏️ button on any agent card to modify its configuration. All fields are editable.
+
+---
+
+## Setting the Default Agent
+
+The default agent is automatically selected for new conversations. To change the default:
+1. Edit the desired agent
+2. Toggle the **Default** option
+3. Save — the previous default is automatically unset
+
+---
+
+## Deleting an Agent
+
+Click the **Delete** 🗑️ button on an agent card. This action is permanent and cannot be undone.
+
+> You cannot delete the last remaining agent. At least one agent must exist at all times.
+
+---
+
+## Agent in Action
+
+When a user starts a chat:
+1. The selected agent's **system prompt** is loaded
+2. **Domain-specific skills** are activated based on the selected domain
+3. **Tools** are made available for function calling
+4. **Memory** context (previous N messages) is included
+5. The **model** processes the input and generates a streaming response
+
+---
+
+## Multi-Agent Strategy
+
+Create specialized agents for different use cases:
+
+| Agent | Use Case | Model | Temperature |
+|-------|----------|-------|-------------|
+| Support Bot | Customer inquiries | qwen2.5:14b | 0.7 |
+| Code Assistant | Developer help | codellama:34b | 0.3 |
+| Data Analyst | Reporting | qwen2.5:14b | 0.5 |
+| Healthcare Bot | Medical queries | meditron:latest | 0.2 |
+
+Users can switch between agents from the chat interface using the top-right agent selector.

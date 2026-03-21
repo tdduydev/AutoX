@@ -4,15 +4,17 @@
 
 // Agent
 export { Agent } from './agent/agent.js';
+export type { AdditionalTool } from './agent/agent.js';
 export { EventBus } from './agent/event-bus.js';
 
 // LLM
 export { LLMRouter } from './llm/llm-router.js';
-export type { LLMAdapter } from './llm/llm-router.js';
+export type { LLMAdapter, ChatOptions, TaskComplexity } from './llm/llm-router.js';
 export { OpenAIAdapter } from './llm/openai-adapter.js';
 export { AnthropicAdapter } from './llm/anthropic-adapter.js';
 export { OllamaAdapter } from './llm/ollama-adapter.js';
 export type { OllamaModel, OllamaModelInfo, OllamaHealthStatus } from './llm/ollama-adapter.js';
+export { DeepSeekAdapter, XAIAdapter, OpenRouterAdapter, PerplexityAdapter, GroqAdapter, MistralAdapter, GeminiAdapter } from './llm/openai-compatible-adapters.js';
 
 // Streaming
 export { streamToSSE, collectStreamText, withHeartbeat } from './streaming/stream-writer.js';
@@ -42,11 +44,17 @@ export type { MonitoringStore, MongoAuditLog as MonitoringAuditLog, MongoSystemL
 export { RagEngine } from './rag/rag-engine.js';
 export type { RagConfig, RetrievalResult, KnowledgeBaseStats, KBCollection, DocumentMeta, QueryHistoryEntry, KBAnalytics } from './rag/rag-engine.js';
 export { DocumentProcessor } from './rag/document-processor.js';
-export type { RagDocument, DocumentChunk, ChunkMetadata, ChunkingOptions } from './rag/document-processor.js';
+export type { RagDocument, DocumentChunk, ChunkMetadata, ChunkingOptions, MultiModalContent } from './rag/document-processor.js';
 export { OpenAIEmbeddingProvider, LocalEmbeddingProvider } from './rag/embedding-provider.js';
 export type { EmbeddingProvider } from './rag/embedding-provider.js';
 export { InMemoryVectorStore } from './rag/vector-store.js';
 export type { VectorStore, VectorSearchResult } from './rag/vector-store.js';
+export { hybridSearch, buildBM25Index, bm25Score, buildCitationContext } from './rag/hybrid-search.js';
+export type { HybridSearchResult, HybridSearchOptions, } from './rag/hybrid-search.js';
+export { WebCrawler } from './rag/web-crawler.js';
+export type { CrawlOptions, CrawledPage, CrawlProgress } from './rag/web-crawler.js';
+export { CrossEncoderReranker } from './rag/reranker.js';
+export type { RerankerResult, RerankerOptions } from './rag/reranker.js';
 
 // Tracing
 export { Tracer } from './tracing/tracer.js';

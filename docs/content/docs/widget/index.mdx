@@ -1,0 +1,64 @@
+---
+title: Embeddable Widget
+description: Add an AI chatbot to any website with a single script tag.
+---
+
+xClaw provides a self-contained JavaScript widget that can be embedded in any website. No dependencies required — just one `<script>` tag.
+
+## Quick Start
+
+```html
+<script
+  src="https://your-xclaw-host/xclaw-widget.js"
+  data-token="your-embed-token"
+  data-title="Chat with us"
+  data-theme="light"
+  data-primary-color="#6366f1"
+  data-initial-message="Hello! How can I help you?"
+></script>
+```
+
+## Configuration Options
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `data-token` | *(required)* | Authentication token for the embed |
+| `data-position` | `bottom-right` | Widget position: `bottom-right` or `bottom-left` |
+| `data-theme` | `light` | Color theme: `light` or `dark` |
+| `data-title` | `Chat` | Header title text |
+| `data-primary-color` | `#6366f1` | Primary accent color (hex) |
+| `data-initial-message` | *(empty)* | Auto-displayed greeting when widget opens |
+| `data-base-url` | *(auto-detected)* | Override the API base URL |
+
+## Features
+
+- **Responsive** — Adapts to mobile screens (full-width on small viewports)
+- **Theming** — Light/dark mode with customizable primary color
+- **Auto-scroll** — Messages scroll to bottom automatically
+- **Typing indicator** — Shows `...` while waiting for AI response
+- **Analytics** — Tracks widget open/close, messages sent/received
+
+## Analytics Events
+
+The widget automatically tracks these events (sent via `navigator.sendBeacon`):
+
+| Event | When |
+|-------|------|
+| `widget_loaded` | Script loads on the page |
+| `widget_opened` | User opens the chat panel |
+| `widget_closed` | User closes the chat panel |
+| `message_sent` | User sends a message |
+| `response_received` | AI response arrives |
+| `response_error` | API call fails |
+
+View analytics in the **Admin** → **Widget Analytics** dashboard or via `GET /api/widget/analytics`.
+
+## Generating Embed Tokens
+
+1. Go to **Admin** → **API Keys**
+2. Create a new API key with `embed` scope
+3. Use the key as the `data-token` value
+
+## Styling
+
+The widget is fully self-contained with scoped CSS. It does not interfere with your page styles. All styles are scoped under `#xclaw-widget-root`.

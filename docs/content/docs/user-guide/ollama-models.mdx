@@ -1,0 +1,111 @@
+---
+title: Ollama Models
+description: Manage locally-hosted Ollama models for AI inference
+---
+
+# Ollama Models
+
+![Ollama Models](/screenshots/16-models.png)
+
+The Ollama Models page lets you manage locally-hosted LLM models. View installed models, pull new ones, set the active model, and monitor Ollama server status.
+
+---
+
+## Status Overview
+
+Three status cards at the top:
+
+| Card | Description |
+|------|-------------|
+| **Status** | Ollama server state — Running (green) or Offline (red), with version number |
+| **Models** | Total number of installed models |
+| **GPU** | GPU detection — shows GPU model or "CPU Only" |
+
+---
+
+## Installed Models
+
+The model list shows all locally installed Ollama models:
+
+| Field | Description |
+|-------|-------------|
+| **Model Name** | Full model identifier (e.g., `qwen2.5:14b`) |
+| **Family** | Model family (e.g., llama, qwen2) |
+| **Quantization** | Quantization method |
+| **Size** | Disk size (e.g., 8.4 GB) |
+| **Active badge** | Green badge on the currently selected model |
+| **Use** | Button to set as the active model |
+| **Delete** | Remove the model from disk |
+
+---
+
+## Setting the Active Model
+
+### Step-by-Step
+1. Navigate to **Ollama Models** in the sidebar (under TOOLS)
+2. Find the model you want to use in the **Installed Models** list
+3. Click the **Use** button on that model
+4. The model gets an **Active** badge with purple highlight
+5. All AI Chat conversations now use this model
+
+> The active model is used as the default for all AI interactions, including chat, agent responses, and workflow LLM calls.
+
+---
+
+## Pulling a New Model
+
+### From the Input Field
+1. Scroll to the **Pull New Model** section
+2. Type the model name in the input field (e.g., `llama3.2:3b`)
+3. Click the download (⬇) button
+4. Wait for the download to complete — progress is shown
+
+### From Suggested Models
+The page shows popular model suggestions in a grid:
+
+| Model | Description | Size |
+|-------|-------------|------|
+| **llama3.2:3b** | Meta Llama 3.2 3B — Fast, general purpose | ~2 GB |
+| **qwen2.5:7b** | Qwen 2.5 7B — Strong multilingual | ~4 GB |
+| **qwen2.5:3b** | Qwen 2.5 3B — Good balance | ~2 GB |
+| **gemma2:2b** | Google Gemma 2 2B — Efficient | ~1.6 GB |
+| **phi3.5:3.8b** | Microsoft Phi 3.5 — Reasoning | ~2.2 GB |
+| **mistral:7b** | Mistral 7B — European model | ~4 GB |
+
+Click any suggestion to start pulling it immediately.
+
+---
+
+## Deleting a Model
+
+1. Click the red **Delete** 🗑️ button on the model row
+2. Confirm the deletion
+3. The model is removed from disk
+
+> You cannot delete the currently active model. Switch to another model first.
+
+---
+
+## Refreshing Status
+
+Click the **Refresh** (🔄) icon in the top-right to reload the Ollama server status and model list.
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Status shows "Offline" | Ensure Ollama is running: `ollama serve` on the host |
+| Models not loading | Check the Ollama base URL in **Settings → LLM / Models** |
+| Slow inference | Consider using a smaller model or enable GPU acceleration |
+| Pull fails | Check disk space and network connectivity |
+
+---
+
+## Tips
+
+- Start with smaller models (3B–7B) for faster responses on CPU
+- Use `qwen2.5:14b` or larger for best quality
+- `nomic-embed-text:latest` is used for embeddings — don't delete it if using RAG
+- Monitor disk space — large models (13B+) require 8-15 GB each

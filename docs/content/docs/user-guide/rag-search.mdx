@@ -1,0 +1,77 @@
+---
+title: RAG Search
+description: Semantic search with vector similarity for testing retrieval quality
+---
+
+# RAG Search
+
+![RAG Search](/screenshots/15-search.png)
+
+RAG Search lets you test retrieval quality by searching your Knowledge Base with natural language queries. It shows exactly what context the AI retrieves, helping you fine-tune your documents and embeddings.
+
+---
+
+## How RAG Search Works
+
+The interface displays a 4-step pipeline:
+
+| Step | Description |
+|------|-------------|
+| **1. Query Embedding** | Your query is converted to a vector embedding using the configured embedding model |
+| **2. Similarity Search** | Finds the most similar document chunks by cosine distance |
+| **3. Context Building** | Top chunks form the context window for the LLM |
+| **4. Augmented Answer** | LLM generates an answer grounded in the retrieved context |
+
+---
+
+## Performing a Search
+
+### Step-by-Step
+1. Navigate to **RAG Search** in the sidebar (under KNOWLEDGE)
+2. Enter a natural language query in the search box (e.g., "What are the side effects of ibuprofen?")
+3. Select a **Collection** filter:
+   - **All Collections** (default) — Search across all collections
+   - Or select a specific collection to narrow results
+4. Set **Top K** — Number of results to return (default: **Top 5**)
+5. Click **Search**
+
+### Understanding Results
+Each result includes:
+- **Source Document** — The document the chunk belongs to
+- **Chunk Text** — The matching text segment
+- **Relevance Score** — Cosine similarity score (0.0–1.0, higher is better)
+- **Collection** — Which collection the document is in
+- **Chunk Index** — Position within the document
+
+---
+
+## Search History
+
+Click the **History** button (top right) to view previous searches:
+- See past queries with timestamps
+- Re-run previous searches
+- Compare results across different queries
+
+---
+
+## Configuration
+
+RAG Search parameters can be adjusted in **Settings → RAG Engine**:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Chunk Size** | Characters per text chunk | 1000 |
+| **Chunk Overlap** | Overlapping characters between chunks | 200 |
+| **Embedding Model** | Model used for vectorization | Ollama default |
+| **Similarity Threshold** | Minimum cosine similarity to include | 0.7 |
+| **Top K** | Maximum results returned | 5 |
+
+---
+
+## Tips
+
+- If results are poor, try re-chunking documents with different chunk size/overlap
+- Use specific domain terminology in your queries for better matches
+- Test with multiple phrasings to evaluate retrieval robustness
+- Compare results with **All Collections** vs. specific collections to identify noise
+- Low relevance scores (< 0.5) indicate the query doesn't match well — consider adding more relevant documents

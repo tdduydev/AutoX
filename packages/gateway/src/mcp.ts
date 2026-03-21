@@ -56,6 +56,17 @@ const mcpServers: MCPServerConfig[] = [
     toolCount: 0,
     description: 'Read/write files, list directories, search for files',
   },
+  {
+    id: 'brave-search',
+    name: 'Brave Search',
+    type: 'stdio',
+    command: 'npx',
+    args: ['-y', '@anthropic-ai/mcp-server-brave-search'],
+    enabled: false,
+    status: 'disconnected',
+    toolCount: 0,
+    description: 'Anthropic MCP adapter: web search via Brave Search API',
+  },
 ];
 
 // Custom user-added MCP servers
@@ -100,6 +111,7 @@ export function createMCPRoutes(domainPacks?: DomainPack[], agent?: Agent) {
       command?: string;
       args?: string[];
       url?: string;
+      headers?: Record<string, string>;
       description?: string;
     }>();
 
@@ -119,6 +131,7 @@ export function createMCPRoutes(domainPacks?: DomainPack[], agent?: Agent) {
       command: body.command,
       args: body.args,
       url: body.url,
+      headers: body.headers,
       enabled: false,
       status: 'disconnected',
       toolCount: 0,

@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import * as jose from 'jose';
-import { getDB, users, tenants, oauthAccounts, eq, and } from '@xclaw-ai/db';
+import { randomUUID } from 'node:crypto';
+import { getDB, users, tenants, oauthAccounts, eq, and, activityLogsCollection } from '@xclaw-ai/db';
+import type { MongoActivityLog } from '@xclaw-ai/db';
 import type { GatewayContext } from './gateway.js';
 import { seedDefaultRoles, assignRoleToUser, getUserPermissions } from './rbac.js';
 
@@ -78,12 +80,32 @@ export function createAuthRoutes(ctx: GatewayContext) {
   const app = new Hono();
   const secret = new TextEncoder().encode(ctx.config.jwtSecret);
 
+  const writeLoginLog = (entry: Omit<MongoActivityLog, '_id' | 'createdAt'>) => {
+    activityLogsCollection().insertOne({
+      _id: randomUUID(),
+      createdAt: new Date(),
+      ...entry,
+    } as any).catch(() => {});
+  };
+
   // POST /auth/login
   app.post('/login', async (c) => {
+    const startedAt = Date.now();
     const body = await c.req.json();
     const { email, password, tenantSlug } = body;
 
     if (!email || !password) {
+      writeLoginLog({
+        tenantId: 'unknown',
+        userId: 'anonymous',
+        method: 'POST',
+        path: '/auth/login',
+        statusCode: 400,
+        duration: Date.now() - startedAt,
+        ip: c.req.header('x-forwarded-for') || c.req.header('x-real-ip'),
+        userAgent: c.req.header('user-agent'),
+        requestBody: { email: email || '', tenantSlug: tenantSlug || '' },
+      });
       return c.json({ error: 'Email and password are required' }, 400);
     }
 
@@ -107,16 +129,49 @@ export function createAuthRoutes(ctx: GatewayContext) {
     }
 
     if (!user) {
+      writeLoginLog({
+        tenantId: 'unknown',
+        userId: 'anonymous',
+        method: 'POST',
+        path: '/auth/login',
+        statusCode: 401,
+        duration: Date.now() - startedAt,
+        ip: c.req.header('x-forwarded-for') || c.req.header('x-real-ip'),
+        userAgent: c.req.header('user-agent'),
+        requestBody: { email, tenantSlug: tenantSlug || '' },
+      });
       return c.json({ error: 'Invalid credentials' }, 401);
     }
 
     if (!user.passwordHash) {
+      writeLoginLog({
+        tenantId: user.tenantId,
+        userId: user.id,
+        method: 'POST',
+        path: '/auth/login',
+        statusCode: 400,
+        duration: Date.now() - startedAt,
+        ip: c.req.header('x-forwarded-for') || c.req.header('x-real-ip'),
+        userAgent: c.req.header('user-agent'),
+        requestBody: { email, tenantSlug: tenantSlug || '' },
+      });
       return c.json({ error: 'This account uses OAuth login. Please sign in with your linked provider.' }, 400);
     }
 
     // Verify password
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
+      writeLoginLog({
+        tenantId: user.tenantId,
+        userId: user.id,
+        method: 'POST',
+        path: '/auth/login',
+        statusCode: 401,
+        duration: Date.now() - startedAt,
+        ip: c.req.header('x-forwarded-for') || c.req.header('x-real-ip'),
+        userAgent: c.req.header('user-agent'),
+        requestBody: { email, tenantSlug: tenantSlug || '' },
+      });
       return c.json({ error: 'Invalid credentials' }, 401);
     }
 
@@ -143,6 +198,18 @@ export function createAuthRoutes(ctx: GatewayContext) {
       .setIssuedAt()
       .setExpirationTime('24h')
       .sign(secret);
+
+    writeLoginLog({
+      tenantId: user.tenantId,
+      userId: user.id,
+      method: 'POST',
+      path: '/auth/login',
+      statusCode: 200,
+      duration: Date.now() - startedAt,
+      ip: c.req.header('x-forwarded-for') || c.req.header('x-real-ip'),
+      userAgent: c.req.header('user-agent'),
+      requestBody: { email, tenantSlug: tenantSlug || '' },
+    });
 
     return c.json({
       token,

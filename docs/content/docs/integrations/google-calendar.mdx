@@ -1,0 +1,24 @@
+---
+title: Google Calendar
+description: Manage calendar events through your AI agent.
+---
+
+## Setup
+
+1. Enable the Google Calendar API in your Google Cloud project
+2. Create OAuth2 credentials or use an API key
+3. Add credentials in **Settings** → **Integrations** → **Google Calendar**
+
+## Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `list_events` | List upcoming events from a calendar |
+| `create_event` | Create a new calendar event with time, title, and attendees |
+| `delete_event` | Delete an event by ID |
+
+## Triggers
+
+| Trigger | Description |
+|---------|-------------|
+| `event_starting_soon` | Polls for events starting within a configurable window |
