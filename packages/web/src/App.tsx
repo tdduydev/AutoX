@@ -25,6 +25,7 @@ import { EmbedChatPage } from './pages/EmbedChatPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { ChannelsPage } from './pages/ChannelsPage';
 import { WorkflowsPage } from './pages/WorkflowsPage';
+import { SkillMarketplacePage } from './pages/SkillMarketplacePage';
 
 function ProtectedRoutes() {
     const { user, loading } = useAuth();
@@ -49,6 +50,7 @@ function ProtectedRoutes() {
                 <Route path="agents" element={<AgentsPage />} />
                 <Route path="channels" element={<ChannelsPage />} />
                 <Route path="workflows" element={<WorkflowsPage />} />
+                <Route path="marketplace" element={<SkillMarketplacePage />} />
                 <Route path="plugins/:pluginId/*" element={<PluginPage />} />
                 <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<SettingsOverviewPage />} />

@@ -1,0 +1,87 @@
+---
+title: AI Providers
+description: xClaw supports 10 LLM providers — configure via environment variables or per-agent settings.
+---
+
+xClaw includes **10 LLM providers** via a pluggable adapter system. All adapters implement the `LLMAdapter` interface for consistent chat and streaming.
+
+## Supported Providers
+
+| Provider | Base URL | Default Model | Tool Calling |
+|----------|----------|---------------|-------------|
+| **OpenAI** | `api.openai.com` | `gpt-4o` | ✅ |
+| **Anthropic** | `api.anthropic.com` | `claude-3.5-sonnet` | ✅ |
+| **Google** | `generativelanguage.googleapis.com` | `gemini-pro` | ✅ |
+| **Groq** | `api.groq.com` | `llama-3.1-70b` | ✅ |
+| **Mistral** | `api.mistral.ai` | `mistral-large` | ✅ |
+| **DeepSeek** | `api.deepseek.com` | `deepseek-chat` | ✅ |
+| **xAI (Grok)** | `api.x.ai/v1` | `grok-2` | ✅ |
+| **OpenRouter** | `openrouter.ai/api/v1` | `llama-3.1-70b-instruct` | ✅ |
+| **Perplexity** | `api.perplexity.ai` | `llama-3.1-sonar-large-128k-online` | ❌ |
+| **Ollama** | `localhost:11434` | Auto-detected | ✅ |
+
+## Configuration
+
+### Environment Variables
+
+Set the default provider and API keys in `.env`:
+
+```bash
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=4096
+
+# API Keys (set whichever provider(s) you use)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+DEEPSEEK_API_KEY=sk-...
+XAI_API_KEY=xai-...
+OPENROUTER_API_KEY=sk-or-...
+PERPLEXITY_API_KEY=pplx-...
+GOOGLE_API_KEY=...
+GROQ_API_KEY=gsk_...
+MISTRAL_API_KEY=...
+```
+
+### Per-Agent Configuration
+
+Each **Agent Configuration** can use a different provider/model:
+
+1. Go to **Settings** → **Models**
+2. Select a provider and model
+3. Or create an Agent Config with custom LLM settings
+
+## OpenAI-Compatible Providers
+
+DeepSeek, xAI, OpenRouter, and Perplexity all use OpenAI-compatible APIs. They share the same adapter code with different `baseURL`:
+
+```typescript
+// DeepSeek
+new OpenAI({ apiKey: 'sk-...', baseURL: 'https://api.deepseek.com' });
+
+// xAI (Grok)
+new OpenAI({ apiKey: 'xai-...', baseURL: 'https://api.x.ai/v1' });
+
+// OpenRouter — gateway for 100+ models
+new OpenAI({ apiKey: 'sk-or-...', baseURL: 'https://openrouter.ai/api/v1' });
+
+// Perplexity — search-augmented AI
+new OpenAI({ apiKey: 'pplx-...', baseURL: 'https://api.perplexity.ai' });
+```
+
+## Local Models (Ollama)
+
+Run models locally with zero API cost:
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull a model
+ollama pull qwen2.5:14b
+
+# xClaw auto-detects at http://localhost:11434
+```
+
+Set `LLM_PROVIDER=ollama` and `LLM_MODEL=qwen2.5:14b` in your `.env`.

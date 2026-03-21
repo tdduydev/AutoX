@@ -208,7 +208,7 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
         return c.json({ error: 'channelType, name, and config are required' }, 400);
       }
 
-      const validTypes = ['telegram', 'discord', 'facebook', 'slack', 'whatsapp', 'webhook'];
+      const validTypes = ['telegram', 'discord', 'facebook', 'slack', 'whatsapp', 'zalo', 'msteams', 'webhook'];
       if (!validTypes.includes(channelType)) {
         return c.json({ error: `Invalid channelType. Supported: ${validTypes.join(', ')}` }, 400);
       }
@@ -469,6 +469,31 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
           setupGuide: 'Set up via Meta Business Suite → WhatsApp',
         },
         {
+          id: 'zalo',
+          name: 'Zalo OA',
+          icon: '💙',
+          description: 'Connect Zalo Official Account for Vietnamese market',
+          configFields: [
+            { key: 'oaId', label: 'OA ID', type: 'text', required: true },
+            { key: 'accessToken', label: 'Access Token', type: 'password', required: true },
+            { key: 'appId', label: 'App ID', type: 'text', required: false },
+            { key: 'secretKey', label: 'Secret Key', type: 'password', required: false },
+          ],
+          setupGuide: 'Tạo app tại developers.zalo.me → Quản lý OA → lấy Access Token',
+        },
+        {
+          id: 'msteams',
+          name: 'Microsoft Teams',
+          icon: '🟣',
+          description: 'Connect Microsoft Teams via Bot Framework',
+          configFields: [
+            { key: 'appId', label: 'App ID (Client ID)', type: 'text', required: true },
+            { key: 'appPassword', label: 'App Password (Client Secret)', type: 'password', required: true },
+            { key: 'tenantId', label: 'Tenant ID', type: 'text', required: false, placeholder: 'common' },
+          ],
+          setupGuide: 'Create bot at dev.botframework.com → Azure AD app registration',
+        },
+        {
           id: 'webhook',
           name: 'Webhook',
           icon: '🔗',
@@ -510,6 +535,14 @@ function validateChannelConfig(channelType: string, config: Record<string, any>)
     case 'whatsapp':
       if (!config.phoneNumberId) return { ok: false, error: 'phoneNumberId is required for WhatsApp' };
       if (!config.accessToken) return { ok: false, error: 'accessToken is required for WhatsApp' };
+      break;
+    case 'zalo':
+      if (!config.oaId) return { ok: false, error: 'oaId is required for Zalo' };
+      if (!config.accessToken) return { ok: false, error: 'accessToken is required for Zalo' };
+      break;
+    case 'msteams':
+      if (!config.appId) return { ok: false, error: 'appId is required for MS Teams' };
+      if (!config.appPassword) return { ok: false, error: 'appPassword is required for MS Teams' };
       break;
     case 'webhook':
       if (!config.webhookUrl) return { ok: false, error: 'webhookUrl is required for Webhook' };
@@ -569,6 +602,82 @@ async function testChannelConnection(channel: MongoChannelConnection): Promise<{
         };
       } catch {
         return { ok: false, message: 'Connection failed — check token' };
+      }
+    }
+    case 'slack': {
+      try {
+        const token = channel.config.botToken;
+        const res = await fetch('https://slack.com/api/auth.test', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(10000),
+        });
+        const data = await res.json() as any;
+        if (!data.ok) return { ok: false, message: `Slack error: ${data.error}` };
+        return {
+          ok: true,
+          message: `Connected as @${data.user} (team: ${data.team})`,
+          metadata: { botId: data.user_id, botUsername: data.user, team: data.team },
+        };
+      } catch {
+        return { ok: false, message: 'Connection failed — check bot token' };
+      }
+    }
+    case 'whatsapp': {
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/v18.0/${channel.config.phoneNumberId}`,
+          { headers: { Authorization: `Bearer ${channel.config.accessToken}` }, signal: AbortSignal.timeout(10000) },
+        );
+        if (!res.ok) return { ok: false, message: 'Invalid credentials' };
+        const data = await res.json() as any;
+        return {
+          ok: true,
+          message: `Connected to WhatsApp (${data.display_phone_number || channel.config.phoneNumberId})`,
+          metadata: { phoneNumberId: data.id, displayPhone: data.display_phone_number },
+        };
+      } catch {
+        return { ok: false, message: 'Connection failed — check credentials' };
+      }
+    }
+    case 'zalo': {
+      try {
+        const res = await fetch('https://openapi.zalo.me/v3.0/oa/getoa', {
+          headers: { access_token: channel.config.accessToken },
+          signal: AbortSignal.timeout(10000),
+        });
+        const data = await res.json() as any;
+        if (data.error && data.error !== 0) return { ok: false, message: `Zalo error: ${data.message}` };
+        return {
+          ok: true,
+          message: `Connected to Zalo OA "${data.data?.name || channel.config.oaId}"`,
+          metadata: { oaName: data.data?.name, oaId: channel.config.oaId },
+        };
+      } catch {
+        return { ok: false, message: 'Connection failed — check access token' };
+      }
+    }
+    case 'msteams': {
+      try {
+        const res = await fetch('https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: channel.config.appId,
+            client_secret: channel.config.appPassword,
+            scope: 'https://api.botframework.com/.default',
+          }),
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!res.ok) return { ok: false, message: 'Invalid app credentials' };
+        return {
+          ok: true,
+          message: `Teams bot authenticated (app: ${channel.config.appId})`,
+          metadata: { appId: channel.config.appId, tenantId: channel.config.tenantId },
+        };
+      } catch {
+        return { ok: false, message: 'Connection failed — check app credentials' };
       }
     }
     default:

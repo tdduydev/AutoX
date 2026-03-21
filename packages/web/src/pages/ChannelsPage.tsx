@@ -214,18 +214,25 @@ export function ChannelsPage() {
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--color-fg)' }}>
-                            <Radio size={28} style={{ color: 'var(--color-primary)' }} />
-                            Channels
-                        </h1>
-                        <p className="text-sm mt-1" style={{ color: 'var(--color-fg-muted)' }}>
-                            Manage messaging channel connections — Telegram, Discord, Slack, and more
-                        </p>
+                    <div className="flex items-center gap-3">
+                        <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center"
+                            style={{ background: 'linear-gradient(135deg, #6366f1, #06b6d4)', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}
+                        >
+                            <Radio size={20} color="#fff" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>
+                                Channels
+                            </h1>
+                            <p className="text-sm" style={{ color: 'var(--color-fg-muted)' }}>
+                                Messaging integrations — Telegram, Discord, Slack, WhatsApp, Zalo & more
+                            </p>
+                        </div>
                     </div>
                     <button
                         onClick={loadData}
-                        className="p-2 rounded-lg transition-colors cursor-pointer"
+                        className="p-2.5 rounded-xl transition-all duration-200 cursor-pointer hover:bg-[var(--color-bg-soft)]"
                         style={{ color: 'var(--color-fg-muted)' }}
                         title="Refresh"
                     >
@@ -248,13 +255,16 @@ export function ChannelsPage() {
                 )}
 
                 {/* Tabs */}
-                <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ background: 'var(--color-bg-soft)' }}>
+                <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{ background: 'var(--color-bg-soft)' }}>
                     <button
                         onClick={() => setTab('channels')}
-                        className="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer"
+                        className="flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer"
                         style={{
-                            background: tab === 'channels' ? 'var(--color-bg-surface)' : 'transparent',
+                            background: tab === 'channels'
+                                ? 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))'
+                                : 'transparent',
                             color: tab === 'channels' ? 'var(--color-fg)' : 'var(--color-fg-muted)',
+                            boxShadow: tab === 'channels' ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
                         }}
                     >
                         <Radio size={14} className="inline mr-2" />
@@ -262,10 +272,13 @@ export function ChannelsPage() {
                     </button>
                     <button
                         onClick={() => { setTab('history'); loadSessions(); }}
-                        className="flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors cursor-pointer"
+                        className="flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer"
                         style={{
-                            background: tab === 'history' ? 'var(--color-bg-surface)' : 'transparent',
+                            background: tab === 'history'
+                                ? 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))'
+                                : 'transparent',
                             color: tab === 'history' ? 'var(--color-fg)' : 'var(--color-fg-muted)',
+                            boxShadow: tab === 'history' ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
                         }}
                     >
                         <MessageSquare size={14} className="inline mr-2" />
@@ -292,19 +305,22 @@ export function ChannelsPage() {
                                         return (
                                             <div
                                                 key={ch._id}
-                                                className="rounded-xl p-5 border"
-                                                style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}
+                                                className="rounded-2xl p-5 hover-lift hover-border-glow"
+                                                style={{ background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)' }}
                                             >
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-2xl">{typeInfo?.icon || '🔌'}</span>
+                                                        <div
+                                                            className="w-11 h-11 rounded-xl flex items-center justify-center text-xl"
+                                                            style={{ background: 'var(--color-bg-soft)' }}
+                                                        >
+                                                            {typeInfo?.icon || '🔌'}
+                                                        </div>
                                                         <div>
                                                             <div className="flex items-center gap-2">
                                                                 <h3 className="font-semibold" style={{ color: 'var(--color-fg)' }}>{ch.name}</h3>
-                                                                <span
-                                                                    className="text-[11px] px-2 py-0.5 rounded-full font-medium"
-                                                                    style={{ background: sc.bg, color: sc.color }}
-                                                                >
+                                                                <span className="flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: sc.bg, color: sc.color }}>
+                                                                    <span className={`status-dot ${ch.status === 'active' ? 'status-dot-active' : ch.status === 'error' ? 'status-dot-error' : 'status-dot-inactive'}`} style={{ width: 6, height: 6 }} />
                                                                     {ch.status}
                                                                 </span>
                                                             </div>
@@ -325,7 +341,7 @@ export function ChannelsPage() {
                                                     <div className="flex items-center gap-1">
                                                         <button
                                                             onClick={() => handleTest(ch._id)}
-                                                            className="p-2 rounded-lg transition-colors cursor-pointer"
+                                                            className="p-2 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[var(--color-bg-soft)]"
                                                             style={{ color: 'var(--color-fg-muted)' }}
                                                             title="Test Connection"
                                                         >
@@ -334,7 +350,7 @@ export function ChannelsPage() {
                                                         {ch.status === 'active' ? (
                                                             <button
                                                                 onClick={() => handleDeactivate(ch._id)}
-                                                                className="p-2 rounded-lg transition-colors cursor-pointer"
+                                                                className="p-2 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[rgba(239,68,68,0.1)]"
                                                                 style={{ color: '#ef4444' }}
                                                                 title="Deactivate"
                                                             >
@@ -343,7 +359,7 @@ export function ChannelsPage() {
                                                         ) : (
                                                             <button
                                                                 onClick={() => handleActivate(ch._id)}
-                                                                className="p-2 rounded-lg transition-colors cursor-pointer"
+                                                                className="p-2 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[rgba(34,197,94,0.1)]"
                                                                 style={{ color: '#22c55e' }}
                                                                 title="Activate"
                                                             >
@@ -352,7 +368,7 @@ export function ChannelsPage() {
                                                         )}
                                                         <button
                                                             onClick={() => handleDelete(ch._id)}
-                                                            className="p-2 rounded-lg transition-colors cursor-pointer"
+                                                            className="p-2 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[rgba(239,68,68,0.1)]"
                                                             style={{ color: '#ef4444' }}
                                                             title="Delete"
                                                         >
@@ -378,19 +394,24 @@ export function ChannelsPage() {
                                     <button
                                         key={type.id}
                                         onClick={() => openAddModal(type)}
-                                        className="text-left rounded-xl p-5 border transition-all cursor-pointer hover:scale-[1.02]"
+                                        className="group text-left rounded-2xl p-5 hover-lift hover-border-glow cursor-pointer"
                                         style={{
                                             background: 'var(--color-bg-surface)',
-                                            borderColor: 'var(--color-border)',
+                                            border: '1px solid var(--color-border)',
                                         }}
                                     >
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <span className="text-2xl">{type.icon}</span>
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div
+                                                className="w-11 h-11 rounded-xl flex items-center justify-center text-xl transition-transform duration-200 group-hover:scale-110"
+                                                style={{ background: 'var(--color-bg-soft)' }}
+                                            >
+                                                {type.icon}
+                                            </div>
                                             <h3 className="font-semibold" style={{ color: 'var(--color-fg)' }}>{type.name}</h3>
                                         </div>
-                                        <p className="text-xs" style={{ color: 'var(--color-fg-muted)' }}>{type.description}</p>
-                                        <div className="flex items-center gap-1 mt-3 text-xs" style={{ color: 'var(--color-primary)' }}>
-                                            Connect <ChevronRight size={12} />
+                                        <p className="text-xs mb-3" style={{ color: 'var(--color-fg-muted)' }}>{type.description}</p>
+                                        <div className="flex items-center gap-1 text-xs font-medium transition-colors" style={{ color: 'var(--color-primary)' }}>
+                                            Connect <ChevronRight size={12} className="transition-transform duration-200 group-hover:translate-x-0.5" />
                                         </div>
                                     </button>
                                 ))}
@@ -501,10 +522,10 @@ export function ChannelsPage() {
 
                 {/* Add Channel Modal */}
                 {showAddModal && selectedType && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
                         <div
-                            className="rounded-2xl p-6 w-full max-w-md mx-4"
-                            style={{ background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)' }}
+                            className="rounded-2xl p-6 w-full max-w-md mx-4 animate-scale-in glass-card"
+                            style={{ boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}
                         >
                             <div className="flex items-center justify-between mb-5">
                                 <div className="flex items-center gap-2">

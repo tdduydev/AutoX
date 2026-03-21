@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Activity, Database, MessageSquare, Cpu, FileText, Zap } from 'lucide-react';
+import {
+    Activity, Database, MessageSquare, Cpu, FileText, Zap,
+    TrendingUp, Users, Globe, Workflow, Bot, Radio,
+    ArrowUpRight, Clock, Sparkles, Shield,
+} from 'lucide-react';
 import { getHealth, getKnowledge } from '../lib/api';
 
 interface HealthData {
@@ -14,11 +18,19 @@ interface KBData {
 }
 
 function formatUptime(seconds: number): string {
-    const h = Math.floor(seconds / 3600);
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${h}h ${m}m ${s}s`;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    return `${h}h ${m}m`;
 }
+
+const GRADIENT_COLORS = [
+    { from: '#6366f1', to: '#8b5cf6', bg: 'rgba(99, 102, 241, 0.12)' },
+    { from: '#06b6d4', to: '#22d3ee', bg: 'rgba(6, 182, 212, 0.12)' },
+    { from: '#10b981', to: '#34d399', bg: 'rgba(16, 185, 129, 0.12)' },
+    { from: '#f59e0b', to: '#fbbf24', bg: 'rgba(245, 158, 11, 0.12)' },
+];
 
 export function DashboardPage() {
     const [health, setHealth] = useState<HealthData | null>(null);
@@ -30,112 +42,233 @@ export function DashboardPage() {
         getKnowledge().then(setKB).catch(() => { });
     }, []);
 
-    const cards = [
+    const isOnline = health?.status === 'ok';
+
+    const stats = [
         {
             icon: Activity,
-            label: 'Status',
-            value: health?.status === 'ok' ? 'Online' : 'Offline',
-            color: health?.status === 'ok' ? 'var(--color-success)' : 'var(--color-destructive)',
-            bg: health?.status === 'ok' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+            label: 'System Status',
+            value: isOnline ? 'Online' : 'Offline',
+            gradient: isOnline ? GRADIENT_COLORS[2] : { from: '#ef4444', to: '#f87171', bg: 'rgba(239,68,68,0.12)' },
+            detail: isOnline ? 'All systems operational' : 'Connection lost',
         },
         {
             icon: Cpu,
             label: 'Uptime',
             value: health ? formatUptime(health.uptime) : '—',
-            color: 'var(--color-secondary)',
-            bg: 'rgba(6,182,212,0.12)',
+            gradient: GRADIENT_COLORS[1],
+            detail: `v${health?.version ?? '2.0.0'}`,
         },
         {
             icon: FileText,
             label: 'Documents',
             value: kb?.stats?.totalDocuments?.toString() ?? '0',
-            color: 'var(--color-primary)',
-            bg: 'var(--color-primary-soft)',
+            gradient: GRADIENT_COLORS[0],
+            detail: `${kb?.stats?.totalChunks ?? 0} chunks indexed`,
         },
         {
             icon: Database,
-            label: 'KB Chunks',
+            label: 'KB Size',
             value: kb?.stats?.totalChunks?.toString() ?? '0',
-            color: 'var(--color-accent)',
-            bg: 'rgba(16,185,129,0.12)',
+            gradient: GRADIENT_COLORS[2],
+            detail: 'Vector embeddings',
         },
     ];
 
+    const quickActions = [
+        { icon: MessageSquare, title: 'AI Chat', desc: 'Start a conversation', href: '/chat', gradient: GRADIENT_COLORS[0] },
+        { icon: Database, title: 'Knowledge Base', desc: 'Upload & manage documents', href: '/knowledge', gradient: GRADIENT_COLORS[2] },
+        { icon: Zap, title: 'RAG Search', desc: 'Semantic knowledge search', href: '/search', gradient: GRADIENT_COLORS[1] },
+        { icon: Workflow, title: 'Workflows', desc: 'Visual automation builder', href: '/workflows', gradient: GRADIENT_COLORS[3] },
+        { icon: Bot, title: 'Agent Manager', desc: 'Configure AI agents', href: '/agents', gradient: GRADIENT_COLORS[0] },
+        { icon: Radio, title: 'Channels', desc: 'Messaging integrations', href: '/channels', gradient: GRADIENT_COLORS[1] },
+    ];
+
+    const capabilities = [
+        { icon: Globe, label: '13 Domain Packs', desc: 'Industry-specialized AI', href: '/domains' },
+        { icon: Cpu, label: 'Multi-LLM', desc: 'OpenAI, Anthropic, Ollama & more', href: '/models' },
+        { icon: Shield, label: 'RBAC', desc: '60 granular permissions', href: '/settings/users' },
+        { icon: Sparkles, label: 'ML/AutoML', desc: '12 ML algorithms', href: '/ml' },
+    ];
+
     return (
-        <div className="h-full overflow-y-auto p-6">
-            <div className="max-w-5xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>Dashboard</h1>
-                    <p className="text-sm mt-1" style={{ color: 'var(--color-fg-muted)' }}>
-                        xClaw AI Agent Platform — System Overview
-                    </p>
-                </div>
-
-                {error && (
-                    <div className="mb-6 px-4 py-3 rounded-lg text-sm" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
-                        {error}
-                    </div>
-                )}
-
-                {/* Stats Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    {cards.map((card) => (
+        <div className="h-full overflow-y-auto">
+            {/* Hero Section */}
+            <div
+                className="relative overflow-hidden border-b"
+                style={{ borderColor: 'var(--color-border)' }}
+            >
+                <div className="gradient-mesh absolute inset-0" />
+                <div className="relative max-w-6xl mx-auto px-6 py-8">
+                    <div className="flex items-center gap-3 mb-2">
                         <div
-                            key={card.label}
-                            className="p-4 rounded-xl border animate-fade-in"
-                            style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}
+                            className="w-10 h-10 rounded-xl flex items-center justify-center gradient-primary"
+                            style={{ boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)' }}
                         >
-                            <div className="flex items-center gap-3 mb-3">
-                                <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: card.bg }}>
-                                    <card.icon size={18} style={{ color: card.color }} />
+                            <Sparkles size={20} color="#fff" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>
+                                Welcome to xClaw
+                            </h1>
+                            <p className="text-sm" style={{ color: 'var(--color-fg-muted)' }}>
+                                Open-source AI Agent Platform — Multi-industry, Multi-tenant
+                            </p>
+                        </div>
+                    </div>
+
+                    {error && (
+                        <div
+                            className="mt-4 px-4 py-3 rounded-xl text-sm flex items-center gap-2"
+                            style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}
+                        >
+                            <Activity size={14} /> {error}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="max-w-6xl mx-auto px-6 py-6 space-y-8">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {stats.map((stat, i) => (
+                        <div
+                            key={stat.label}
+                            className="relative rounded-2xl p-5 hover-lift hover-border-glow overflow-hidden"
+                            style={{
+                                background: 'var(--color-bg-surface)',
+                                border: '1px solid var(--color-border)',
+                                animationDelay: `${i * 80}ms`,
+                            }}
+                        >
+                            {/* Subtle gradient glow */}
+                            <div
+                                className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-20 blur-2xl"
+                                style={{ background: `linear-gradient(135deg, ${stat.gradient.from}, ${stat.gradient.to})` }}
+                            />
+                            <div className="relative">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div
+                                        className="w-10 h-10 rounded-xl flex items-center justify-center"
+                                        style={{ background: stat.gradient.bg }}
+                                    >
+                                        <stat.icon size={18} style={{ color: stat.gradient.from }} />
+                                    </div>
+                                    <span className="text-xs font-medium" style={{ color: 'var(--color-fg-muted)' }}>
+                                        {stat.label}
+                                    </span>
                                 </div>
-                                <span className="text-xs font-medium" style={{ color: 'var(--color-fg-muted)' }}>{card.label}</span>
+                                <p className="text-2xl font-bold mb-1" style={{ color: stat.gradient.from }}>
+                                    {stat.value}
+                                </p>
+                                <p className="text-[11px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                    {stat.detail}
+                                </p>
                             </div>
-                            <p className="text-xl font-bold" style={{ color: card.color }}>{card.value}</p>
                         </div>
                     ))}
                 </div>
 
                 {/* Quick Actions */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <QuickAction
-                        icon={MessageSquare}
-                        title="Chat with AI"
-                        desc="Start a conversation with your AI assistant"
-                        href="/chat"
-                        color="var(--color-primary)"
-                    />
-                    <QuickAction
-                        icon={Database}
-                        title="Upload Documents"
-                        desc="Add knowledge to your RAG pipeline"
-                        href="/knowledge"
-                        color="var(--color-accent)"
-                    />
-                    <QuickAction
-                        icon={Zap}
-                        title="Search Knowledge"
-                        desc="Test RAG retrieval with semantic search"
-                        href="/search"
-                        color="var(--color-secondary)"
-                    />
+                <div>
+                    <div className="flex items-center gap-2 mb-4">
+                        <Zap size={16} style={{ color: 'var(--color-primary)' }} />
+                        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>
+                            Quick Actions
+                        </h2>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {quickActions.map((action) => (
+                            <a
+                                key={action.title}
+                                href={action.href}
+                                className="group relative rounded-xl p-4 hover-lift hover-border-glow"
+                                style={{
+                                    background: 'var(--color-bg-surface)',
+                                    border: '1px solid var(--color-border)',
+                                }}
+                            >
+                                <div className="flex items-start justify-between mb-3">
+                                    <div
+                                        className="w-9 h-9 rounded-lg flex items-center justify-center"
+                                        style={{ background: action.gradient.bg }}
+                                    >
+                                        <action.icon size={17} style={{ color: action.gradient.from }} />
+                                    </div>
+                                    <ArrowUpRight
+                                        size={14}
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                        style={{ color: 'var(--color-fg-muted)' }}
+                                    />
+                                </div>
+                                <h3 className="text-sm font-semibold mb-0.5" style={{ color: 'var(--color-fg)' }}>
+                                    {action.title}
+                                </h3>
+                                <p className="text-[11px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                    {action.desc}
+                                </p>
+                            </a>
+                        ))}
+                    </div>
                 </div>
 
-                {/* System Info */}
+                {/* Platform Capabilities */}
+                <div>
+                    <div className="flex items-center gap-2 mb-4">
+                        <TrendingUp size={16} style={{ color: 'var(--color-accent)' }} />
+                        <h2 className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>
+                            Platform Capabilities
+                        </h2>
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {capabilities.map((cap) => (
+                            <a
+                                key={cap.label}
+                                href={cap.href}
+                                className="rounded-xl p-4 hover-lift hover-border-glow"
+                                style={{
+                                    background: 'var(--color-bg-surface)',
+                                    border: '1px solid var(--color-border)',
+                                }}
+                            >
+                                <cap.icon size={18} style={{ color: 'var(--color-primary-light)' }} className="mb-2" />
+                                <h3 className="text-xs font-semibold mb-0.5" style={{ color: 'var(--color-fg)' }}>
+                                    {cap.label}
+                                </h3>
+                                <p className="text-[11px]" style={{ color: 'var(--color-fg-muted)' }}>
+                                    {cap.desc}
+                                </p>
+                            </a>
+                        ))}
+                    </div>
+                </div>
+
+                {/* System Information */}
                 {health && (
                     <div
-                        className="p-5 rounded-xl border"
-                        style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}
+                        className="rounded-2xl p-5 hover-border-glow"
+                        style={{
+                            background: 'var(--color-bg-surface)',
+                            border: '1px solid var(--color-border)',
+                        }}
                     >
-                        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--color-fg)' }}>
-                            System Information
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                            <InfoRow label="Version" value={health.version} />
-                            <InfoRow label="Status" value={health.status} />
-                            <InfoRow label="Uptime" value={formatUptime(health.uptime)} />
-                            <InfoRow label="Last Check" value={new Date(health.timestamp).toLocaleTimeString()} />
+                        <div className="flex items-center gap-2 mb-4">
+                            <Clock size={14} style={{ color: 'var(--color-fg-muted)' }} />
+                            <h3 className="text-sm font-semibold" style={{ color: 'var(--color-fg)' }}>
+                                System Information
+                            </h3>
+                            <div className="flex items-center gap-1.5 ml-auto">
+                                <span className={`status-dot ${isOnline ? 'status-dot-active' : 'status-dot-error'}`} />
+                                <span className="text-[11px]" style={{ color: isOnline ? '#22c55e' : '#ef4444' }}>
+                                    {isOnline ? 'Healthy' : 'Unhealthy'}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <InfoBlock label="Version" value={health.version} />
+                            <InfoBlock label="Status" value={health.status} />
+                            <InfoBlock label="Uptime" value={formatUptime(health.uptime)} />
+                            <InfoBlock label="Last Check" value={new Date(health.timestamp).toLocaleTimeString()} />
                         </div>
                     </div>
                 )}
@@ -144,31 +277,15 @@ export function DashboardPage() {
     );
 }
 
-function QuickAction({ icon: Icon, title, desc, href, color }: {
-    icon: typeof Activity;
-    title: string;
-    desc: string;
-    href: string;
-    color: string;
-}) {
+function InfoBlock({ label, value }: { label: string; value: string }) {
     return (
-        <a
-            href={href}
-            className="block p-5 rounded-xl border transition-all hover:scale-[1.01]"
-            style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}
-        >
-            <Icon size={22} style={{ color }} className="mb-3" />
-            <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--color-fg)' }}>{title}</h3>
-            <p className="text-xs" style={{ color: 'var(--color-fg-muted)' }}>{desc}</p>
-        </a>
-    );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-    return (
-        <div>
-            <span className="text-xs" style={{ color: 'var(--color-fg-muted)' }}>{label}</span>
-            <p className="font-medium" style={{ color: 'var(--color-fg)' }}>{value}</p>
+        <div className="rounded-xl p-3" style={{ background: 'var(--color-bg)' }}>
+            <span className="text-[10px] font-medium" style={{ color: 'var(--color-fg-muted)' }}>
+                {label}
+            </span>
+            <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--color-fg)' }}>
+                {value}
+            </p>
         </div>
     );
 }

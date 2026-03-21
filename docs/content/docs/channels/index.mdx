@@ -1,0 +1,48 @@
+---
+title: Chat Channels
+description: Connect xClaw to messaging platforms — Telegram, Slack, WhatsApp, Zalo, MS Teams, and more.
+---
+
+xClaw supports **8 messaging channels** out of the box. Each channel is implemented as a `ChannelPlugin` that handles incoming messages and sends responses.
+
+## Supported Channels
+
+| Channel | Protocol | Best For |
+|---------|----------|----------|
+| [Telegram](/docs/channels/telegram) | Bot API (polling) | Teams, personal assistants |
+| [Slack](/docs/channels/slack) | Web API + Events | Enterprise workspace |
+| [WhatsApp](/docs/channels/whatsapp) | Cloud API (webhook) | Customer support, VN/SEA market |
+| [Zalo OA](/docs/channels/zalo) | OA API v3 (webhook) | Vietnamese enterprise |
+| [MS Teams](/docs/channels/msteams) | Bot Framework | Corporate environments |
+| Discord | Bot Gateway | Communities, developer teams |
+| [WebChat](/docs/channels/webchat) | Embed widget | Website integration |
+| Webhook | Custom HTTP | Third-party systems |
+
+## Architecture
+
+All channels implement the `ChannelPlugin` interface:
+
+```typescript
+interface ChannelPlugin {
+  id: string;
+  platform: ChatPlatform;
+  name: string;
+  version: string;
+
+  initialize(config: Record<string, unknown>): Promise<void>;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  send(message: OutgoingMessage): Promise<void>;
+  onMessage(handler: (msg: IncomingMessage) => Promise<void>): void;
+}
+```
+
+## Adding a Channel
+
+1. Go to **Channels** in the sidebar
+2. Click **Add Channel** and select a channel type
+3. Fill in the required configuration (API tokens, etc.)
+4. Click **Test Connection** to verify
+5. **Activate** the channel to start receiving messages
+
+Each channel connection is linked to an **Agent Configuration** that determines which AI model and persona processes messages.

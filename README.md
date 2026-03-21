@@ -26,7 +26,7 @@ xClaw is a TypeScript monorepo platform for building and deploying AI agents acr
 
 **Key capabilities:**
 
-- **Multi-LLM** — OpenAI, Anthropic, Ollama (local), Google, Groq, Mistral
+- **Multi-LLM** — OpenAI, Anthropic, Google, Groq, Mistral, DeepSeek, xAI (Grok), OpenRouter, Perplexity, Ollama (local)
 - **13 Domain Packs** — General, Developer, Healthcare, Finance, Marketing, Education, Research, DevOps, Legal, HR, Sales, E-commerce, ML
 - **11 Integrations** — Gmail, Google Calendar, Notion, GitHub, Telegram, Slack, iMessage, Brave Search, Tavily, HuggingFace, W&B
 - **Workflow Engine** — Visual workflow builder with 16 node types (trigger, LLM call, tool call, condition, loop, code, HTTP request, transform, merge, switch, sub-workflow, wait, notification, output, memory-read/write)
@@ -35,6 +35,7 @@ xClaw is a TypeScript monorepo platform for building and deploying AI agents acr
 - **Multi-tenant RBAC** — Tenants, roles (owner/admin/member/viewer), 60 granular permissions
 - **MCP Protocol** — Model Context Protocol server discovery and tool execution
 - **Monitoring** — Audit logs, system logs, real-time metrics dashboard
+- **Chat Channels** — Telegram, Discord, Slack, WhatsApp, Zalo OA, Microsoft Teams, WebChat embed
 - **Embeddable Chat** — `/embed/chat` route for embedding in third-party apps
 
 ## Quick Start
@@ -93,39 +94,7 @@ The server auto-detects Ollama at `http://localhost:11434`.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Web Frontend (:3001)                     │
-│              React · Tailwind · Zustand · Vite                  │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ REST API
-┌────────────────────────────▼────────────────────────────────────┐
-│                     Gateway (Hono) (:3000)                      │
-│        Auth · RBAC · Tenant · CORS · Rate Limiting              │
-├─────────────┬──────────┬──────────┬──────────┬─────────────────┤
-│   Chat API  │   RAG    │ Workflow │ Monitor  │   MCP / OAuth2  │
-│   Models    │Knowledge │  Engine  │  Audit   │   Integrations  │
-│   Domains   │  Search  │  16 node │  Metrics │   RBAC / Tenant │
-│   ML/AutoML │  Upload  │  types   │  Logs    │   Settings      │
-└──────┬──────┴────┬─────┴────┬─────┴────┬─────┴────────┬────────┘
-       │           │          │          │              │
-┌──────▼──────┐ ┌──▼───┐ ┌───▼────┐ ┌───▼───┐ ┌───────▼──────┐
-│  Agent Core │ │ RAG  │ │ Tool   │ │ Event │ │ LLM Router   │
-│  Skills     │ │Engine│ │Registry│ │  Bus  │ │ OpenAI       │
-│  Memory     │ │      │ │        │ │       │ │ Anthropic    │
-│  Domains    │ │      │ │        │ │       │ │ Ollama       │
-└──────┬──────┘ └──┬───┘ └───┬────┘ └───┬───┘ └──────────────┘
-       │           │         │          │
-┌──────▼───────────▼─────────▼──────────▼─────────────────────────┐
-│                      Dual Database Layer                         │
-│  ┌─────────────────────┐  ┌──────────────────┐  ┌────────────┐ │
-│  │   PostgreSQL 18     │  │    MongoDB 7     │  │  Redis 8   │ │
-│  │   Drizzle ORM       │  │   Native Driver  │  │   Cache    │ │
-│  │   13 tables         │  │   6 collections  │  │            │ │
-│  │   Config / RBAC     │  │   AI / Chat data │  │            │ │
-│  └─────────────────────┘  └──────────────────┘  └────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
+![xClaw System Architecture](docs/architecture.png)
 
 ### Dual-Database Design
 
@@ -154,7 +123,11 @@ xClaw/
 │   ├── web/             # React + Tailwind frontend
 │   └── channels/        # Channel plugins
 │       ├── telegram/    # Telegram bot
-│       └── discord/     # Discord bot
+│       ├── discord/     # Discord bot
+│       ├── slack/       # Slack workspace
+│       ├── whatsapp/    # WhatsApp Business API
+│       ├── zalo/        # Zalo Official Account
+│       └── msteams/     # Microsoft Teams
 ├── xclaw-plugins/       # [submodule] Official plugins (ShirtGen, Healthcare)
 ├── xclaw-demo-integration-app/  # [submodule] HIS-Mini demo integration app
 ├── data/
@@ -173,6 +146,21 @@ xClaw/
 | **xclaw-demo-integration-app** | `xclaw-demo-integration-app/` | [xdev-asia-labs/xclaw-demo-integration-app](https://github.com/xdev-asia-labs/xclaw-demo-integration-app) | HIS-Mini demo — Hospital Information System integration app |
 
 ## Features
+
+### Chat Channels
+
+Connect xClaw to any messaging platform:
+
+| Channel | Type | Connection Method |
+|---------|------|------------------|
+| **Telegram** | Bot polling | Bot token from @BotFather |
+| **Discord** | Bot + gateway | Bot token from Developer Portal |
+| **Slack** | Web API + Events | Bot token (xoxb-) + Signing Secret |
+| **WhatsApp** | Cloud API webhook | Meta Business Suite + Phone Number ID |
+| **Zalo OA** | OA API v3 webhook | developers.zalo.me + Access Token |
+| **Microsoft Teams** | Bot Framework | Azure AD App + Bot Connector |
+| **WebChat** | Embeddable widget | `/embed/chat` route |
+| **Webhook** | Custom HTTP | POST endpoint + secret key |
 
 ### AI Chat
 
@@ -324,10 +312,14 @@ GET  /api/mcp/servers           # MCP server discovery
 | `MONGODB_URL`      | —                              | MongoDB connection string      |
 | `REDIS_URL`        | —                              | Redis connection string        |
 | `JWT_SECRET`       | `xclaw-dev-secret-change-me`   | JWT signing secret             |
-| `LLM_PROVIDER`     | `openai`                       | `openai` / `anthropic` / `ollama` |
+| `LLM_PROVIDER`     | `openai`                       | `openai` / `anthropic` / `ollama` / `google` / `groq` / `mistral` / `deepseek` / `xai` / `openrouter` / `perplexity` |
 | `LLM_MODEL`        | auto-detected                  | Model name                     |
 | `OPENAI_API_KEY`   | —                              | OpenAI API key                 |
 | `ANTHROPIC_API_KEY`| —                              | Anthropic API key              |
+| `DEEPSEEK_API_KEY` | —                              | DeepSeek API key               |
+| `XAI_API_KEY`      | —                              | xAI (Grok) API key             |
+| `OPENROUTER_API_KEY`| —                             | OpenRouter API key             |
+| `PERPLEXITY_API_KEY`| —                             | Perplexity API key             |
 | `OLLAMA_BASE_URL`  | `http://localhost:11434/v1`    | Ollama server URL              |
 | `CORS_ORIGINS`     | `http://localhost:5173,...`     | Allowed CORS origins           |
 
@@ -341,7 +333,7 @@ GET  /api/mcp/servers           # MCP server discovery
 | PostgreSQL  | [Drizzle ORM](https://orm.drizzle.team/)           |
 | MongoDB     | Official Node.js Driver                            |
 | Cache       | Redis 8                                            |
-| LLM         | OpenAI, Anthropic, Ollama                          |
+| LLM         | OpenAI, Anthropic, DeepSeek, xAI, OpenRouter, Perplexity, Google, Groq, Mistral, Ollama |
 | Auth        | JWT, OAuth2 (Google, GitHub, Discord)              |
 | Build       | Docker multi-stage, npm workspaces                 |
 | Docs        | [Fumadocs](https://fumadocs.vercel.app/) + Next.js |

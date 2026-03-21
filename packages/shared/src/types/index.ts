@@ -4,7 +4,7 @@
 
 // ─── LLM Provider Types ─────────────────────────────────────
 
-export type LLMProvider = 'openai' | 'anthropic' | 'ollama' | 'google' | 'groq' | 'mistral' | 'custom';
+export type LLMProvider = 'openai' | 'anthropic' | 'ollama' | 'google' | 'groq' | 'mistral' | 'deepseek' | 'xai' | 'openrouter' | 'perplexity' | 'custom';
 
 export interface LLMCapabilities {
   vision?: boolean;
@@ -270,7 +270,7 @@ export interface ConversationMessage {
 
 // ─── Chat / Messaging Types ────────────────────────────────
 
-export type ChatPlatform = 'web' | 'telegram' | 'discord' | 'slack' | 'whatsapp' | 'api';
+export type ChatPlatform = 'web' | 'telegram' | 'discord' | 'slack' | 'whatsapp' | 'zalo' | 'msteams' | 'api';
 
 export interface IncomingMessage {
   platform: ChatPlatform;

@@ -1,0 +1,4 @@
+{
+  "title": "Chat Channels",
+  "pages": ["index", "telegram", "slack", "whatsapp", "zalo", "msteams", "webchat"]
+}

@@ -1,0 +1,45 @@
+---
+title: WebChat Widget
+description: Embed xClaw chat widget in any website with a single script tag.
+---
+
+## Overview
+
+xClaw provides an embeddable chat widget at `/embed/chat` that can be integrated into any website.
+
+## Quick Start
+
+Add this snippet to your website:
+
+```html
+<iframe
+  src="https://your-xclaw-domain/embed/chat"
+  style="position: fixed; bottom: 20px; right: 20px; width: 400px; height: 600px; border: none; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 9999;"
+  allow="microphone"
+></iframe>
+```
+
+## Configuration
+
+You can pass configuration via URL parameters:
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `theme` | Light or dark mode | `?theme=dark` |
+| `domain` | Pre-select AI domain | `?domain=healthcare` |
+| `title` | Custom chat title | `?title=Support%20Bot` |
+| `lang` | Interface language | `?lang=vi` |
+
+Example:
+
+```
+/embed/chat?theme=dark&domain=general&title=AI%20Assistant
+```
+
+## Customization
+
+The embed page inherits xClaw's design system. For custom branding:
+
+1. Go to **Settings** → **Appearance**
+2. Set custom colors, logo, and chat title
+3. These settings apply to both the main UI and embed widget

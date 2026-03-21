@@ -637,8 +637,8 @@ export function ChatPage() {
                             </button>
                             {showModelPicker && (
                                 <div
-                                    className="absolute right-0 top-full mt-1 w-80 rounded-xl border shadow-xl z-50 overflow-hidden"
-                                    style={{ background: 'var(--color-bg-surface)', borderColor: 'var(--color-border)' }}
+                                    className="absolute right-0 top-full mt-1 w-80 rounded-xl shadow-xl z-50 overflow-hidden glass-card animate-scale-in"
+                                    style={{ boxShadow: '0 16px 40px rgba(0,0,0,0.3)' }}
                                 >
                                     {/* Domain Section */}
                                     {domains.length > 0 && (
@@ -926,9 +926,9 @@ function ChatBubble({
             {!isUser && (
                 <div
                     className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ background: 'var(--color-primary-soft)' }}
+                    style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.15))', boxShadow: '0 2px 6px rgba(99,102,241,0.15)' }}
                 >
-                    <PawPrint size={14} style={{ color: 'var(--color-primary)' }} />
+                    <PawPrint size={14} style={{ color: 'var(--color-primary-light)' }} />
                 </div>
             )}
             <div className="max-w-[80%] min-w-0">
@@ -1284,60 +1284,75 @@ function EmptyState({
     onQuickPrompt: (prompt: string) => void;
 }) {
     return (
-        <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto">
-            <PawPrint size={40} style={{ color: 'var(--color-primary)' }} className="mb-3" />
-            <h3 className="text-lg font-bold mb-1" style={{ color: 'var(--color-fg)' }}>xClaw AI Chat</h3>
-            <p className="text-xs text-center mb-6" style={{ color: 'var(--color-fg-muted)' }}>
-                RAG-enhanced multi-domain AI assistant. Select a domain specialization and start chatting.
-            </p>
+        <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto relative">
+            {/* Background mesh */}
+            <div className="absolute inset-0 gradient-mesh opacity-50 pointer-events-none" />
 
-            {/* Domain quick-select */}
-            {domains.length > 0 && (
-                <div className="w-full mb-6">
-                    <p className="text-[11px] font-semibold mb-2 text-center" style={{ color: 'var(--color-fg-muted)' }}>
-                        <Globe size={12} className="inline mr-1" /> SELECT DOMAIN
+            <div className="relative">
+                <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                    style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 6px 20px rgba(99,102,241,0.35)' }}
+                >
+                    <PawPrint size={28} color="#fff" />
+                </div>
+                <h3 className="text-xl font-bold mb-1 text-center" style={{ color: 'var(--color-fg)' }}>xClaw AI Chat</h3>
+                <p className="text-xs text-center mb-8" style={{ color: 'var(--color-fg-muted)' }}>
+                    RAG-enhanced multi-domain AI assistant. Select a domain and start chatting.
+                </p>
+
+                {/* Domain quick-select */}
+                {domains.length > 0 && (
+                    <div className="w-full mb-8">
+                        <p className="text-[11px] font-semibold mb-2.5 text-center" style={{ color: 'var(--color-fg-muted)' }}>
+                            <Globe size={12} className="inline mr-1" /> SELECT DOMAIN
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-1.5">
+                            {domains.map((d) => (
+                                <button
+                                    key={d.id}
+                                    onClick={() => onSelectDomain(d.id)}
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 cursor-pointer hover-lift"
+                                    style={{
+                                        background: d.id === activeDomain
+                                            ? 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))'
+                                            : 'var(--color-bg-surface)',
+                                        color: d.id === activeDomain ? 'var(--color-primary-light)' : 'var(--color-fg-muted)',
+                                        border: d.id === activeDomain
+                                            ? '1px solid rgba(99,102,241,0.4)'
+                                            : '1px solid var(--color-border)',
+                                        boxShadow: d.id === activeDomain ? '0 2px 8px rgba(99,102,241,0.15)' : 'none',
+                                    }}
+                                >
+                                    <span>{d.icon}</span>
+                                    <span>{d.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Quick prompts */}
+                <div className="w-full">
+                    <p className="text-[11px] font-semibold mb-2.5 text-center" style={{ color: 'var(--color-fg-muted)' }}>
+                        <Sparkles size={12} className="inline mr-1" /> QUICK START
                     </p>
-                    <div className="flex flex-wrap justify-center gap-1.5">
-                        {domains.map((d) => (
+                    <div className="grid grid-cols-3 gap-2.5">
+                        {QUICK_PROMPTS.map((qp) => (
                             <button
-                                key={d.id}
-                                onClick={() => onSelectDomain(d.id)}
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer border"
+                                key={qp.label}
+                                onClick={() => onQuickPrompt(qp.prompt)}
+                                className="flex items-center gap-2 px-3 py-3 rounded-xl text-xs transition-all duration-200 cursor-pointer text-left hover-lift hover-border-glow"
                                 style={{
-                                    background: d.id === activeDomain ? 'var(--color-primary-soft)' : 'var(--color-bg-surface)',
-                                    color: d.id === activeDomain ? 'var(--color-primary-light)' : 'var(--color-fg-muted)',
-                                    borderColor: d.id === activeDomain ? 'var(--color-primary)' : 'var(--color-border)',
+                                    background: 'var(--color-bg-surface)',
+                                    border: '1px solid var(--color-border)',
+                                    color: 'var(--color-fg-muted)',
                                 }}
                             >
-                                <span>{d.icon}</span>
-                                <span>{d.name}</span>
+                                <span className="text-base">{qp.icon}</span>
+                                <span className="font-medium">{qp.label}</span>
                             </button>
                         ))}
                     </div>
-                </div>
-            )}
-
-            {/* Quick prompts */}
-            <div className="w-full">
-                <p className="text-[11px] font-semibold mb-2 text-center" style={{ color: 'var(--color-fg-muted)' }}>
-                    <Sparkles size={12} className="inline mr-1" /> QUICK START
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                    {QUICK_PROMPTS.map((qp) => (
-                        <button
-                            key={qp.label}
-                            onClick={() => onQuickPrompt(qp.prompt)}
-                            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs border transition-all cursor-pointer text-left"
-                            style={{
-                                background: 'var(--color-bg-surface)',
-                                borderColor: 'var(--color-border)',
-                                color: 'var(--color-fg-muted)',
-                            }}
-                        >
-                            <span className="text-base">{qp.icon}</span>
-                            <span className="font-medium">{qp.label}</span>
-                        </button>
-                    ))}
                 </div>
             </div>
         </div>

@@ -1,0 +1,42 @@
+---
+title: Telegram
+description: Connect a Telegram Bot to xClaw for receiving and sending messages.
+---
+
+## Prerequisites
+
+- A Telegram Bot token from [@BotFather](https://t.me/BotFather)
+
+## Setup
+
+### 1. Create a Bot
+
+1. Open Telegram and search for **@BotFather**
+2. Send `/newbot` and follow the prompts
+3. Copy the bot token (e.g., `123456789:ABCdefGHIjklMNOpqrSTUvwxYZ`)
+
+### 2. Configure in xClaw
+
+1. Navigate to **Channels** → **Add Channel**
+2. Select **Telegram**
+3. Paste your **Bot Token**
+4. Click **Test Connection** — you should see your bot's username
+5. Click **Create** to save
+
+### 3. Activate
+
+Click **Activate** on the channel card. xClaw will start polling for messages.
+
+## How It Works
+
+- Uses **long polling** (`getUpdates` API) to receive messages
+- **Group support**: Bot responds when @mentioned, replied to, or when a command is sent
+- **Private chats**: All messages are processed
+- **Typing indicator**: Shows "typing..." while processing
+- **Message splitting**: Long responses are automatically split at 4096 chars
+
+## Configuration Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `botToken` | ✅ | Bot token from @BotFather |

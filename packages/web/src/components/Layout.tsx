@@ -85,6 +85,7 @@ const AGENTS_NAV = [
     { to: '/agents', icon: Bot, label: 'Agents' },
     { to: '/channels', icon: Radio, label: 'Channels' },
     { to: '/workflows', icon: Workflow, label: 'Workflows' },
+    { to: '/marketplace', icon: Boxes, label: 'Marketplace' },
 ];
 
 const TOOLS_NAV = [
@@ -127,21 +128,32 @@ export function Layout() {
         <div className="flex h-screen overflow-hidden" style={{ background: 'var(--color-bg)' }}>
             {/* Sidebar */}
             <aside
-                className="flex flex-col shrink-0 border-r transition-all duration-200"
+                className="relative flex flex-col shrink-0 border-r transition-all duration-300 ease-in-out"
                 style={{
                     background: 'var(--color-bg-surface)',
                     borderColor: 'var(--color-border)',
-                    width: collapsed ? '56px' : '240px',
+                    width: collapsed ? '56px' : '248px',
                 }}
             >
+                {/* Gradient accent line */}
+                <div
+                    className="absolute left-0 top-0 bottom-0 w-[2px]"
+                    style={{ background: 'linear-gradient(180deg, #6366f1 0%, #06b6d4 50%, #10b981 100%)', opacity: 0.5 }}
+                />
+
                 {/* Logo */}
                 <div className="flex items-center gap-2.5 px-3 h-14 border-b" style={{ borderColor: 'var(--color-border)' }}>
                     {!collapsed && (
                         <>
-                            <PawPrint size={22} style={{ color: 'var(--color-primary)' }} />
-                            <span className="text-lg font-bold" style={{ color: 'var(--color-fg)' }}>xClaw</span>
+                            <div
+                                className="w-7 h-7 rounded-lg flex items-center justify-center"
+                                style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 2px 8px rgba(99,102,241,0.3)' }}
+                            >
+                                <PawPrint size={15} color="#fff" />
+                            </div>
+                            <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--color-fg)' }}>xClaw</span>
                             <span
-                                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
                                 style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary-light)' }}
                             >
                                 v2
@@ -150,7 +162,7 @@ export function Layout() {
                     )}
                     <button
                         onClick={() => setCollapsed(!collapsed)}
-                        className="ml-auto p-1 rounded-md transition-colors cursor-pointer"
+                        className="ml-auto p-1.5 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[var(--color-bg-soft)]"
                         style={{ color: 'var(--color-fg-muted)' }}
                         title={collapsed ? 'Expand' : 'Collapse'}
                     >
@@ -311,22 +323,26 @@ export function Layout() {
                 </nav>
 
                 {/* User */}
-                <div className="flex items-center gap-2 px-3 py-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                <div className="flex items-center gap-2.5 px-3 py-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
                     <div
                         className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                        style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary-light)' }}
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(6,182,212,0.2))',
+                            color: 'var(--color-primary-light)',
+                            border: '2px solid rgba(99,102,241,0.3)',
+                        }}
                     >
                         {user?.email?.charAt(0).toUpperCase() ?? 'U'}
                     </div>
                     {!collapsed && (
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs truncate" style={{ color: 'var(--color-fg)' }}>{user?.email ?? 'Guest'}</p>
-                            <p className="text-[10px]" style={{ color: 'var(--color-fg-muted)' }}>{user?.role ?? 'admin'}</p>
+                            <p className="text-xs font-medium truncate" style={{ color: 'var(--color-fg)' }}>{user?.email ?? 'Guest'}</p>
+                            <p className="text-[10px] capitalize" style={{ color: 'var(--color-fg-muted)' }}>{user?.role ?? 'admin'}</p>
                         </div>
                     )}
                     <button
                         onClick={logout}
-                        className="p-1.5 rounded-md transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[rgba(239,68,68,0.1)]"
                         style={{ color: 'var(--color-fg-muted)' }}
                         title="Logout"
                     >
@@ -368,10 +384,13 @@ function SidebarLink({
         <NavLink
             to={to}
             end={to === '/' || to === '/domains'}
-            className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13px] font-medium transition-colors"
+            className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13px] font-medium transition-all duration-200"
             style={({ isActive }) => ({
-                background: isActive ? 'var(--color-primary-soft)' : 'transparent',
+                background: isActive
+                    ? 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))'
+                    : 'transparent',
                 color: isActive ? 'var(--color-primary-light)' : 'var(--color-fg-muted)',
+                boxShadow: isActive ? 'inset 0 0 0 1px rgba(99,102,241,0.15)' : 'none',
             })}
             title={collapsed ? label : undefined}
         >
