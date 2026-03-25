@@ -2,7 +2,7 @@
 # xClaw v2.1.0 — Multi-stage Docker build
 # ============================================================
 
-FROM node:20-alpine AS base
+FROM node:25-alpine AS base
 WORKDIR /app
 
 # ─── Dependencies ────────────────────────────────────────────
