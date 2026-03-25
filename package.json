@@ -19,6 +19,7 @@
         "packages/server",
         "packages/web",
         "packages/chat-sdk",
+        "packages/doc-mcp",
         "packages/zalo-miniapp",
         "docs"
     ],

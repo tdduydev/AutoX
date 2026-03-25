@@ -43,6 +43,7 @@
 - [x] **Workflow webhook triggers** — `POST /webhooks/workflow/:workflowId` public route, optional secret header
 - [x] **Model routing** — `TaskComplexity` (`fast`/`smart`/`cheap`) routing chains in `LLMRouter`
 - [x] **Fallback chains** — `ROUTING_CHAINS` with automatic provider fallback on failure
+- [x] **Dev Docs Knowledge Base** — `packages/doc-mcp` MCP server + `data/dev-docs` seed docs + web UI (`DevDocsPage`) + gateway CRUD API + CLI commands + VS Code MCP config
 - [x] **Skill Hub SDK** — `SkillRegistry` class, full types, `importFromAPI()`, `formatSkillId()`, `describeSkill()` helpers
 
 ---

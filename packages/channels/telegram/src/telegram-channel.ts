@@ -1,4 +1,4 @@
-import type { ChannelPlugin, IncomingMessage, OutgoingMessage } from '@xclaw-ai/shared';
+import type { ChannelPlugin, IncomingMessage, OutgoingMessage, Attachment } from '@xclaw-ai/shared';
 import { TelegramApi } from './telegram-api.js';
 import type { TelegramUpdate, TelegramMessage } from './telegram-api.js';
 
@@ -101,21 +101,70 @@ export class TelegramChannel implements ChannelPlugin {
       this.offset = update.update_id + 1;
 
       const msg = update.message;
-      if (!msg || !msg.text || msg.from?.is_bot) continue;
+      if (!msg || msg.from?.is_bot) continue;
+
+      // Must have text or photo (or document with image mime)
+      const hasText = !!msg.text;
+      const hasPhoto = !!msg.photo?.length;
+      const hasImageDoc = !!msg.document && msg.document.mime_type?.startsWith('image/');
+      if (!hasText && !hasPhoto && !hasImageDoc) continue;
 
       // In groups: only respond when mentioned or replied to the bot
       if (msg.chat.type !== 'private' && !this.isBotAddressed(msg)) continue;
 
-      // Strip bot mention from the message text for cleaner processing
-      const cleanText = this.stripBotMention(msg.text);
-      if (!cleanText.trim()) continue;
+      // Use caption for photo messages, text otherwise
+      const rawText = msg.text || msg.caption || '';
+      const cleanText = this.stripBotMention(rawText);
+
+      // Text-only messages need non-empty content
+      if (!hasPhoto && !hasImageDoc && !cleanText.trim()) continue;
+
+      // Download photo/image attachments
+      const attachments: Attachment[] = [];
+      if (hasPhoto) {
+        try {
+          // Pick largest photo (last in array)
+          const largest = msg.photo![msg.photo!.length - 1];
+          const file = await this.api.getFile(largest.file_id);
+          if (file.file_path) {
+            const dataUrl = await this.api.downloadFileAsDataUrl(file.file_path);
+            attachments.push({
+              type: 'image',
+              url: dataUrl,
+              name: file.file_path.split('/').pop() || 'photo.jpg',
+              mimeType: 'image/jpeg',
+              size: largest.file_size || 0,
+            });
+          }
+        } catch (err) {
+          console.warn('Telegram: failed to download photo:', err instanceof Error ? err.message : err);
+        }
+      }
+      if (hasImageDoc && msg.document) {
+        try {
+          const file = await this.api.getFile(msg.document.file_id);
+          if (file.file_path) {
+            const dataUrl = await this.api.downloadFileAsDataUrl(file.file_path);
+            attachments.push({
+              type: 'image',
+              url: dataUrl,
+              name: msg.document.file_name || 'document.jpg',
+              mimeType: msg.document.mime_type || 'image/jpeg',
+              size: msg.document.file_size || 0,
+            });
+          }
+        } catch (err) {
+          console.warn('Telegram: failed to download document image:', err instanceof Error ? err.message : err);
+        }
+      }
 
       // Convert to IncomingMessage
       const incoming: IncomingMessage = {
         platform: 'telegram',
         channelId: String(msg.chat.id),
         userId: String(msg.from?.id || 0),
-        content: cleanText,
+        content: cleanText || (attachments.length ? '[Image]' : ''),
+        attachments: attachments.length ? attachments : undefined,
         timestamp: new Date(msg.date * 1000).toISOString(),
         replyTo: msg.reply_to_message ? String(msg.reply_to_message.message_id) : undefined,
         metadata: {
@@ -152,14 +201,16 @@ export class TelegramChannel implements ChannelPlugin {
     if (msg.reply_to_message?.from?.is_bot && msg.reply_to_message.from.username === this.config.botUsername) {
       return true;
     }
-    // @mention the bot
-    if (msg.entities?.some((e) =>
-      e.type === 'mention' && msg.text?.substring(e.offset, e.offset + e.length).toLowerCase() === `@${this.config.botUsername?.toLowerCase()}`
+    // @mention the bot (in text or caption)
+    const allEntities = [...(msg.entities || []), ...(msg.caption_entities || [])];
+    const fullText = msg.text || msg.caption || '';
+    if (allEntities.some((e) =>
+      e.type === 'mention' && fullText.substring(e.offset, e.offset + e.length).toLowerCase() === `@${this.config.botUsername?.toLowerCase()}`
     )) {
       return true;
     }
     // Bot command (e.g. /ask@xdev_xclaw_ai_bot)
-    if (msg.entities?.some((e) => e.type === 'bot_command')) {
+    if (allEntities.some((e) => e.type === 'bot_command')) {
       return true;
     }
     return false;

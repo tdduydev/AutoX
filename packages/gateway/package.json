@@ -21,6 +21,7 @@
         "@modelcontextprotocol/sdk": "^1.27.1",
         "@xclaw-ai/core": "*",
         "@xclaw-ai/db": "*",
+        "@xclaw-ai/doc-mcp": "*",
         "@xclaw-ai/domains": "*",
         "@xclaw-ai/integrations": "*",
         "@xclaw-ai/ml": "*",

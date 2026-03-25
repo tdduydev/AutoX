@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
     Building2, Plus, Edit3, Trash2, X, Save,
-    Users, Settings, Ban, CheckCircle, RefreshCw,
+    Users, Settings, Ban, CheckCircle, RefreshCw, UserPlus, Shield,
 } from 'lucide-react';
 import {
     getAuditLogs, getApiKeys, createApiKey, revokeApiKey,
     getRetentionPolicies, updateRetentionPolicy, triggerRetentionCleanup,
 } from '../lib/api';
+import { useAuth } from '../hooks/useAuth';
 
 // re-use existing tenant API via raw apiFetch
 async function apiFetch(path: string, init?: RequestInit) {
@@ -32,16 +33,23 @@ async function updateTenant(id: string, data: Record<string, unknown>) {
     return res.json();
 }
 
+async function createTenantAdmin(tenantId: string, data: { name: string; email: string; password: string }) {
+    const res = await apiFetch(`/api/tenants/${tenantId}/admin`, { method: 'POST', body: JSON.stringify(data) });
+    return res.json();
+}
+
 type Tab = 'tenants' | 'audit' | 'apiKeys' | 'retention';
 
 export function AdminPage() {
     const [tab, setTab] = useState<Tab>('tenants');
+    const { user } = useAuth();
+    const isSuperAdmin = user?.isSuperAdmin === true;
 
     return (
         <div className="p-6 space-y-6 max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
-                <Building2 className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />
-                <h1 className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>Admin</h1>
+                {isSuperAdmin ? <Shield className="w-6 h-6" style={{ color: 'var(--color-primary)' }} /> : <Building2 className="w-6 h-6" style={{ color: 'var(--color-primary)' }} />}
+                <h1 className="text-2xl font-bold" style={{ color: 'var(--color-fg)' }}>{isSuperAdmin ? 'Platform Admin' : 'Admin'}</h1>
             </div>
 
             <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'var(--color-bg-secondary)' }}>
@@ -60,7 +68,7 @@ export function AdminPage() {
                 ))}
             </div>
 
-            {tab === 'tenants' && <TenantsTab />}
+            {tab === 'tenants' && <TenantsTab isSuperAdmin={isSuperAdmin} />}
             {tab === 'audit' && <AuditTab />}
             {tab === 'apiKeys' && <ApiKeysTab />}
             {tab === 'retention' && <RetentionTab />}
@@ -69,11 +77,14 @@ export function AdminPage() {
 }
 
 /* ─── Tenants Tab ──────────────────────────────────────────── */
-function TenantsTab() {
+function TenantsTab({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     const [tenants, setTenants] = useState<any[]>([]);
     const [showCreate, setShowCreate] = useState(false);
     const [form, setForm] = useState({ name: '', slug: '', plan: 'free' });
     const [loading, setLoading] = useState(true);
+    const [adminModal, setAdminModal] = useState<string | null>(null);
+    const [adminForm, setAdminForm] = useState({ name: '', email: '', password: '' });
+    const [adminMsg, setAdminMsg] = useState<string | null>(null);
 
     const load = async () => {
         setLoading(true);
@@ -100,17 +111,30 @@ function TenantsTab() {
         load();
     };
 
+    const handleCreateAdmin = async () => {
+        if (!adminModal || !adminForm.name || !adminForm.email || !adminForm.password) return;
+        try {
+            const res = await createTenantAdmin(adminModal, adminForm);
+            if (res.error) { setAdminMsg(res.error); return; }
+            setAdminMsg(`Admin created: ${adminForm.email}`);
+            setAdminForm({ name: '', email: '', password: '' });
+            setTimeout(() => { setAdminModal(null); setAdminMsg(null); }, 2000);
+        } catch { setAdminMsg('Failed to create admin'); }
+    };
+
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h2 className="text-lg font-semibold" style={{ color: 'var(--color-fg)' }}>Tenants</h2>
-                <button
-                    onClick={() => setShowCreate(!showCreate)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
-                    style={{ background: 'var(--color-primary)' }}
-                >
-                    <Plus className="w-4 h-4" /> New Tenant
-                </button>
+                {isSuperAdmin && (
+                    <button
+                        onClick={() => setShowCreate(!showCreate)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white"
+                        style={{ background: 'var(--color-primary)' }}
+                    >
+                        <Plus className="w-4 h-4" /> New Tenant
+                    </button>
+                )}
             </div>
 
             {showCreate && (
@@ -153,14 +177,47 @@ function TenantsTab() {
                                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                     {t.status}
                                 </span>
-                                <button onClick={() => toggleStatus(t)} className="p-1.5 rounded-lg hover:opacity-80"
-                                    style={{ background: 'var(--color-bg)' }} title={t.status === 'active' ? 'Suspend' : 'Activate'}>
-                                    {t.status === 'active' ? <Ban className="w-4 h-4 text-red-500" /> : <CheckCircle className="w-4 h-4 text-green-500" />}
-                                </button>
+                                {isSuperAdmin && (
+                                    <button onClick={() => { setAdminModal(t.id); setAdminMsg(null); setAdminForm({ name: '', email: '', password: '' }); }}
+                                        className="p-1.5 rounded-lg hover:opacity-80" style={{ background: 'var(--color-bg)' }} title="Create Admin">
+                                        <UserPlus className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+                                    </button>
+                                )}
+                                {isSuperAdmin && (
+                                    <button onClick={() => toggleStatus(t)} className="p-1.5 rounded-lg hover:opacity-80"
+                                        style={{ background: 'var(--color-bg)' }} title={t.status === 'active' ? 'Suspend' : 'Activate'}>
+                                        {t.status === 'active' ? <Ban className="w-4 h-4 text-red-500" /> : <CheckCircle className="w-4 h-4 text-green-500" />}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}
                     {tenants.length === 0 && <p className="text-center py-8 text-sm" style={{ color: 'var(--color-fg-muted)' }}>No tenants found</p>}
+                </div>
+            )}
+
+            {/* Create Admin Modal */}
+            {adminModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                    <div className="rounded-xl border p-6 w-full max-w-md space-y-4" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)' }}>
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-semibold" style={{ color: 'var(--color-fg)' }}>Create Tenant Admin</h3>
+                            <button onClick={() => setAdminModal(null)}><X className="w-5 h-5" style={{ color: 'var(--color-fg-muted)' }} /></button>
+                        </div>
+                        <input placeholder="Full Name" value={adminForm.name} onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg border text-sm" style={{ background: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }} />
+                        <input placeholder="Email" type="email" value={adminForm.email} onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg border text-sm" style={{ background: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }} />
+                        <input placeholder="Password" type="password" value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg border text-sm" style={{ background: 'var(--color-bg-secondary)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }} />
+                        {adminMsg && <p className={`text-sm ${adminMsg.startsWith('Admin created') ? 'text-green-600' : 'text-red-500'}`}>{adminMsg}</p>}
+                        <div className="flex gap-2 justify-end">
+                            <button onClick={() => setAdminModal(null)} className="px-3 py-1.5 rounded-lg text-sm" style={{ color: 'var(--color-fg-muted)' }}>Cancel</button>
+                            <button onClick={handleCreateAdmin} className="px-4 py-1.5 rounded-lg text-sm font-medium text-white" style={{ background: 'var(--color-primary)' }}>
+                                <UserPlus className="w-4 h-4 inline mr-1" />Create Admin
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

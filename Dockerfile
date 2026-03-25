@@ -25,6 +25,8 @@ COPY packages/channels/slack/package.json ./packages/channels/slack/
 COPY packages/channels/whatsapp/package.json ./packages/channels/whatsapp/
 COPY packages/channels/zalo/package.json ./packages/channels/zalo/
 COPY packages/channels/msteams/package.json ./packages/channels/msteams/
+COPY packages/sandbox/package.json ./packages/sandbox/
+COPY packages/doc-mcp/package.json ./packages/doc-mcp/
 COPY packages/web/package.json ./packages/web/
 RUN npm install
 
@@ -35,11 +37,13 @@ COPY . .
 # Build server-side packages only
 RUN npx tsc -b packages/shared && \
     npx tsc -b packages/db && \
+    rm -rf packages/db/dist/migrations && \
     cp -r packages/db/src/migrations packages/db/dist/migrations && \
     npx tsc -b packages/core && \
     npx tsc -b packages/integrations && \
     npx tsc -b packages/domains && \
     npx tsc -b packages/ml && \
+    npx tsc -b packages/sandbox && \
     npx tsc -b packages/skills && \
     npx tsc -b packages/skill-hub && \
     npx tsc -b packages/channels/telegram && \
@@ -48,6 +52,7 @@ RUN npx tsc -b packages/shared && \
     npx tsc -b packages/channels/whatsapp && \
     npx tsc -b packages/channels/zalo && \
     npx tsc -b packages/channels/msteams && \
+    npx tsc -b packages/doc-mcp && \
     npx tsc -b packages/gateway && \
     npx tsc -b packages/server
 
@@ -73,6 +78,8 @@ COPY --from=builder /app/packages/domains/dist ./packages/domains/dist
 COPY --from=builder /app/packages/domains/package.json ./packages/domains/
 COPY --from=builder /app/packages/ml/dist ./packages/ml/dist
 COPY --from=builder /app/packages/ml/package.json ./packages/ml/
+COPY --from=builder /app/packages/sandbox/dist ./packages/sandbox/dist
+COPY --from=builder /app/packages/sandbox/package.json ./packages/sandbox/
 COPY --from=builder /app/packages/skills/dist ./packages/skills/dist
 COPY --from=builder /app/packages/skills/package.json ./packages/skills/
 COPY --from=builder /app/packages/skill-hub/dist ./packages/skill-hub/dist
@@ -89,11 +96,15 @@ COPY --from=builder /app/packages/channels/zalo/dist ./packages/channels/zalo/di
 COPY --from=builder /app/packages/channels/zalo/package.json ./packages/channels/zalo/
 COPY --from=builder /app/packages/channels/msteams/dist ./packages/channels/msteams/dist
 COPY --from=builder /app/packages/channels/msteams/package.json ./packages/channels/msteams/
+COPY --from=builder /app/packages/doc-mcp/dist ./packages/doc-mcp/dist
+COPY --from=builder /app/packages/doc-mcp/package.json ./packages/doc-mcp/
 COPY --from=builder /app/packages/gateway/dist ./packages/gateway/dist
 COPY --from=builder /app/packages/gateway/package.json ./packages/gateway/
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/package.json ./packages/server/
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/data/dev-docs ./data/dev-docs
+RUN chown -R xclaw:xclaw ./data
 
 USER xclaw
 EXPOSE 3000

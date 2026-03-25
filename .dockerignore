@@ -5,5 +5,6 @@ backup
 *.md
 .env
 data
+!data/dev-docs
 coverage
 .DS_Store

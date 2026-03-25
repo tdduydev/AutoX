@@ -28,6 +28,9 @@ export interface Translations {
   'auth.password': string;
   'auth.invalidCredentials': string;
   'auth.platform': string;
+  'auth.superAdmin': string;
+  'auth.tenant': string;
+  'auth.selectTenant': string;
 
   // Sidebar
   'nav.main': string;
@@ -36,6 +39,7 @@ export interface Translations {
   'nav.knowledge': string;
   'nav.knowledgeBase': string;
   'nav.ragSearch': string;
+  'nav.devDocs': string;
   'nav.domains': string;
   'nav.allDomains': string;
   'nav.domainHub': string;
@@ -181,4 +185,26 @@ export interface Translations {
   'settings.security.apiPort': string;
   'settings.security.https': string;
   'settings.security.rateLimit': string;
+
+  // Setup Wizard
+  'setup.welcome': string;
+  'setup.welcomeDesc': string;
+  'setup.agentName': string;
+  'setup.language': string;
+  'setup.llmTitle': string;
+  'setup.llmDesc': string;
+  'setup.model': string;
+  'setup.provider': string;
+  'setup.featuresTitle': string;
+  'setup.webSearch': string;
+  'setup.webSearchDesc': string;
+  'setup.rag': string;
+  'setup.ragDesc': string;
+  'setup.workflows': string;
+  'setup.workflowsDesc': string;
+  'setup.domainPacks': string;
+  'setup.readyTitle': string;
+  'setup.readyDesc': string;
+  'setup.next': string;
+  'setup.launch': string;
 }

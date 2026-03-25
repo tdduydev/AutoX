@@ -1,4 +1,17 @@
-import { Agent } from '@xclaw-ai/core';
+import {
+  Agent,
+  OpenAIAdapter,
+  AnthropicAdapter,
+  OllamaAdapter,
+  DeepSeekAdapter,
+  XAIAdapter,
+  OpenRouterAdapter,
+  PerplexityAdapter,
+  GroqAdapter,
+  MistralAdapter,
+  GeminiAdapter,
+  HuggingFaceAdapter,
+} from '@xclaw-ai/core';
 import type { LLMAdapter } from '@xclaw-ai/core';
 import type { AgentConfig } from '@xclaw-ai/shared';
 import { agentConfigsCollection, type MongoAgentConfig } from '@xclaw-ai/db';
@@ -33,9 +46,21 @@ export class AgentManager {
       return this.defaultAgent;
     }
 
-    // Check cache
+    // Check cache — verify model still matches DB config
     const cached = this.agents.get(configId);
-    if (cached) return cached;
+    if (cached) {
+      // Lazy re-check: if config was updated in DB with a different model, invalidate
+      const configs = agentConfigsCollection();
+      const mongoConfig = await configs.findOne({ _id: configId, tenantId });
+      if (mongoConfig) {
+        const dbModel = mongoConfig.llmConfig?.model || '';
+        if (dbModel && dbModel !== cached.config.llm.model) {
+          this.agents.delete(configId);
+          return this.createAgentFromConfig(mongoConfig);
+        }
+      }
+      return cached;
+    }
 
     // Load from MongoDB
     const configs = agentConfigsCollection();
@@ -56,7 +81,14 @@ export class AgentManager {
     }
 
     const cached = this.agents.get(mongoConfig._id);
-    if (cached) return cached;
+    if (cached) {
+      const dbModel = mongoConfig.llmConfig?.model || '';
+      if (dbModel && dbModel !== cached.config.llm.model) {
+        this.agents.delete(mongoConfig._id);
+        return this.createAgentFromConfig(mongoConfig);
+      }
+      return cached;
+    }
 
     return this.createAgentFromConfig(mongoConfig);
   }
@@ -106,9 +138,28 @@ export class AgentManager {
     const runtimeConfig = this.toRuntimeConfig(mongoConfig);
     const agent = new Agent(runtimeConfig);
 
-    // Register all shared adapters
+    // Register adapters — create per-agent adapter when model differs from shared one
+    const llm = mongoConfig.llmConfig || {};
+    const provider = llm.provider || 'openai';
+    const configModel = llm.model || '';
+
+    let needsDedicatedAdapter = false;
     for (const adapter of this.adapters) {
-      agent.llm.registerAdapter(adapter);
+      if (adapter.provider === provider && configModel && this.getAdapterModel(adapter) !== configModel) {
+        // This agent uses a different model than the shared adapter — skip shared, create dedicated
+        needsDedicatedAdapter = true;
+      } else {
+        agent.llm.registerAdapter(adapter);
+      }
+    }
+
+    // Create a dedicated adapter if model differs or provider not covered
+    const hasAdapter = !needsDedicatedAdapter && this.adapters.some(a => a.provider === provider);
+    if (!hasAdapter) {
+      const dynamicAdapter = this.createAdapterForProvider(provider, llm);
+      if (dynamicAdapter) {
+        agent.llm.registerAdapter(dynamicAdapter);
+      }
     }
 
     // Copy tools from default agent
@@ -121,5 +172,38 @@ export class AgentManager {
 
     this.agents.set(mongoConfig._id, agent);
     return agent;
+  }
+
+  /** Create an LLM adapter from provider name and config */
+  private createAdapterForProvider(provider: string, llm: { apiKey?: string; model?: string; baseUrl?: string; temperature?: number; maxTokens?: number }): LLMAdapter | null {
+    const opts = { apiKey: llm.apiKey!, model: llm.model || '', baseUrl: llm.baseUrl, temperature: llm.temperature, maxTokens: llm.maxTokens };
+    switch (provider) {
+      case 'openai': return new OpenAIAdapter(opts);
+      case 'anthropic': return new AnthropicAdapter(opts);
+      case 'ollama': {
+        // Inherit baseUrl from shared Ollama adapter if not specified in config
+        let ollamaBaseUrl = llm.baseUrl;
+        if (!ollamaBaseUrl) {
+          const sharedOllama = this.adapters.find(a => a.provider === 'ollama');
+          ollamaBaseUrl = sharedOllama ? (sharedOllama as unknown as { baseUrl: string }).baseUrl : 'http://localhost:11434';
+        }
+        return new OllamaAdapter({ baseUrl: ollamaBaseUrl.replace(/\/v1\/?$/, ''), model: llm.model || 'qwen2.5:14b' });
+      }
+      case 'deepseek': return new DeepSeekAdapter(opts);
+      case 'xai': return new XAIAdapter(opts);
+      case 'openrouter': return new OpenRouterAdapter(opts);
+      case 'perplexity': return new PerplexityAdapter(opts);
+      case 'groq': return new GroqAdapter(opts);
+      case 'mistral': return new MistralAdapter(opts);
+      case 'google': return new GeminiAdapter(opts);
+      case 'huggingface': return new HuggingFaceAdapter(opts);
+      case 'custom': return new OpenAIAdapter({ ...opts, baseUrl: llm.baseUrl });
+      default: return null;
+    }
+  }
+
+  /** Extract model name from an adapter (best-effort) */
+  private getAdapterModel(adapter: LLMAdapter): string {
+    return (adapter as unknown as Record<string, unknown>).model as string ?? '';
   }
 }

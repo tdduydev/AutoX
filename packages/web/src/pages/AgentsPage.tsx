@@ -49,6 +49,12 @@ const OLLAMA_CURATED_MODELS = [
     'qwen2.5:14b',
     'qwen2.5:7b',
     'qwen2.5-coder:14b',
+    'qwen2.5vl:7b',
+    'qwen2.5vl:3b',
+    'llava:13b',
+    'llava:7b',
+    'llama3.2-vision:11b',
+    'moondream:1.8b',
     'deepseek-r1:14b',
     'deepseek-r1:8b',
     'llama3.3:70b-instruct-q4_K_M',
@@ -58,12 +64,14 @@ const OLLAMA_CURATED_MODELS = [
     'gemma3:4b',
     'mistral-small:24b',
     'phi4-mini:3.8b',
-    'qwen2.5-vl:7b',
     'nomic-embed-text',
 ];
 
 const OLLAMA_MODERN_HINTS = [
     { model: 'qwen2.5:14b', note: 'Best balance Vietnamese + tools' },
+    { model: 'qwen2.5vl:7b', note: '👁️ Vision — analyze images + Vietnamese' },
+    { model: 'llava:13b', note: '👁️ Vision — strong image understanding' },
+    { model: 'llama3.2-vision:11b', note: '👁️ Vision — Meta multimodal model' },
     { model: 'deepseek-r1:14b', note: 'Strong reasoning, slower' },
     { model: 'llama3.2:3b', note: 'Fast on laptop' },
     { model: 'qwen2.5-coder:14b', note: 'Coding-focused tasks' },
@@ -88,6 +96,13 @@ const MODEL_CAPABILITIES: Record<string, { vision?: boolean; audio?: boolean; st
     'llama-3.1-8b-instant': { streaming: true },
     'mixtral-8x7b-32768': { streaming: true },
     'mistral-large-latest': { streaming: true, functionCalling: true },
+    // Ollama vision models
+    'qwen2.5vl:7b': { vision: true, streaming: true, functionCalling: true },
+    'qwen2.5vl:3b': { vision: true, streaming: true },
+    'llava:13b': { vision: true, streaming: true },
+    'llava:7b': { vision: true, streaming: true },
+    'llama3.2-vision:11b': { vision: true, streaming: true },
+    'moondream:1.8b': { vision: true, streaming: true },
 };
 
 type FormData = {

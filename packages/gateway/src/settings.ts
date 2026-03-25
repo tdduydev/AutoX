@@ -30,11 +30,49 @@ export function createSettingsRoutes() {
     });
   });
 
+  // GET /settings/setup/status — Check if tenant setup wizard is completed
+  app.get('/setup/status', async (c) => {
+    const settings = c.get('tenantSettings') as TenantSettingsInfo;
+    const branding = (settings.branding ?? {}) as Record<string, unknown>;
+    return c.json({ completed: branding.setupCompleted === true });
+  });
+
+  // POST /settings/setup/complete — Save initial setup config and mark completed
+  app.post('/setup/complete', async (c) => {
+    const tenantId = c.get('tenantId');
+    const user = c.get('user');
+    if (!user.isSuperAdmin && user.role !== 'admin' && user.role !== 'owner') {
+      return c.json({ error: 'Admin access required' }, 403);
+    }
+
+    const body = await c.req.json<Record<string, unknown>>();
+
+    const update: Record<string, unknown> = {};
+    if (body.agentName) update.agentName = String(body.agentName);
+    if (body.aiLanguage) update.aiLanguage = String(body.aiLanguage);
+    if (body.llmProvider) update.llmProvider = String(body.llmProvider);
+    if (body.llmModel) update.llmModel = String(body.llmModel);
+    if (body.llmApiKey) update.llmApiKey = String(body.llmApiKey);
+    if (body.llmBaseUrl) update.llmBaseUrl = String(body.llmBaseUrl);
+    if (typeof body.enableWebSearch === 'boolean') update.enableWebSearch = body.enableWebSearch;
+    if (typeof body.enableRag === 'boolean') update.enableRag = body.enableRag;
+    if (typeof body.enableWorkflows === 'boolean') update.enableWorkflows = body.enableWorkflows;
+    if (Array.isArray(body.enabledDomains)) update.enabledDomains = body.enabledDomains;
+
+    // Merge setupCompleted into branding
+    const currentSettings = c.get('tenantSettings') as TenantSettingsInfo;
+    const currentBranding = (currentSettings.branding ?? {}) as Record<string, unknown>;
+    update.branding = { ...currentBranding, setupCompleted: true };
+
+    await TenantService.updateSettings(tenantId, update as Partial<TenantSettingsInfo>);
+    return c.json({ ok: true });
+  });
+
   // PUT /settings — Update current tenant's settings
   app.put('/', async (c) => {
     const tenantId = c.get('tenantId');
     const user = c.get('user');
-    if (user.role !== 'admin' && user.role !== 'owner') {
+    if (!user.isSuperAdmin && user.role !== 'admin' && user.role !== 'owner') {
       return c.json({ error: 'Admin access required' }, 403);
     }
 

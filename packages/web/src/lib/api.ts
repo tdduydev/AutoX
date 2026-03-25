@@ -42,10 +42,12 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
 
 // ─── Auth ───────────────────────────────────────────────────
 
-export async function login(email: string, password: string) {
+export async function login(email: string, password: string, tenantSlug?: string) {
+  const body: Record<string, string> = { email, password };
+  if (tenantSlug) body.tenantSlug = tenantSlug;
   const res = await apiFetch('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error('Login failed');
   const data = await res.json();
@@ -56,6 +58,12 @@ export async function login(email: string, password: string) {
 export async function getMe() {
   const res = await apiFetch('/auth/me');
   if (!res.ok) throw new Error('Not authenticated');
+  return res.json();
+}
+
+export async function getTenantList(): Promise<Array<{ slug: string; name: string }>> {
+  const res = await fetch('/tenants/list');
+  if (!res.ok) return [];
   return res.json();
 }
 
@@ -809,6 +817,20 @@ export async function updateAISettings(settings: { aiLanguage?: string; aiLangua
   return res.json();
 }
 
+export async function getSetupStatus(): Promise<{ completed: boolean }> {
+  const res = await apiFetch('/api/settings/setup/status');
+  if (!res.ok) return { completed: false };
+  return res.json();
+}
+
+export async function completeSetup(config: Record<string, unknown>): Promise<void> {
+  const res = await apiFetch('/api/settings/setup/complete', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) throw new Error('Failed to complete setup');
+}
+
 // ─── ML Engine ──────────────────────────────────────────────
 
 export async function getMLAlgorithms() {
@@ -1136,7 +1158,7 @@ export async function createChannel(data: { channelType: string; name: string; c
   return res.json();
 }
 
-export async function updateChannel(id: string, data: { name?: string; config?: Record<string, string>; status?: string }) {
+export async function updateChannel(id: string, data: { name?: string; config?: Record<string, string>; status?: string; agentConfigId?: string }) {
   const res = await apiFetch(`/api/agents/channels/${encodeURIComponent(id)}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -1402,15 +1424,60 @@ export async function triggerRetentionCleanup() {
 }
 
 // ─── Monitoring / Audit Logs ────────────────────────────────
-export async function getAuditLogs(limit = 100) {
-  const res = await apiFetch(`/api/monitoring/audit?limit=${limit}`);
+export async function getAuditLogs(params: { userId?: string; action?: string; resource?: string; from?: string; to?: string; limit?: number; offset?: number } = {}) {
+  const q = new URLSearchParams();
+  if (params.userId) q.set('userId', params.userId);
+  if (params.action) q.set('action', params.action);
+  if (params.resource) q.set('resource', params.resource);
+  if (params.from) q.set('from', params.from);
+  if (params.to) q.set('to', params.to);
+  q.set('limit', String(params.limit ?? 100));
+  if (params.offset) q.set('offset', String(params.offset));
+  const res = await apiFetch(`/api/monitoring/audit?${q}`);
   if (!res.ok) throw new Error('Failed to fetch audit logs');
   return res.json();
 }
 
-export async function getActivityLogs(limit = 100) {
-  const res = await apiFetch(`/api/monitoring/logs?limit=${limit}`);
+export async function getSystemLogs(params: { level?: string; source?: string; search?: string; from?: string; to?: string; limit?: number; offset?: number } = {}) {
+  const q = new URLSearchParams();
+  if (params.level) q.set('level', params.level);
+  if (params.source) q.set('source', params.source);
+  if (params.search) q.set('search', params.search);
+  if (params.from) q.set('from', params.from);
+  if (params.to) q.set('to', params.to);
+  q.set('limit', String(params.limit ?? 100));
+  if (params.offset) q.set('offset', String(params.offset));
+  const res = await apiFetch(`/api/monitoring/logs?${q}`);
+  if (!res.ok) throw new Error('Failed to fetch system logs');
+  return res.json();
+}
+
+export async function getActivityLogs(params: { userId?: string; method?: string; path?: string; from?: string; to?: string; limit?: number; offset?: number } = {}) {
+  const q = new URLSearchParams();
+  if (params.userId) q.set('userId', params.userId);
+  if (params.method) q.set('method', params.method);
+  if (params.path) q.set('path', params.path);
+  if (params.from) q.set('from', params.from);
+  if (params.to) q.set('to', params.to);
+  q.set('limit', String(params.limit ?? 100));
+  if (params.offset) q.set('offset', String(params.offset));
+  const res = await apiFetch(`/api/monitoring/activity?${q}`);
   if (!res.ok) throw new Error('Failed to fetch activity logs');
+  return res.json();
+}
+
+export async function getLLMLogs(params: { userId?: string; provider?: string; model?: string; success?: string; from?: string; to?: string; limit?: number; offset?: number } = {}) {
+  const q = new URLSearchParams();
+  if (params.userId) q.set('userId', params.userId);
+  if (params.provider) q.set('provider', params.provider);
+  if (params.model) q.set('model', params.model);
+  if (params.success) q.set('success', params.success);
+  if (params.from) q.set('from', params.from);
+  if (params.to) q.set('to', params.to);
+  q.set('limit', String(params.limit ?? 100));
+  if (params.offset) q.set('offset', String(params.offset));
+  const res = await apiFetch(`/api/monitoring/llm?${q}`);
+  if (!res.ok) throw new Error('Failed to fetch LLM logs');
   return res.json();
 }
 
@@ -1418,4 +1485,125 @@ export async function getMonitoringDashboard() {
   const res = await apiFetch('/api/monitoring/dashboard');
   if (!res.ok) throw new Error('Failed to fetch dashboard');
   return res.json();
+}
+
+// ─── Dev Documentation Knowledge Base ───────────────────────
+
+export interface DevDocSummary {
+  id: string;
+  title: string;
+  category: string;
+  tags: string[];
+  filePath: string;
+  wordCount: number;
+  updatedAt: string;
+  version: string;
+}
+
+export interface DevDocFull extends DevDocSummary {
+  content: string;
+}
+
+export interface DevDocCategory {
+  name: string;
+  docCount: number;
+}
+
+export interface DevDocStats {
+  totalDocs: number;
+  categories: string[];
+  tags: string[];
+  totalWords: number;
+}
+
+export interface DevDocSearchResult {
+  id: string;
+  title: string;
+  category: string;
+  tags: string[];
+  score: number;
+  snippet: string;
+  wordCount: number;
+}
+
+export interface DevDocVersion {
+  version: string;
+  updatedAt: string;
+  wordCount: number;
+  title: string;
+}
+
+export async function getDevDocs(filters?: { category?: string; search?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.category) params.set('category', filters.category);
+  if (filters?.search) params.set('search', filters.search);
+  const qs = params.toString();
+  const res = await apiFetch(`/api/dev-docs${qs ? `?${qs}` : ''}`);
+  if (!res.ok) throw new Error('Failed to fetch dev docs');
+  return res.json() as Promise<{ ok: true; documents: DevDocSummary[]; stats: DevDocStats }>;
+}
+
+export async function getDevDocCategories() {
+  const res = await apiFetch('/api/dev-docs/categories');
+  if (!res.ok) throw new Error('Failed to fetch categories');
+  return res.json() as Promise<{ ok: true; categories: DevDocCategory[] }>;
+}
+
+export async function getDevDoc(id: string) {
+  const res = await apiFetch(`/api/dev-docs/doc/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch document');
+  return res.json() as Promise<{ ok: true; document: DevDocFull }>;
+}
+
+export async function createDevDoc(data: { path: string; title: string; content: string; tags?: string[]; category?: string }) {
+  const res = await apiFetch('/api/dev-docs', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create document');
+  return res.json();
+}
+
+export async function updateDevDoc(id: string, data: { content: string; title?: string; tags?: string[]; versionBump?: 'major' | 'minor' | 'patch' }) {
+  const res = await apiFetch(`/api/dev-docs/doc/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update document');
+  return res.json();
+}
+
+export async function deleteDevDoc(id: string) {
+  const res = await apiFetch(`/api/dev-docs/doc/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete document');
+  return res.json();
+}
+
+export async function searchDevDocs(query: string, limit?: number) {
+  const res = await apiFetch('/api/dev-docs/search', {
+    method: 'POST',
+    body: JSON.stringify({ query, limit }),
+  });
+  if (!res.ok) throw new Error('Failed to search');
+  return res.json() as Promise<{ ok: true; results: DevDocSearchResult[] }>;
+}
+
+export async function getDevDocStats() {
+  const res = await apiFetch('/api/dev-docs/stats');
+  if (!res.ok) throw new Error('Failed to fetch stats');
+  return res.json() as Promise<{ ok: true; stats: DevDocStats }>;
+}
+
+export async function getDocVersionHistory(id: string) {
+  const res = await apiFetch(`/api/dev-docs/versions/${encodeURIComponent(id)}`);
+  if (!res.ok) throw new Error('Failed to fetch version history');
+  return res.json() as Promise<{ ok: true; versions: DevDocVersion[]; currentVersion: string }>;
+}
+
+export async function getDocVersionContent(id: string, version: string) {
+  const res = await apiFetch(`/api/dev-docs/version-content/${encodeURIComponent(id)}?v=${encodeURIComponent(version)}`);
+  if (!res.ok) throw new Error('Failed to fetch version content');
+  return res.json() as Promise<{ ok: true; content: string; version: string }>;
 }

@@ -12,6 +12,7 @@ interface JWTPayload {
   email: string;
   role: string;
   tenantId: string;
+  isSuperAdmin: boolean;
 }
 
 declare module 'hono' {
@@ -37,6 +38,7 @@ export function authMiddleware(jwtSecret: string) {
         email: payload.email as string,
         role: payload.role as string,
         tenantId: payload.tenantId as string,
+        isSuperAdmin: payload.isSuperAdmin === true,
       });
       await next();
     } catch {
@@ -115,6 +117,7 @@ export function createAuthRoutes(ctx: GatewayContext) {
     let user: typeof users.$inferSelect | undefined;
 
     if (tenantSlug) {
+      // Specific tenant login
       const [tenant] = await db.select().from(tenants).where(eq(tenants.slug, tenantSlug)).limit(1);
       if (!tenant || tenant.status !== 'active') {
         return c.json({ error: 'Tenant not found or inactive' }, 404);
@@ -124,6 +127,7 @@ export function createAuthRoutes(ctx: GatewayContext) {
         .limit(1);
       user = found;
     } else {
+      // No tenant slug: first try to find super admin, then fallback to any user
       const [found] = await db.select().from(users).where(eq(users.email, email)).limit(1);
       user = found;
     }
@@ -187,11 +191,13 @@ export function createAuthRoutes(ctx: GatewayContext) {
 
     // Get user permissions from RBAC
     const permissions = await getUserPermissions(user.id);
+    const isSuperAdmin = user.role === 'super_admin';
 
     const token = await new jose.SignJWT({
       email: user.email,
       role: user.role,
       tenantId: user.tenantId,
+      isSuperAdmin,
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(user.id)
@@ -218,6 +224,7 @@ export function createAuthRoutes(ctx: GatewayContext) {
         id: user.id, name: user.name, email: user.email,
         role: user.role, tenantId: user.tenantId,
         avatarUrl: user.avatarUrl,
+        isSuperAdmin,
         permissions: Array.from(permissions),
       },
     });
@@ -273,7 +280,7 @@ export function createAuthRoutes(ctx: GatewayContext) {
     await seedDefaultRoles(tenantId);
     await assignRoleToUser(userId, 'owner', tenantId);
 
-    const token = await new jose.SignJWT({ email, role: 'owner', tenantId })
+    const token = await new jose.SignJWT({ email, role: 'owner', tenantId, isSuperAdmin: false })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(userId)
       .setIssuedAt()
@@ -393,6 +400,7 @@ export function createAuthRoutes(ctx: GatewayContext) {
       tenantId: user.tenantId,
       avatarUrl: user.avatarUrl,
       hasPassword: !!user.passwordHash,
+      isSuperAdmin: user.role === 'super_admin',
       permissions: Array.from(permissions),
       oauthProviders: oauthLinks.map(l => l.provider),
       lastLoginAt: user.lastLoginAt,

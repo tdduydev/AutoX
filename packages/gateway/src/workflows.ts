@@ -5,7 +5,8 @@
 import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
 import { getDB, workflows, workflowExecutions, eq, and, desc } from '@xclaw-ai/db';
-import type { WorkflowEngine, ValidationError } from '@xclaw-ai/core';
+import type { ValidationError } from '@xclaw-ai/core';
+import type { IWorkflowEngine } from '@xclaw-ai/shared';
 import type { Workflow, WorkflowNode, WorkflowEdge } from '@xclaw-ai/shared';
 
 // Normalize API-format nodes/edges to full WorkflowNode/WorkflowEdge shapes
@@ -56,7 +57,7 @@ function buildWorkflow(row: any): Workflow {
   };
 }
 
-export function createWorkflowRoutes(workflowEngine: WorkflowEngine) {
+export function createWorkflowRoutes(workflowEngine: IWorkflowEngine) {
   const app = new Hono();
 
   // List workflows for tenant
@@ -309,7 +310,7 @@ export function createWorkflowRoutes(workflowEngine: WorkflowEngine) {
 // Public webhook handler — mounts at /webhooks/workflow/:workflowId
 // No auth middleware; optional secret validation via trigger config.
 // ---------------------------------------------------------------------------
-export function createWorkflowWebhookRoutes(workflowEngine: WorkflowEngine) {
+export function createWorkflowWebhookRoutes(workflowEngine: IWorkflowEngine) {
   const app = new Hono();
 
   app.post('/:workflowId', async (c) => {

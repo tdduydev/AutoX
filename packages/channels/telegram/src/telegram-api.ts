@@ -27,6 +27,7 @@ export interface TelegramMessage {
   photo?: TelegramPhotoSize[];
   document?: TelegramDocument;
   caption?: string;
+  caption_entities?: TelegramMessageEntity[];
   reply_to_message?: TelegramMessage;
 }
 
@@ -148,5 +149,23 @@ export class TelegramApi {
       document: documentUrl,
       caption,
     });
+  }
+
+  /** Get file info by file_id — returns file_path for download */
+  async getFile(fileId: string): Promise<{ file_id: string; file_unique_id: string; file_size?: number; file_path?: string }> {
+    return this.request<{ file_id: string; file_unique_id: string; file_size?: number; file_path?: string }>('getFile', {
+      file_id: fileId,
+    });
+  }
+
+  /** Download a file by file_path and return as base64 data URL */
+  async downloadFileAsDataUrl(filePath: string): Promise<string> {
+    const url = `${TELEGRAM_API}/file/bot${this.botToken}/${filePath}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    if (!res.ok) throw new Error(`Failed to download file: ${res.status}`);
+    const buffer = await res.arrayBuffer();
+    const contentType = res.headers.get('content-type') || 'image/jpeg';
+    const base64 = Buffer.from(buffer).toString('base64');
+    return `data:${contentType};base64,${base64}`;
   }
 }

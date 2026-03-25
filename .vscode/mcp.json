@@ -1,0 +1,15 @@
+{
+    "servers": {
+        "xclaw-dev-docs": {
+            "type": "stdio",
+            "command": "npx",
+            "args": [
+                "tsx",
+                "packages/doc-mcp/src/bin.ts"
+            ],
+            "env": {
+                "DOCS_ROOT": "${workspaceFolder}/data/dev-docs"
+            }
+        }
+    }
+}

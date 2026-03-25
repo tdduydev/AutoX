@@ -16,7 +16,19 @@ function getUserCtx(c: any) {
   return {
     tenantId: (user?.tenantId as string) || 'default',
     userId: (user?.sub as string) || 'anonymous',
+    isSuperAdmin: !!(user?.isSuperAdmin),
+    role: (user?.role as string) || 'member',
   };
+}
+
+/** Build MongoDB filter for channel queries based on user role */
+function channelFilter(ctx: { tenantId: string; userId: string; isSuperAdmin: boolean; role: string }, extra?: Record<string, unknown>) {
+  // Super admin sees ALL channels across all tenants
+  if (ctx.isSuperAdmin) return { ...extra };
+  // Tenant owner/admin sees all channels in their tenant
+  if (ctx.role === 'owner' || ctx.role === 'admin') return { tenantId: ctx.tenantId, ...extra };
+  // Regular member sees only their own channels
+  return { tenantId: ctx.tenantId, userId: ctx.userId, ...extra };
 }
 
 // ─── Agents / Channel Connections Routes ────────────────────
@@ -169,13 +181,17 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
 
   // ─── Channel Connections ──────────────────────────────────
 
-  // List all channel connections for the current user
+  // List all channel connections for the current user/tenant
   app.get('/channels', async (c) => {
     try {
-      const { tenantId, userId } = getUserCtx(c);
+      const userCtx = getUserCtx(c);
       const channels = channelConnectionsCollection();
-      const list = await channels.find({ tenantId, userId }).sort({ updatedAt: -1 }).toArray();
-      return c.json({ ok: true, channels: list });
+      const list = await channels.find(channelFilter(userCtx)).sort({ updatedAt: -1 }).toArray();
+      const enriched = list.map((ch) => ({
+        ...ch,
+        isRunning: ctx?.channelManager?.isRunning(ch._id) ?? false,
+      }));
+      return c.json({ ok: true, channels: enriched });
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
     }
@@ -184,10 +200,10 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
   // Get a single channel connection
   app.get('/channels/:id', async (c) => {
     try {
-      const { tenantId, userId } = getUserCtx(c);
+      const userCtx = getUserCtx(c);
       const id = c.req.param('id');
       const channels = channelConnectionsCollection();
-      const channel = await channels.findOne({ _id: id, tenantId, userId });
+      const channel = await channels.findOne(channelFilter(userCtx, { _id: id }));
       if (!channel) return c.json({ error: 'Channel not found' }, 404);
       // Mask sensitive config values
       const masked = maskConfig(channel);
@@ -246,13 +262,13 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
   // Update a channel connection
   app.put('/channels/:id', async (c) => {
     try {
-      const { tenantId, userId } = getUserCtx(c);
+      const userCtx = getUserCtx(c);
       const id = c.req.param('id');
       const body = await c.req.json();
       const { name, config, status } = body;
 
       const channels = channelConnectionsCollection();
-      const existing = await channels.findOne({ _id: id, tenantId, userId });
+      const existing = await channels.findOne(channelFilter(userCtx, { _id: id }));
       if (!existing) return c.json({ error: 'Channel not found' }, 404);
 
       const updates: Record<string, any> = { updatedAt: new Date() };
@@ -260,9 +276,11 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
       if (body.agentConfigId !== undefined) updates.agentConfigId = body.agentConfigId || undefined;
       if (body.domainId !== undefined) updates.domainId = body.domainId || undefined;
       if (config) {
-        const validation = validateChannelConfig(existing.channelType, config);
+        // Merge with existing config so partial updates don't wipe out fields
+        const mergedConfig = { ...existing.config, ...config };
+        const validation = validateChannelConfig(existing.channelType, mergedConfig);
         if (!validation.ok) return c.json({ error: validation.error }, 400);
-        updates.config = config;
+        updates.config = mergedConfig;
       }
       if (status && ['active', 'inactive'].includes(status)) {
         updates.status = status;
@@ -280,11 +298,11 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
   // Delete a channel connection
   app.delete('/channels/:id', async (c) => {
     try {
-      const { tenantId, userId } = getUserCtx(c);
+      const userCtx = getUserCtx(c);
       const id = c.req.param('id');
 
       const channels = channelConnectionsCollection();
-      const result = await channels.deleteOne({ _id: id, tenantId, userId });
+      const result = await channels.deleteOne(channelFilter(userCtx, { _id: id }));
       if (result.deletedCount === 0) return c.json({ error: 'Channel not found' }, 404);
 
       return c.json({ ok: true });
@@ -296,11 +314,11 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
   // Test/verify a channel connection
   app.post('/channels/:id/test', async (c) => {
     try {
-      const { tenantId, userId } = getUserCtx(c);
+      const userCtx = getUserCtx(c);
       const id = c.req.param('id');
 
       const channels = channelConnectionsCollection();
-      const channel = await channels.findOne({ _id: id, tenantId, userId });
+      const channel = await channels.findOne(channelFilter(userCtx, { _id: id }));
       if (!channel) return c.json({ error: 'Channel not found' }, 404);
 
       const testResult = await testChannelConnection(channel);
@@ -325,14 +343,14 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
     }
   });
 
-  // Activate a channel (sets status to active)
+  // Activate a channel (sets status to active + starts runtime)
   app.post('/channels/:id/activate', async (c) => {
     try {
-      const { tenantId, userId } = getUserCtx(c);
+      const userCtx = getUserCtx(c);
       const id = c.req.param('id');
 
       const channels = channelConnectionsCollection();
-      const channel = await channels.findOne({ _id: id, tenantId, userId });
+      const channel = await channels.findOne(channelFilter(userCtx, { _id: id }));
       if (!channel) return c.json({ error: 'Channel not found' }, 404);
 
       // Test first
@@ -350,24 +368,35 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
         },
       });
 
+      // Start the channel runtime if ChannelManager is available
+      if (ctx?.channelManager) {
+        const updated = await channels.findOne({ _id: id });
+        if (updated) await ctx.channelManager.startChannel(updated);
+      }
+
       return c.json({ ok: true, message: 'Channel activated', metadata: testResult.metadata });
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : 'Failed' }, 500);
     }
   });
 
-  // Deactivate a channel
+  // Deactivate a channel (sets status to inactive + stops runtime)
   app.post('/channels/:id/deactivate', async (c) => {
     try {
-      const { tenantId, userId } = getUserCtx(c);
+      const userCtx = getUserCtx(c);
       const id = c.req.param('id');
 
       const channels = channelConnectionsCollection();
       const result = await channels.updateOne(
-        { _id: id, tenantId, userId },
+        channelFilter(userCtx, { _id: id }),
         { $set: { status: 'inactive', updatedAt: new Date() } },
       );
       if (result.matchedCount === 0) return c.json({ error: 'Channel not found' }, 404);
+
+      // Stop the channel runtime if ChannelManager is available
+      if (ctx?.channelManager) {
+        await ctx.channelManager.stopChannel(id);
+      }
 
       return c.json({ ok: true, message: 'Channel deactivated' });
     } catch (err) {
@@ -476,12 +505,12 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
           icon: '💙',
           description: 'Connect Zalo Official Account for Vietnamese market',
           configFields: [
-            { key: 'oaId', label: 'OA ID', type: 'text', required: true },
-            { key: 'accessToken', label: 'Access Token', type: 'password', required: true },
-            { key: 'appId', label: 'App ID', type: 'text', required: false },
-            { key: 'secretKey', label: 'Secret Key', type: 'password', required: false },
+            { key: 'oaId', label: 'OA ID', type: 'text', required: true, placeholder: '990607499038328075' },
+            { key: 'appId', label: 'App ID', type: 'text', required: true, placeholder: '1234567890' },
+            { key: 'secretKey', label: 'Secret Key', type: 'password', required: false, placeholder: 'Webhook verification (optional)' },
+            { key: 'accessToken', label: 'Access Token', type: 'password', required: false, placeholder: 'Optional — for sending messages via API' },
           ],
-          setupGuide: 'Tạo app tại developers.zalo.me → Quản lý OA → lấy Access Token',
+          setupGuide: 'Tạo app tại developers.zalo.me → Liên kết OA → Cấu hình Webhook URL tới xClaw',
         },
         {
           id: 'msteams',
@@ -540,7 +569,7 @@ function validateChannelConfig(channelType: string, config: Record<string, any>)
       break;
     case 'zalo':
       if (!config.oaId) return { ok: false, error: 'oaId is required for Zalo' };
-      if (!config.accessToken) return { ok: false, error: 'accessToken is required for Zalo' };
+      if (!config.appId) return { ok: false, error: 'appId is required for Zalo' };
       break;
     case 'msteams':
       if (!config.appId) return { ok: false, error: 'appId is required for MS Teams' };
@@ -643,21 +672,30 @@ async function testChannelConnection(channel: MongoChannelConnection): Promise<{
       }
     }
     case 'zalo': {
-      try {
-        const res = await fetch('https://openapi.zalo.me/v3.0/oa/getoa', {
-          headers: { access_token: channel.config.accessToken },
-          signal: AbortSignal.timeout(10000),
-        });
-        const data = await res.json() as any;
-        if (data.error && data.error !== 0) return { ok: false, message: `Zalo error: ${data.message}` };
-        return {
-          ok: true,
-          message: `Connected to Zalo OA "${data.data?.name || channel.config.oaId}"`,
-          metadata: { oaName: data.data?.name, oaId: channel.config.oaId },
-        };
-      } catch {
-        return { ok: false, message: 'Connection failed — check access token' };
+      // If accessToken is provided, verify with getOA API
+      if (channel.config.accessToken) {
+        try {
+          const res = await fetch('https://openapi.zalo.me/v3.0/oa/getoa', {
+            headers: { access_token: channel.config.accessToken },
+            signal: AbortSignal.timeout(10000),
+          });
+          const data = await res.json() as any;
+          if (data.error && data.error !== 0) return { ok: false, message: `Zalo error: ${data.message}` };
+          return {
+            ok: true,
+            message: `Connected to Zalo OA "${data.data?.name || channel.config.oaId}"`,
+            metadata: { oaName: data.data?.name, oaId: channel.config.oaId, appId: channel.config.appId },
+          };
+        } catch {
+          return { ok: false, message: 'Connection failed — check access token' };
+        }
       }
+      // Without accessToken, just validate that oaId and appId are configured
+      return {
+        ok: true,
+        message: `Zalo OA configured (OA: ${channel.config.oaId}, App: ${channel.config.appId}) — webhook mode`,
+        metadata: { oaId: channel.config.oaId, appId: channel.config.appId },
+      };
     }
     case 'msteams': {
       try {

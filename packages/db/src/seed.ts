@@ -81,6 +81,22 @@ const DEFAULT_ROLES = [
 
 // ─── Default seed values ───────────────────────────────────
 
+const PLATFORM_TENANT_ID = 'platform';
+const PLATFORM_TENANT = {
+  id: PLATFORM_TENANT_ID,
+  name: 'Platform Admin',
+  slug: 'platform',
+  plan: 'enterprise' as const,
+  status: 'active' as const,
+};
+
+const SUPER_ADMIN = {
+  name: 'Super Admin',
+  email: 'superadmin@xclaw.io',
+  password: 'password123',
+  role: 'super_admin' as const,
+};
+
 const DEFAULT_TENANT_ID = 'default';
 const DEFAULT_TENANT = {
   id: DEFAULT_TENANT_ID,
@@ -103,35 +119,68 @@ export async function seedInitialData() {
   const db = getDB();
   const now = new Date();
 
-  // 1. Check if default tenant exists — if yes, skip seeding
+  // ── 0. Seed platform tenant (super admin home) ──
+  const [existingPlatform] = await db.select({ id: tenants.id })
+    .from(tenants).where(eq(tenants.id, PLATFORM_TENANT_ID)).limit(1);
+  if (!existingPlatform) {
+    await db.insert(tenants).values({
+      ...PLATFORM_TENANT,
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    });
+    console.log(`   ✓ Platform tenant: "${PLATFORM_TENANT.name}" (${PLATFORM_TENANT.slug})`);
+  }
+  // Platform tenant settings
+  const [existingPlatformSettings] = await db.select({ id: tenantSettings.id })
+    .from(tenantSettings).where(eq(tenantSettings.tenantId, PLATFORM_TENANT_ID)).limit(1);
+  if (!existingPlatformSettings) {
+    await db.insert(tenantSettings).values({
+      id: crypto.randomUUID(),
+      tenantId: PLATFORM_TENANT_ID,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  // ── 1. Check if default tenant exists ──
   const [existingTenant] = await db.select({ id: tenants.id })
     .from(tenants).where(eq(tenants.id, DEFAULT_TENANT_ID)).limit(1);
 
-  if (existingTenant) {
-    return false; // already seeded
-  }
+  // Check if both admin users exist (fully seeded)
+  const [existingSuperAdmin] = await db.select({ id: users.id })
+    .from(users).where(and(eq(users.email, SUPER_ADMIN.email), eq(users.tenantId, PLATFORM_TENANT_ID))).limit(1);
+  const [existingAdmin] = await db.select({ id: users.id })
+    .from(users).where(and(eq(users.email, DEFAULT_ADMIN.email), eq(users.tenantId, DEFAULT_TENANT_ID))).limit(1);
 
+  if (existingTenant && existingSuperAdmin && existingAdmin) return false; // fully seeded
   console.log('🌱 Seeding initial data...');
 
-  // 2. Create default tenant
-  await db.insert(tenants).values({
-    ...DEFAULT_TENANT,
-    metadata: {},
-    createdAt: now,
-    updatedAt: now,
-  });
-  console.log(`   ✓ Tenant: "${DEFAULT_TENANT.name}" (${DEFAULT_TENANT.slug})`);
+  // ── 2. Create default tenant (skip if exists) ──
+  if (!existingTenant) {
+    await db.insert(tenants).values({
+      ...DEFAULT_TENANT,
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    });
+    console.log(`   ✓ Tenant: "${DEFAULT_TENANT.name}" (${DEFAULT_TENANT.slug})`);
+  }
 
-  // 3. Create tenant settings
-  await db.insert(tenantSettings).values({
-    id: crypto.randomUUID(),
-    tenantId: DEFAULT_TENANT_ID,
-    createdAt: now,
-    updatedAt: now,
-  });
-  console.log('   ✓ Tenant settings (defaults)');
+  // ── 3. Create tenant settings if missing (idempotent) ──
+  const [existingSettings] = await db.select({ id: tenantSettings.id })
+    .from(tenantSettings).where(eq(tenantSettings.tenantId, DEFAULT_TENANT_ID)).limit(1);
+  if (!existingSettings) {
+    await db.insert(tenantSettings).values({
+      id: crypto.randomUUID(),
+      tenantId: DEFAULT_TENANT_ID,
+      createdAt: now,
+      updatedAt: now,
+    });
+    console.log('   ✓ Tenant settings (defaults)');
+  }
 
-  // 4. Seed global permissions
+  // ── 4. Seed global permissions (idempotent) ──
   for (const perm of ALL_PERMISSIONS) {
     const id = `${perm.resource}:${perm.action}`;
     const [existing] = await db.select().from(permissions)
@@ -148,74 +197,139 @@ export async function seedInitialData() {
   }
   console.log(`   ✓ Permissions: ${ALL_PERMISSIONS.length} entries`);
 
-  // 5. Seed default roles for tenant
+  // 5. Seed default roles for tenant (idempotent)
   const allPerms = await db.select().from(permissions);
   const permMap = new Map(allPerms.map(p => [`${p.resource}:${p.action}`, p.id]));
 
   for (const tpl of DEFAULT_ROLES) {
     const roleId = `${DEFAULT_TENANT_ID}:${tpl.name}`;
-    await db.insert(roles).values({
-      id: roleId,
-      tenantId: DEFAULT_TENANT_ID,
-      name: tpl.name,
-      displayName: tpl.displayName,
-      description: tpl.description,
-      isSystem: true,
-      createdAt: now,
-      updatedAt: now,
-    });
+    const [existingRole] = await db.select({ id: roles.id }).from(roles)
+      .where(eq(roles.id, roleId)).limit(1);
+    if (!existingRole) {
+      await db.insert(roles).values({
+        id: roleId,
+        tenantId: DEFAULT_TENANT_ID,
+        name: tpl.name,
+        displayName: tpl.displayName,
+        description: tpl.description,
+        isSystem: true,
+        createdAt: now,
+        updatedAt: now,
+      });
 
-    // Assign permissions to role
-    if (tpl.permissions.includes('*:*')) {
-      for (const perm of allPerms) {
-        await db.insert(rolePermissions).values({
-          id: `${roleId}:${perm.id}`, roleId, permissionId: perm.id,
-        });
-      }
-    } else {
-      for (const permKey of tpl.permissions) {
-        const permId = permMap.get(permKey);
-        if (permId) {
+      // Assign permissions to role
+      if (tpl.permissions.includes('*:*')) {
+        for (const perm of allPerms) {
           await db.insert(rolePermissions).values({
-            id: `${roleId}:${permId}`, roleId, permissionId: permId,
+            id: `${roleId}:${perm.id}`, roleId, permissionId: perm.id,
           });
+        }
+      } else {
+        for (const permKey of tpl.permissions) {
+          const permId = permMap.get(permKey);
+          if (permId) {
+            await db.insert(rolePermissions).values({
+              id: `${roleId}:${permId}`, roleId, permissionId: permId,
+            });
+          }
         }
       }
     }
   }
   console.log(`   ✓ Roles: ${DEFAULT_ROLES.map(r => r.name).join(', ')}`);
 
-  // 6. Create admin user
-  const userId = crypto.randomUUID();
-  const passwordHash = await hashPassword(DEFAULT_ADMIN.password);
+  // ── 6. Seed roles for platform tenant too ──
+  const allPermsP = await db.select().from(permissions);
+  const permMapP = new Map(allPermsP.map(p => [`${p.resource}:${p.action}`, p.id]));
+  for (const tpl of DEFAULT_ROLES) {
+    const roleId = `${PLATFORM_TENANT_ID}:${tpl.name}`;
+    const [existingRole] = await db.select({ id: roles.id }).from(roles)
+      .where(eq(roles.id, roleId)).limit(1);
+    if (!existingRole) {
+      await db.insert(roles).values({
+        id: roleId,
+        tenantId: PLATFORM_TENANT_ID,
+        name: tpl.name,
+        displayName: tpl.displayName,
+        description: tpl.description,
+        isSystem: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      if (tpl.permissions.includes('*:*')) {
+        for (const perm of allPermsP) {
+          await db.insert(rolePermissions).values({
+            id: `${roleId}:${perm.id}`, roleId, permissionId: perm.id,
+          });
+        }
+      } else {
+        for (const permKey of tpl.permissions) {
+          const permId = permMapP.get(permKey);
+          if (permId) {
+            await db.insert(rolePermissions).values({
+              id: `${roleId}:${permId}`, roleId, permissionId: permId,
+            });
+          }
+        }
+      }
+    }
+  }
 
-  await db.insert(users).values({
-    id: userId,
-    tenantId: DEFAULT_TENANT_ID,
-    name: DEFAULT_ADMIN.name,
-    email: DEFAULT_ADMIN.email,
-    passwordHash,
-    role: DEFAULT_ADMIN.role,
-    status: 'active',
-    createdAt: now,
-    updatedAt: now,
-  });
+  // ── 7. Create super admin user (platform tenant) ──
+  if (!existingSuperAdmin) {
+    const superUserId = crypto.randomUUID();
+    const superHash = await hashPassword(SUPER_ADMIN.password);
+    await db.insert(users).values({
+      id: superUserId,
+      tenantId: PLATFORM_TENANT_ID,
+      name: SUPER_ADMIN.name,
+      email: SUPER_ADMIN.email,
+      passwordHash: superHash,
+      role: SUPER_ADMIN.role,
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    });
+    // Assign owner role (within platform tenant) so they get all permissions
+    const platformOwnerRoleId = `${PLATFORM_TENANT_ID}:owner`;
+    await db.insert(userRoles).values({
+      id: crypto.randomUUID(),
+      userId: superUserId,
+      roleId: platformOwnerRoleId,
+      assignedAt: now,
+    });
+    console.log(`   ✓ Super Admin: ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password}`);
+  }
 
-  // 7. Assign owner role to admin user
-  const ownerRoleId = `${DEFAULT_TENANT_ID}:owner`;
-  await db.insert(userRoles).values({
-    id: crypto.randomUUID(),
-    userId,
-    roleId: ownerRoleId,
-    assignedAt: now,
-  });
+  // ── 8. Create tenant admin user (default tenant) ──
+  if (!existingAdmin) {
+    const userId = crypto.randomUUID();
+    const passwordHash = await hashPassword(DEFAULT_ADMIN.password);
+    await db.insert(users).values({
+      id: userId,
+      tenantId: DEFAULT_TENANT_ID,
+      name: DEFAULT_ADMIN.name,
+      email: DEFAULT_ADMIN.email,
+      passwordHash,
+      role: DEFAULT_ADMIN.role,
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    });
+    const ownerRoleId = `${DEFAULT_TENANT_ID}:owner`;
+    await db.insert(userRoles).values({
+      id: crypto.randomUUID(),
+      userId,
+      roleId: ownerRoleId,
+      assignedAt: now,
+    });
+    console.log(`   ✓ Tenant Admin: ${DEFAULT_ADMIN.email} / ${DEFAULT_ADMIN.password}`);
+  }
 
-  console.log(`   ✓ Admin user: ${DEFAULT_ADMIN.email} / ${DEFAULT_ADMIN.password}`);
   console.log('🌱 Seed complete!\n');
   console.log('   📋 Login credentials:');
-  console.log(`      Email:    ${DEFAULT_ADMIN.email}`);
-  console.log(`      Password: ${DEFAULT_ADMIN.password}`);
-  console.log(`      Tenant:   ${DEFAULT_TENANT.slug}\n`);
+  console.log(`      Super Admin: ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password} (no tenant needed)`);
+  console.log(`      Tenant Admin: ${DEFAULT_ADMIN.email} / ${DEFAULT_ADMIN.password} (tenant: ${DEFAULT_TENANT.slug})\n`);
 
   return true;
 }

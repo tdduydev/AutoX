@@ -5,7 +5,7 @@
 // against enabled workflows, without requiring external cron libraries.
 
 import { getDB, workflows, workflowExecutions, eq, and } from '@xclaw-ai/db';
-import type { WorkflowEngine } from '@xclaw-ai/core';
+import type { IWorkflowEngine } from '@xclaw-ai/shared';
 import type { Workflow, WorkflowNode, WorkflowEdge } from '@xclaw-ai/shared';
 import { randomUUID } from 'node:crypto';
 
@@ -119,7 +119,7 @@ function buildWorkflow(row: any): Workflow {
 // ---------------------------------------------------------------------------
 let schedulerTimer: ReturnType<typeof setInterval> | null = null;
 
-async function tick(workflowEngine: WorkflowEngine): Promise<void> {
+async function tick(workflowEngine: IWorkflowEngine): Promise<void> {
   const now = new Date();
 
   try {
@@ -181,7 +181,7 @@ async function tick(workflowEngine: WorkflowEngine): Promise<void> {
  * Runs every minute on the minute boundary.
  * Call once after server startup.
  */
-export function startWorkflowScheduler(workflowEngine: WorkflowEngine): void {
+export function startWorkflowScheduler(workflowEngine: IWorkflowEngine): void {
   if (schedulerTimer) return; // already running
 
   // Align to next minute boundary, then tick every 60 seconds

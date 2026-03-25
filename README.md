@@ -34,6 +34,7 @@ xClaw is a TypeScript monorepo platform for building and deploying AI agents acr
 - **ML/AutoML** — 12 built-in algorithms (regression, classification, clustering, dimensionality reduction, anomaly detection)
 - **Multi-tenant RBAC** — Tenants, roles (owner/admin/member/viewer), 60 granular permissions
 - **MCP Protocol** — Model Context Protocol server discovery and tool execution
+- **Dev Docs Knowledge Base** — MCP-powered developer documentation with full-text search, web management UI, multi-category organization
 - **Monitoring** — Audit logs, system logs, real-time metrics dashboard
 - **Chat Channels** — Telegram, Discord, Slack, WhatsApp, Zalo OA, Microsoft Teams, WebChat embed
 - **Embeddable Chat** — `/embed/chat` route for embedding in third-party apps
@@ -120,6 +121,7 @@ xClaw/
 │   ├── skill-hub/       # @xclaw-ai/skill-hub — Marketplace, MCP adapters
 │   ├── ml/              # @xclaw-ai/ml — 12 ML algorithms, AutoML
 │   ├── cli/             # @xclaw-ai/cli — CLI (commander.js)
+│   ├── doc-mcp/         # @xclaw-ai/doc-mcp — Dev Docs MCP server
 │   ├── web/             # React + Tailwind frontend
 │   └── channels/        # Channel plugins
 │       ├── telegram/    # Telegram bot
@@ -131,6 +133,7 @@ xClaw/
 ├── xclaw-plugins/       # [submodule] Official plugins (TeeForge, Healthcare)
 ├── xclaw-demo-integration-app/  # [submodule] HIS-Mini demo integration app
 ├── data/
+│   ├── dev-docs/        # Developer documentation knowledge base (Markdown)
 │   └── knowledge-packs/ # Data-only plugin packages (drug DB, ICD-10, etc.)
 ├── docs/                # Documentation site (Fumadocs + Next.js)
 ├── docker-compose.yml

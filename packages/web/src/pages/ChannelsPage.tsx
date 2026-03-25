@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
     Radio, Plus, Trash2, Power, PowerOff, TestTube, RefreshCw,
-    MessageSquare, ChevronRight, X, Eye, EyeOff,
+    MessageSquare, ChevronRight, X, Eye, EyeOff, Pencil,
 } from 'lucide-react';
 import {
-    getChannelTypes, getChannels, createChannel, deleteChannel,
+    getChannelTypes, getChannels, createChannel, updateChannel, deleteChannel,
     testChannel, activateChannel, deactivateChannel,
     getAgentSessions, getSessionMessages, getAgentConfigs,
 } from '../lib/api';
@@ -47,6 +47,11 @@ export function ChannelsPage() {
     const [addForm, setAddForm] = useState<{ name: string; config: Record<string, string>; agentConfigId: string }>({ name: '', config: {}, agentConfigId: '' });
     const [adding, setAdding] = useState(false);
     const [agentConfigs, setAgentConfigs] = useState<AgentConfigInfo[]>([]);
+
+    // Edit modal states
+    const [editChannel, setEditChannel] = useState<ChannelConnection | null>(null);
+    const [editForm, setEditForm] = useState<{ name: string; config: Record<string, string>; agentConfigId: string }>({ name: '', config: {}, agentConfigId: '' });
+    const [saving, setSaving] = useState(false);
 
     // Sessions / Chat history
     const [tab, setTab] = useState<'channels' | 'history'>('channels');
@@ -136,6 +141,43 @@ export function ChannelsPage() {
             await loadData();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete');
+        }
+    }
+
+    function openEditModal(ch: ChannelConnection) {
+        setEditChannel(ch);
+        setEditForm({
+            name: ch.name,
+            config: { ...ch.config },
+            agentConfigId: ch.agentConfigId || '',
+        });
+        setShowPasswords({});
+    }
+
+    async function handleEdit() {
+        if (!editChannel) return;
+        setSaving(true);
+        setError('');
+        try {
+            // Filter out masked values (containing ****) — don't overwrite secrets with mask
+            const cleanConfig: Record<string, string> = {};
+            for (const [key, val] of Object.entries(editForm.config)) {
+                if (val && !val.includes('****')) {
+                    cleanConfig[key] = val;
+                }
+            }
+            await updateChannel(editChannel._id, {
+                name: editForm.name,
+                config: Object.keys(cleanConfig).length > 0 ? cleanConfig : undefined,
+                agentConfigId: editForm.agentConfigId || undefined,
+            });
+            setSuccess('Channel updated!');
+            setEditChannel(null);
+            await loadData();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to update channel');
+        } finally {
+            setSaving(false);
         }
     }
 
@@ -317,6 +359,14 @@ export function ChannelsPage() {
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => openEditModal(ch)}
+                                                            className="p-2 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[var(--color-bg-soft)]"
+                                                            style={{ color: 'var(--color-fg-muted)' }}
+                                                            title="Edit"
+                                                        >
+                                                            <Pencil size={16} />
+                                                        </button>
                                                         <button
                                                             onClick={() => handleTest(ch._id)}
                                                             className="p-2 rounded-lg transition-all duration-200 cursor-pointer hover:bg-[var(--color-bg-soft)]"
@@ -623,6 +673,119 @@ export function ChannelsPage() {
                         </div>
                     </div>
                 )}
+
+                {/* Edit Channel Modal */}
+                {editChannel && (() => {
+                    const typeInfo = getTypeInfo(editChannel.channelType);
+                    if (!typeInfo) return null;
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+                            <div
+                                className="rounded-2xl p-6 w-full max-w-md mx-4 animate-scale-in glass-card"
+                                style={{ boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}
+                            >
+                                <div className="flex items-center justify-between mb-5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xl">{typeInfo.icon}</span>
+                                        <h2 className="text-lg font-bold" style={{ color: 'var(--color-fg)' }}>
+                                            Edit {typeInfo.name}
+                                        </h2>
+                                    </div>
+                                    <button onClick={() => setEditChannel(null)} className="cursor-pointer" style={{ color: 'var(--color-fg-muted)' }}>
+                                        <X size={18} />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {/* Channel name */}
+                                    <div>
+                                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>Channel Name</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.name}
+                                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                            style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                        />
+                                    </div>
+
+                                    {/* Agent Config selector */}
+                                    {agentConfigs.length > 0 && (
+                                        <div>
+                                            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>
+                                                <img src="/logo.png" alt="xClaw" className="w-3 h-3 inline mr-1" />
+                                                Agent Config
+                                            </label>
+                                            <select
+                                                value={editForm.agentConfigId}
+                                                onChange={(e) => setEditForm({ ...editForm, agentConfigId: e.target.value })}
+                                                className="w-full px-3 py-2 rounded-lg text-sm border outline-none"
+                                                style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                            >
+                                                <option value="">No agent (use default)</option>
+                                                {agentConfigs.map((ac) => (
+                                                    <option key={ac._id} value={ac._id}>
+                                                        {ac.name}{ac.isDefault ? ' (default)' : ''}{ac.llmConfig?.provider ? ` — ${ac.llmConfig.provider}/${ac.llmConfig.model}` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    {/* Config fields */}
+                                    {typeInfo.configFields.map((field) => (
+                                        <div key={field.key}>
+                                            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-fg-muted)' }}>
+                                                {field.label} {field.required && <span style={{ color: '#ef4444' }}>*</span>}
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type={field.type === 'password' && !showPasswords[`edit_${field.key}`] ? 'password' : 'text'}
+                                                    value={editForm.config[field.key] || ''}
+                                                    onChange={(e) => setEditForm({
+                                                        ...editForm,
+                                                        config: { ...editForm.config, [field.key]: e.target.value },
+                                                    })}
+                                                    placeholder={field.placeholder || (editForm.config[field.key]?.includes('****') ? 'Leave blank to keep current' : '')}
+                                                    className="w-full px-3 py-2 rounded-lg text-sm border outline-none pr-9"
+                                                    style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', color: 'var(--color-fg)' }}
+                                                />
+                                                {field.type === 'password' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowPasswords(prev => ({ ...prev, [`edit_${field.key}`]: !prev[`edit_${field.key}`] }))}
+                                                        className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer"
+                                                        style={{ color: 'var(--color-fg-muted)' }}
+                                                    >
+                                                        {showPasswords[`edit_${field.key}`] ? <EyeOff size={14} /> : <Eye size={14} />}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex gap-3 mt-6">
+                                    <button
+                                        onClick={() => setEditChannel(null)}
+                                        className="flex-1 py-2 rounded-lg text-sm font-medium cursor-pointer border"
+                                        style={{ borderColor: 'var(--color-border)', color: 'var(--color-fg-muted)' }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleEdit}
+                                        disabled={saving}
+                                        className="flex-1 py-2 rounded-lg text-sm font-medium cursor-pointer"
+                                        style={{ background: 'var(--color-primary)', color: '#fff', opacity: saving ? 0.7 : 1 }}
+                                    >
+                                        {saving ? 'Saving...' : 'Save Changes'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
         </div>
     );

@@ -4,7 +4,7 @@
 
 // ─── LLM Provider Types ─────────────────────────────────────
 
-export type LLMProvider = 'openai' | 'anthropic' | 'ollama' | 'google' | 'groq' | 'mistral' | 'deepseek' | 'xai' | 'openrouter' | 'perplexity' | 'custom';
+export type LLMProvider = 'openai' | 'anthropic' | 'ollama' | 'google' | 'groq' | 'mistral' | 'deepseek' | 'xai' | 'openrouter' | 'perplexity' | 'huggingface' | 'custom';
 
 export interface LLMCapabilities {
   vision?: boolean;
@@ -257,6 +257,15 @@ export interface NodeExecutionResult {
   output: Record<string, unknown>;
   error?: string;
   duration: number;
+}
+
+// ─── Memory Types ───────────────────────────────────────────
+
+/** Common interface that both WorkflowEngine and LangGraphWorkflowEngine satisfy */
+export interface IWorkflowEngine {
+  validate(workflow: Workflow): { nodeId?: string; field?: string; message: string; severity: 'error' | 'warning' }[];
+  execute(workflow: Workflow, triggerData?: Record<string, unknown>): Promise<WorkflowExecution>;
+  setSandboxConfig?(config: WorkflowSandboxConfig): void;
 }
 
 // ─── Memory Types ───────────────────────────────────────────

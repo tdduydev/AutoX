@@ -1,10 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { I18nProvider } from './i18n';
 import { Layout } from './components/Layout';
 import { SettingsLayout } from './components/SettingsLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginPage } from './pages/LoginPage';
+import { SetupWizardPage } from './pages/SetupWizardPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ChatPage } from './pages/ChatPage';
 import { KnowledgePage } from './pages/KnowledgePage';
@@ -31,12 +33,28 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AdminPage } from './pages/AdminPage';
 import { PromptLabPage } from './pages/PromptLabPage';
 import { AgentBuilderPage } from './pages/AgentBuilderPage';
+import { DevDocsPage } from './pages/DevDocsPage';
+import { SystemLogsPage } from './pages/SystemLogsPage';
 import { ToastContainer } from './components/ToastContainer';
+import { getSetupStatus } from './lib/api';
 
 function ProtectedRoutes() {
     const { user, loading } = useAuth();
+    const [setupChecked, setSetupChecked] = useState(false);
+    const [setupCompleted, setSetupCompleted] = useState(true);
+
+    useEffect(() => {
+        if (!user) return;
+        getSetupStatus()
+            .then((s) => setSetupCompleted(s.completed))
+            .catch(() => setSetupCompleted(true))
+            .finally(() => setSetupChecked(true));
+    }, [user]);
+
     if (loading) return <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-bg)' }}><div className="animate-spin w-6 h-6 border-2 border-t-transparent rounded-full" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} /></div>;
     if (!user) return <LoginPage />;
+    if (!setupChecked) return <div className="flex items-center justify-center h-screen" style={{ background: 'var(--color-bg)' }}><div className="animate-spin w-6 h-6 border-2 border-t-transparent rounded-full" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} /></div>;
+    if (!setupCompleted) return <SetupWizardPage onComplete={() => setSetupCompleted(true)} />;
 
     return (
         <Routes>
@@ -61,6 +79,8 @@ function ProtectedRoutes() {
                 <Route path="admin" element={<ErrorBoundary><AdminPage /></ErrorBoundary>} />
                 <Route path="prompt-lab" element={<ErrorBoundary><PromptLabPage /></ErrorBoundary>} />
                 <Route path="agent-builder" element={<ErrorBoundary><AgentBuilderPage /></ErrorBoundary>} />
+                <Route path="dev-docs" element={<ErrorBoundary><DevDocsPage /></ErrorBoundary>} />
+                <Route path="logs" element={<ErrorBoundary><SystemLogsPage /></ErrorBoundary>} />
                 <Route path="plugins/:pluginId/*" element={<PluginPage />} />
                 <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<SettingsOverviewPage />} />

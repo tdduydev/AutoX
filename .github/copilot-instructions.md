@@ -13,7 +13,7 @@ xClaw is a TypeScript monorepo (npm workspaces) for a general-purpose multi-indu
 - `packages/gateway` — Hono HTTP server, REST API, auth, RBAC, tenant middleware
 - `packages/server` — Standalone server entry point (migrations → MongoDB → seed on startup)
 - `packages/cli` — CLI via commander.js
-- `packages/skill-hub` — Marketplace service, Anthropic/MCP adapters
+- `packages/skill-hub` — Marketplace service, Anthropic/MCP adapters\n- `packages/doc-mcp` — Dev Docs MCP server, file-based full-text search over `data/dev-docs/`
 - `packages/web` — React + Tailwind frontend (Vite, zustand, lucide-react)
 - `packages/channels/*` — Channel plugins (Telegram, Discord)
 - `packages/integrations` — 8 built-in integrations (Gmail, GitHub, Notion, Slack, etc.)

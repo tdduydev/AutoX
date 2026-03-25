@@ -57,6 +57,12 @@ export class OllamaAdapter implements LLMAdapter {
   // ─── LLMAdapter interface ──────────────────────────────────
 
   async chat(messages: LLMMessage[], tools?: ToolDefinition[]): Promise<LLMResponse> {
+    // Log vision usage
+    const visionMsgs = messages.filter(m => m.images?.length);
+    if (visionMsgs.length) {
+      console.log(`[Ollama] 👁️ Vision request: ${visionMsgs.length} message(s) with images, model=${this.model}`);
+    }
+
     const body: Record<string, unknown> = {
       model: this.model,
       messages: messages.map((m) => this.toOllamaMessage(m)),
@@ -71,11 +77,27 @@ export class OllamaAdapter implements LLMAdapter {
       body.tools = tools.map((t) => this.toOllamaTool(t));
     }
 
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
+    let res = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+
+    // Retry without tools if model doesn't support them
+    if (!res.ok && tools?.length) {
+      const err = await res.text();
+      if (res.status === 400 && err.includes('does not support tools')) {
+        console.log(`[Ollama] Model ${this.model} does not support tools, retrying without tools`);
+        delete body.tools;
+        res = await fetch(`${this.baseUrl}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } else {
+        throw new Error(`Ollama chat failed: ${res.status} ${err}`);
+      }
+    }
 
     if (!res.ok) {
       const err = await res.text();
@@ -119,11 +141,28 @@ export class OllamaAdapter implements LLMAdapter {
       body.tools = tools.map((t) => this.toOllamaTool(t));
     }
 
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
+    let res = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+
+    // Retry without tools if model doesn't support them
+    if (!res.ok && tools?.length) {
+      const err = await res.text();
+      if (res.status === 400 && err.includes('does not support tools')) {
+        console.log(`[Ollama] Model ${this.model} does not support tools, retrying without tools (stream)`);
+        delete body.tools;
+        res = await fetch(`${this.baseUrl}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } else {
+        yield { type: 'error', error: `Ollama stream failed: ${res.status} ${err}` };
+        return;
+      }
+    }
 
     if (!res.ok) {
       const err = await res.text();

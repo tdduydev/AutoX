@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import type { Agent, RagEngine, WorkflowEngine, MonitoringService, PluginManager } from '@xclaw-ai/core';
+import { getDB, eq } from '@xclaw-ai/db';
+import type { Agent, RagEngine, MonitoringService, PluginManager } from '@xclaw-ai/core';
+import type { IWorkflowEngine } from '@xclaw-ai/shared';
 import type { OllamaAdapter } from '@xclaw-ai/core';
 import type { GatewayConfig } from '@xclaw-ai/shared';
 import type { IntegrationRegistry } from '@xclaw-ai/integrations';
@@ -38,6 +40,7 @@ import { createApiKeyRoutes } from './api-keys.js';
 import { createRetentionRoutes } from './retention.js';
 import { createWidgetRoutes } from './widget.js';
 import { createSandboxRoutes } from './sandbox.js';
+import { createDevDocsRoutes } from './dev-docs.js';
 
 export interface GatewayContext {
   agent: Agent;
@@ -48,11 +51,12 @@ export interface GatewayContext {
   integrationRegistry?: IntegrationRegistry;
   domainPacks?: DomainPack[];
   mlEngine?: MLEngine;
-  workflowEngine?: WorkflowEngine;
+  workflowEngine?: IWorkflowEngine;
   monitoring?: MonitoringService;
   pluginManager?: PluginManager;
   sandboxManager?: SandboxManager;
   tenantSandboxManager?: TenantSandboxManager;
+  channelManager?: { startChannel(conn: any): Promise<void>; stopChannel(id: string): Promise<void>; isRunning(id: string): boolean };
 }
 
 export function createGateway(ctx: GatewayContext) {
@@ -71,6 +75,16 @@ export function createGateway(ctx: GatewayContext) {
   app.route('/auth', createAuthRoutes(ctx));
   app.route('/auth/oauth2', createOAuth2Routes(ctx));
   app.route('/auth/zalo-miniapp', createZaloMiniAppAuthRoutes(ctx));
+
+  // Public: tenant list for login page selector
+  app.get('/tenants/list', async (c) => {
+    const db = getDB();
+    const { tenants: tenantsTable } = await import('@xclaw-ai/db');
+    const rows = await db.select({ slug: tenantsTable.slug, name: tenantsTable.name })
+      .from(tenantsTable)
+      .where(eq(tenantsTable.status, 'active'));
+    return c.json(rows.filter(r => r.slug !== 'platform'));
+  });
 
   // Public webhook routes (no auth — secrets validated per-workflow)
   if (ctx.workflowEngine) {
@@ -122,6 +136,7 @@ export function createGateway(ctx: GatewayContext) {
   if (ctx.sandboxManager && ctx.tenantSandboxManager) {
     api.route('/sandbox', createSandboxRoutes(ctx.sandboxManager, ctx.tenantSandboxManager));
   }
+  api.route('/dev-docs', createDevDocsRoutes());
   app.route('/api', api);
 
   return app;

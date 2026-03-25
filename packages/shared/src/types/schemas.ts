@@ -3,7 +3,7 @@ import { z } from 'zod';
 // ─── Runtime Validation Schemas (Zod) ───────────────────────
 
 export const LLMProviderSchema = z.enum([
-  'openai', 'anthropic', 'ollama', 'google', 'groq', 'mistral', 'custom',
+  'openai', 'anthropic', 'ollama', 'google', 'groq', 'mistral', 'huggingface', 'custom',
 ]);
 
 export const LLMConfigSchema = z.object({

@@ -35,6 +35,8 @@ import {
     FlaskConical,
     Building2,
     Wand2,
+    BookOpen,
+    ScrollText,
     type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -83,6 +85,7 @@ const MAIN_NAV = [
 const KNOWLEDGE_NAV = [
     { to: '/knowledge', icon: Database, key: 'nav.knowledgeBase' as const },
     { to: '/search', icon: Search, key: 'nav.ragSearch' as const },
+    { to: '/dev-docs', icon: BookOpen, key: 'nav.devDocs' as const },
 ];
 
 const AGENTS_NAV = [
@@ -93,6 +96,9 @@ const AGENTS_NAV = [
     { to: '/analytics', icon: BarChart3, label: 'Analytics' },
     { to: '/prompt-lab', icon: FlaskConical, label: 'Prompt Lab' },
     { to: '/agent-builder', icon: Wand2, label: 'Agent Builder' },
+];
+
+const ADMIN_NAV = [
     { to: '/admin', icon: Building2, label: 'Admin' },
 ];
 
@@ -255,6 +261,15 @@ export function Layout() {
                         ))}
                     </NavSection>
 
+                    {/* Admin section — visible to owner, admin, super_admin */}
+                    {(user?.isSuperAdmin || user?.role === 'owner' || user?.role === 'admin') && (
+                        <NavSection label={user?.isSuperAdmin ? 'PLATFORM' : 'ADMIN'} collapsed={collapsed}>
+                            {ADMIN_NAV.map((item) => (
+                                <SidebarLink key={item.to} to={item.to} icon={item.icon} label={user?.isSuperAdmin ? 'Platform Admin' : item.label} collapsed={collapsed} />
+                            ))}
+                        </NavSection>
+                    )}
+
                     <NavSection label={t('nav.tools')} collapsed={collapsed}>
                         {TOOLS_NAV.map((item) => (
                             <SidebarLink key={item.to} to={item.to} icon={item.icon} label={t(item.key)} collapsed={collapsed} />
@@ -325,6 +340,7 @@ export function Layout() {
                     })}
 
                     <NavSection label={t('nav.system')} collapsed={collapsed}>
+                        <SidebarLink to="/logs" icon={ScrollText} label="Logs" collapsed={collapsed} />
                         <SidebarLink to="/settings" icon={Settings} label={t('nav.settings')} collapsed={collapsed} />
                     </NavSection>
                 </nav>
@@ -351,7 +367,9 @@ export function Layout() {
                     {!collapsed && (
                         <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate" style={{ color: '#e4e4e7' }}>{user?.email ?? 'Guest'}</p>
-                            <p className="text-[10px] capitalize" style={{ color: '#71717a' }}>{user?.role ?? 'admin'}</p>
+                            <p className="text-[10px] capitalize" style={{ color: user?.isSuperAdmin ? '#818cf8' : '#71717a' }}>
+                                {user?.isSuperAdmin ? '⚡ Super Admin' : (user?.role ?? 'user')}
+                            </p>
                         </div>
                     )}
                     <button

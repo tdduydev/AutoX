@@ -253,14 +253,22 @@ export class Agent {
     // Conversation history (from cache)
     const history = this.memory.getHistorySync(sessionId);
     for (const msg of history) {
-      // The last user message in history is the current one — attach images to it
-      const isCurrentUserMsg = msg.role === 'user' && msg.content === userMessage && images?.length;
       messages.push({
         role: msg.role as LLMMessage['role'],
         content: msg.content,
-        ...(isCurrentUserMsg ? { images } : {}),
         toolCalls: msg.toolCalls,
       });
+    }
+
+    // Attach images to the last user message (current message) — don't rely on content matching
+    if (images?.length) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === 'user') {
+          messages[i].images = images;
+          console.log(`[Agent] 🖼️ Attached ${images.length} image(s) to user message: "${messages[i].content.slice(0, 50)}"`);
+          break;
+        }
+      }
     }
 
     return messages;

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { HTTPException } from 'hono/http-exception';
 import type { TenantSandboxConfig } from '@xclaw-ai/shared';
 import { getDB, tenants, tenantSettings, users, eq, and } from '@xclaw-ai/db';
+import { seedDefaultRoles, assignRoleToUser } from './rbac.js';
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -231,62 +232,113 @@ export function tenantMiddleware() {
       throw new HTTPException(403, { message: 'No tenant associated with user' });
     }
 
-    const settings = await TenantService.getSettings(user.tenantId);
+    // Super admin uses platform tenant settings but can access any tenant's data
+    const tenantId = user.tenantId;
+
+    const settings = await TenantService.getSettings(tenantId);
     if (!settings) {
+      // For super admin, create minimal settings context so middleware doesn't block
+      if (user.isSuperAdmin) {
+        c.set('tenantId', tenantId);
+        c.set('tenantSettings', {
+          llmProvider: 'ollama', llmModel: 'qwen2.5:14b', llmApiKey: null,
+          llmBaseUrl: null, llmTemperature: null, llmMaxTokens: null,
+          agentName: 'xClaw Assistant', systemPrompt: null,
+          aiLanguage: 'auto', aiLanguageCustom: null,
+          enableWebSearch: true, enableRag: true, enableWorkflows: true,
+          enabledDomains: [], enabledIntegrations: [],
+          maxUsersPerTenant: 999, maxSessionsPerUser: 999, maxMessagesPerDay: 99999,
+          tavilyApiKey: null, branding: {},
+          sandboxConfig: { enabled: false, defaultPolicy: 'default', maxConcurrentSandboxes: 5, idleTimeoutMs: 300000, cpuLimit: '0.5', memoryLimit: '512Mi', gpuEnabled: false },
+        } as any);
+        await next();
+        return;
+      }
       throw new HTTPException(403, { message: 'Tenant settings not found' });
     }
 
-    // Check tenant is active
-    const tenant = await TenantService.getById(user.tenantId);
-    if (!tenant || tenant.status !== 'active') {
-      throw new HTTPException(403, { message: 'Tenant is not active' });
+    // Check tenant is active (super admin bypasses)
+    if (!user.isSuperAdmin) {
+      const tenant = await TenantService.getById(tenantId);
+      if (!tenant || tenant.status !== 'active') {
+        throw new HTTPException(403, { message: 'Tenant is not active' });
+      }
     }
 
-    c.set('tenantId', user.tenantId);
+    c.set('tenantId', tenantId);
     c.set('tenantSettings', settings);
     await next();
   };
 }
 
-// ─── Tenant CRUD Routes (admin only) ───────────────────────
+// ─── Tenant CRUD Routes ────────────────────────────────────
+// Super Admin: full CRUD on all tenants + create tenant admin users
+// Tenant Owner/Admin: view and update their own tenant only
 
 export function createTenantRoutes() {
   const app = new Hono();
 
-  // GET /tenants — list all tenants
+  // GET /tenants — list all tenants (super admin) or own tenant (tenant admin)
   app.get('/', async (c) => {
     const user = c.get('user');
+    if (user.isSuperAdmin) {
+      // Super admin sees all tenants (including inactive)
+      const db = getDB();
+      const rows = await db.select().from(tenants);
+      return c.json(rows.map(toTenantInfo));
+    }
+    // Tenant admin/owner sees only their own tenant
     if (user.role !== 'admin' && user.role !== 'owner') {
       throw new HTTPException(403, { message: 'Admin access required' });
     }
-    const list = await TenantService.list();
-    return c.json(list);
+    const tenant = await TenantService.getById(user.tenantId);
+    return c.json(tenant ? [tenant] : []);
+  });
+
+  // GET /tenants/list — public list of active tenant slugs (for login selector)
+  app.get('/list', async (c) => {
+    const db = getDB();
+    const rows = await db.select({ slug: tenants.slug, name: tenants.name })
+      .from(tenants)
+      .where(and(eq(tenants.status, 'active')));
+    // Exclude platform tenant from the public list
+    return c.json(rows.filter(r => r.slug !== 'platform'));
   });
 
   // GET /tenants/:id
   app.get('/:id', async (c) => {
-    const tenant = await TenantService.getById(c.req.param('id'));
+    const user = c.get('user');
+    const tenantId = c.req.param('id');
+    // Only super admin or users from the same tenant
+    if (!user.isSuperAdmin && user.tenantId !== tenantId) {
+      throw new HTTPException(403, { message: 'Access denied' });
+    }
+    const tenant = await TenantService.getById(tenantId);
     if (!tenant) throw new HTTPException(404, { message: 'Tenant not found' });
     return c.json(tenant);
   });
 
-  // POST /tenants — create new tenant
+  // POST /tenants — create new tenant (SUPER ADMIN ONLY)
   app.post('/', async (c) => {
     const user = c.get('user');
-    if (user.role !== 'admin') {
-      throw new HTTPException(403, { message: 'Admin access required' });
+    if (!user.isSuperAdmin) {
+      throw new HTTPException(403, { message: 'Super Admin access required' });
     }
     const body = await c.req.json();
     const { name, slug, plan, metadata } = body;
     if (!name || !slug) {
       return c.json({ error: 'name and slug are required' }, 400);
     }
-    // Validate slug format
     if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) {
       return c.json({ error: 'slug must be lowercase alphanumeric with hyphens, 1-63 chars' }, 400);
     }
+    if (slug === 'platform') {
+      return c.json({ error: 'Cannot use reserved slug "platform"' }, 400);
+    }
     try {
       const tenant = await TenantService.create({ name, slug, plan, metadata });
+      // Seed default roles for the new tenant
+      await seedDefaultRoles(tenant.id);
       return c.json(tenant, 201);
     } catch (err: any) {
       if (err.message?.includes('already exists')) {
@@ -299,20 +351,107 @@ export function createTenantRoutes() {
   // PUT /tenants/:id — update tenant
   app.put('/:id', async (c) => {
     const user = c.get('user');
-    if (user.role !== 'admin' && user.role !== 'owner') {
-      throw new HTTPException(403, { message: 'Admin access required' });
+    const tenantId = c.req.param('id');
+    // Super admin can update any tenant; tenant owner/admin can update their own
+    if (!user.isSuperAdmin) {
+      if (user.tenantId !== tenantId || (user.role !== 'admin' && user.role !== 'owner')) {
+        throw new HTTPException(403, { message: 'Access denied' });
+      }
     }
     const body = await c.req.json();
-    const updated = await TenantService.update(c.req.param('id'), body);
+    // Non-super-admin cannot change plan or status
+    if (!user.isSuperAdmin) {
+      delete body.plan;
+      delete body.status;
+    }
+    const updated = await TenantService.update(tenantId, body);
     if (!updated) throw new HTTPException(404, { message: 'Tenant not found' });
     return c.json(updated);
   });
 
+  // DELETE /tenants/:id — suspend tenant (SUPER ADMIN ONLY)
+  app.delete('/:id', async (c) => {
+    const user = c.get('user');
+    if (!user.isSuperAdmin) {
+      throw new HTTPException(403, { message: 'Super Admin access required' });
+    }
+    const tenantId = c.req.param('id');
+    if (tenantId === 'platform') {
+      return c.json({ error: 'Cannot delete platform tenant' }, 400);
+    }
+    const updated = await TenantService.update(tenantId, { status: 'suspended' });
+    if (!updated) throw new HTTPException(404, { message: 'Tenant not found' });
+    return c.json({ success: true, tenant: updated });
+  });
+
+  // POST /tenants/:id/admin — create admin user for a tenant (SUPER ADMIN ONLY)
+  app.post('/:id/admin', async (c) => {
+    const user = c.get('user');
+    if (!user.isSuperAdmin) {
+      throw new HTTPException(403, { message: 'Super Admin access required' });
+    }
+    const tenantId = c.req.param('id');
+    const tenant = await TenantService.getById(tenantId);
+    if (!tenant) throw new HTTPException(404, { message: 'Tenant not found' });
+
+    const body = await c.req.json();
+    const { name, email, password } = body;
+    if (!name || !email || !password) {
+      return c.json({ error: 'name, email, and password are required' }, 400);
+    }
+    if (password.length < 8) {
+      return c.json({ error: 'Password must be at least 8 characters' }, 400);
+    }
+
+    const db = getDB();
+    const [existing] = await db.select().from(users)
+      .where(and(eq(users.tenantId, tenantId), eq(users.email, email)))
+      .limit(1);
+    if (existing) {
+      return c.json({ error: 'User with this email already exists in this tenant' }, 409);
+    }
+
+    // Hash password with PBKDF2
+    const encoder = new TextEncoder();
+    const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'],
+    );
+    const derivedBits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt: encoder.encode(salt), iterations: 100_000, hash: 'SHA-256' },
+      keyMaterial, 256,
+    );
+    const hash = Array.from(new Uint8Array(derivedBits)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const passwordHash = `pbkdf2:${salt}:${hash}`;
+
+    const userId = randomUUID();
+    const now = new Date();
+
+    await db.insert(users).values({
+      id: userId, tenantId, name, email, passwordHash,
+      role: 'owner', status: 'active',
+      createdAt: now, updatedAt: now,
+    });
+
+    // Ensure default roles exist and assign owner
+    await seedDefaultRoles(tenantId);
+    await assignRoleToUser(userId, 'owner', tenantId, user.sub);
+
+    return c.json({
+      user: { id: userId, name, email, role: 'owner', tenantId },
+    }, 201);
+  });
+
   // GET /tenants/:id/settings
   app.get('/:id/settings', async (c) => {
-    const settings = await TenantService.getSettings(c.req.param('id'));
+    const user = c.get('user');
+    const tenantId = c.req.param('id');
+    if (!user.isSuperAdmin && user.tenantId !== tenantId) {
+      throw new HTTPException(403, { message: 'Access denied' });
+    }
+    const settings = await TenantService.getSettings(tenantId);
     if (!settings) throw new HTTPException(404, { message: 'Settings not found' });
-    // Don't expose API keys 
     const safe = {
       ...settings,
       llmApiKey: settings.llmApiKey ? '***' : null,
@@ -327,11 +466,15 @@ export function createTenantRoutes() {
   // PUT /tenants/:id/settings
   app.put('/:id/settings', async (c) => {
     const user = c.get('user');
-    if (user.role !== 'admin' && user.role !== 'owner') {
-      throw new HTTPException(403, { message: 'Admin access required' });
+    const tenantId = c.req.param('id');
+    // Super admin can update any tenant's settings
+    if (!user.isSuperAdmin) {
+      if (user.tenantId !== tenantId || (user.role !== 'admin' && user.role !== 'owner')) {
+        throw new HTTPException(403, { message: 'Access denied' });
+      }
     }
     const body = await c.req.json();
-    const updated = await TenantService.updateSettings(c.req.param('id'), body);
+    const updated = await TenantService.updateSettings(tenantId, body);
     if (!updated) throw new HTTPException(404, { message: 'Settings not found' });
     return c.json({ ok: true });
   });

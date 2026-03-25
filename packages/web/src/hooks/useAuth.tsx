@@ -5,12 +5,14 @@ interface User {
     sub: string;
     email: string;
     role: string;
+    tenantId: string;
+    isSuperAdmin: boolean;
 }
 
 interface AuthCtx {
     user: User | null;
     loading: boolean;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string, tenantSlug?: string) => Promise<void>;
     logout: () => void;
 }
 
@@ -31,13 +33,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false);
             return;
         }
-        getMe().then(setUser).catch(() => clearToken()).finally(() => setLoading(false));
+        getMe().then((data) => setUser({
+            sub: data.id,
+            email: data.email,
+            role: data.role,
+            tenantId: data.tenantId,
+            isSuperAdmin: data.isSuperAdmin === true,
+        })).catch(() => clearToken()).finally(() => setLoading(false));
     }, []);
 
-    const login = useCallback(async (email: string, password: string) => {
-        await apiLogin(email, password);
+    const login = useCallback(async (email: string, password: string, tenantSlug?: string) => {
+        await apiLogin(email, password, tenantSlug);
         const me = await getMe();
-        setUser(me);
+        setUser({
+            sub: me.id,
+            email: me.email,
+            role: me.role,
+            tenantId: me.tenantId,
+            isSuperAdmin: me.isSuperAdmin === true,
+        });
     }, []);
 
     const logout = useCallback(() => {

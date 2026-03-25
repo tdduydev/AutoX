@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
-import { Loader2, Sparkles, Zap, Shield, Globe } from 'lucide-react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { Loader2, Sparkles, Zap, Shield, Globe, Building2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useI18n } from '../i18n';
+import { getTenantList } from '../lib/api';
 
 const FEATURES = [
     { icon: Sparkles, label: 'Multi-LLM AI Engine', desc: 'OpenAI, Anthropic, Ollama & more' },
@@ -13,17 +14,28 @@ const FEATURES = [
 export function LoginPage() {
     const { login } = useAuth();
     const { t } = useI18n();
-    const [email, setEmail] = useState('admin@xclaw.io');
+    const [email, setEmail] = useState('superadmin@xclaw.io');
     const [password, setPassword] = useState('password123');
+    const [tenantSlug, setTenantSlug] = useState('');
+    const [tenants, setTenants] = useState<Array<{ slug: string; name: string }>>([]);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(true);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        getTenantList().then(setTenants).catch(() => { });
+    }, []);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setError('');
+        if (!isSuperAdmin && !tenantSlug) {
+            setError(t('auth.selectTenant'));
+            return;
+        }
         setLoading(true);
         try {
-            await login(email, password);
+            await login(email, password, isSuperAdmin ? undefined : tenantSlug);
         } catch {
             setError(t('auth.invalidCredentials'));
         } finally {
@@ -145,6 +157,57 @@ export function LoginPage() {
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-5">
+                            {/* Login type toggle */}
+                            <div className="flex gap-1 p-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsSuperAdmin(true); setEmail('superadmin@xclaw.io'); }}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-medium transition-all"
+                                    style={{
+                                        background: isSuperAdmin ? 'rgba(99,102,241,0.15)' : 'transparent',
+                                        color: isSuperAdmin ? '#818cf8' : '#71717a',
+                                    }}
+                                >
+                                    <Shield size={13} />
+                                    Super Admin
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setIsSuperAdmin(false); setEmail('admin@xclaw.io'); }}
+                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-medium transition-all"
+                                    style={{
+                                        background: !isSuperAdmin ? 'rgba(99,102,241,0.15)' : 'transparent',
+                                        color: !isSuperAdmin ? '#818cf8' : '#71717a',
+                                    }}
+                                >
+                                    <Building2 size={13} />
+                                    Tenant
+                                </button>
+                            </div>
+
+                            {/* Tenant selector (shown only for tenant login) */}
+                            {!isSuperAdmin && (
+                                <div>
+                                    <label
+                                        className="block text-[11px] font-semibold tracking-wider mb-2"
+                                        style={{ color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                                    >
+                                        {t('auth.tenant')}
+                                    </label>
+                                    <select
+                                        value={tenantSlug}
+                                        onChange={(e) => setTenantSlug(e.target.value)}
+                                        className="login-input w-full px-4 py-3 rounded-xl text-sm outline-none"
+                                        style={{ appearance: 'none' }}
+                                    >
+                                        <option value="">{t('auth.selectTenant')}</option>
+                                        {tenants.map((t) => (
+                                            <option key={t.slug} value={t.slug}>{t.name} ({t.slug})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
                             <div>
                                 <label
                                     className="block text-[11px] font-semibold tracking-wider mb-2"

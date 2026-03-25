@@ -212,8 +212,12 @@ export async function getUserPermissions(userId: string): Promise<Set<string>> {
 // ─── Check Permission ──────────────────────────────────────
 
 export async function hasPermission(userId: string, resource: Resource, action: Action): Promise<boolean> {
+  // Super admins bypass permission checks
+  const db = getDB();
+  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  if (user?.role === 'super_admin') return true;
+
   const perms = await getUserPermissions(userId);
-  // Check exact match or wildcard (owner has all permissions assigned individually)
   return perms.has(`${resource}:${action}`);
 }
 
@@ -226,6 +230,12 @@ export function requirePermission(resource: Resource, action: Action) {
       throw new HTTPException(401, { message: 'Unauthorized' });
     }
 
+    // Super admin bypasses
+    if (user.isSuperAdmin) {
+      await next();
+      return;
+    }
+
     const allowed = await hasPermission(user.sub, resource, action);
     if (!allowed) {
       throw new HTTPException(403, {
@@ -233,6 +243,21 @@ export function requirePermission(resource: Resource, action: Action) {
       });
     }
 
+    await next();
+  };
+}
+
+// ─── Hono Middleware: require super admin ───────────────────
+
+export function requireSuperAdmin() {
+  return async (c: any, next: () => Promise<void>) => {
+    const user = c.get('user');
+    if (!user?.sub) {
+      throw new HTTPException(401, { message: 'Unauthorized' });
+    }
+    if (!user.isSuperAdmin) {
+      throw new HTTPException(403, { message: 'Super Admin access required' });
+    }
     await next();
   };
 }
@@ -492,6 +517,62 @@ export function createRBACRoutes() {
 
     const perms = await getUserPermissions(targetUserId);
     return c.json({ userId: targetUserId, permissions: Array.from(perms) });
+  });
+
+  // ── Create user in current tenant ──
+  app.post('/users', requirePermission('users', 'manage'), async (c) => {
+    const currentUser = c.get('user');
+    const body = await c.req.json();
+    const { name, email, password, role: roleName = 'member' } = body as {
+      name: string; email: string; password: string; role?: string;
+    };
+
+    if (!name || !email || !password) {
+      return c.json({ error: 'name, email, and password are required' }, 400);
+    }
+    if (password.length < 8) {
+      return c.json({ error: 'password must be at least 8 characters' }, 400);
+    }
+    if (!['admin', 'member', 'viewer'].includes(roleName)) {
+      return c.json({ error: 'role must be one of: admin, member, viewer' }, 400);
+    }
+
+    const db = getDB();
+    const [existing] = await db.select({ id: users.id }).from(users)
+      .where(and(eq(users.email, email), eq(users.tenantId, currentUser.tenantId)))
+      .limit(1);
+    if (existing) return c.json({ error: 'Email already exists in this tenant' }, 409);
+
+    const encoder = new TextEncoder();
+    const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'],
+    );
+    const derivedBits = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt: encoder.encode(salt), iterations: 100_000, hash: 'SHA-256' },
+      keyMaterial, 256,
+    );
+    const hash = Array.from(new Uint8Array(derivedBits)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const passwordHash = `${salt}:${hash}`;
+
+    const now = new Date();
+    const userId = crypto.randomUUID();
+    await db.insert(users).values({
+      id: userId,
+      tenantId: currentUser.tenantId,
+      name,
+      email,
+      passwordHash,
+      role: roleName as 'admin' | 'member' | 'viewer',
+      status: 'active',
+      lastLoginAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await assignRoleToUser(userId, roleName, currentUser.tenantId);
+
+    return c.json({ user: { id: userId, name, email, role: roleName, tenantId: currentUser.tenantId } }, 201);
   });
 
   // ── List all users in current tenant ──

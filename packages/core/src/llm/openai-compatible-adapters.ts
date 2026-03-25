@@ -497,6 +497,73 @@ export class GeminiAdapter implements LLMAdapter {
   }
 }
 
+/**
+ * HuggingFace adapter — OpenAI-compatible Inference API.
+ * Base URL: https://api-inference.huggingface.co/v1/
+ * Models: meta-llama/Llama-3.1-70B-Instruct, mistralai/Mixtral-8x7B-Instruct-v0.1, etc.
+ */
+export class HuggingFaceAdapter implements LLMAdapter {
+  readonly provider = 'huggingface';
+  private client: OpenAI;
+  private model: string;
+  private temperature: number;
+  private maxTokens: number;
+
+  constructor(config: { apiKey?: string; model?: string; baseUrl?: string; temperature?: number; maxTokens?: number }) {
+    this.client = new OpenAI({
+      apiKey: config.apiKey || process.env.HUGGINGFACE_API_KEY,
+      baseURL: config.baseUrl || 'https://api-inference.huggingface.co/v1/',
+    });
+    this.model = config.model || 'meta-llama/Llama-3.1-70B-Instruct';
+    this.temperature = config.temperature ?? 0.7;
+    this.maxTokens = config.maxTokens ?? 4096;
+  }
+
+  async chat(messages: LLMMessage[], tools?: ToolDefinition[]): Promise<LLMResponse> {
+    const response = await this.client.chat.completions.create({
+      model: this.model,
+      messages: messages.map((m) => toOpenAIMessage(m)),
+      temperature: this.temperature,
+      max_tokens: this.maxTokens,
+      tools: tools?.length ? tools.map((t) => toOpenAITool(t)) : undefined,
+    });
+    const choice = response.choices[0];
+    return {
+      content: choice.message.content || '',
+      toolCalls: choice.message.tool_calls?.map((tc) => ({
+        id: tc.id, name: tc.function.name,
+        arguments: JSON.parse(tc.function.arguments || '{}'),
+      })),
+      usage: {
+        promptTokens: response.usage?.prompt_tokens ?? 0,
+        completionTokens: response.usage?.completion_tokens ?? 0,
+        totalTokens: response.usage?.total_tokens ?? 0,
+      },
+      model: response.model,
+      finishReason: choice.finish_reason === 'tool_calls' ? 'tool_calls' : choice.finish_reason as LLMResponse['finishReason'],
+    };
+  }
+
+  async *chatStream(messages: LLMMessage[], tools?: ToolDefinition[]): AsyncGenerator<StreamEvent> {
+    const stream = await this.client.chat.completions.create({
+      model: this.model,
+      messages: messages.map((m) => toOpenAIMessage(m)),
+      temperature: this.temperature,
+      max_tokens: this.maxTokens,
+      tools: tools?.length ? tools.map((t) => toOpenAITool(t)) : undefined,
+      stream: true,
+    });
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta;
+      if (!delta) continue;
+      if (delta.content) yield { type: 'text-delta', delta: delta.content };
+      if (chunk.choices[0]?.finish_reason) {
+        yield { type: 'finish', usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 }, finishReason: chunk.choices[0].finish_reason };
+      }
+    }
+  }
+}
+
 // ─── Shared Helpers ─────────────────────────────────────────
 
 function toOpenAIMessage(msg: LLMMessage): OpenAI.Chat.ChatCompletionMessageParam {

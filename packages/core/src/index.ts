@@ -14,7 +14,7 @@ export { OpenAIAdapter } from './llm/openai-adapter.js';
 export { AnthropicAdapter } from './llm/anthropic-adapter.js';
 export { OllamaAdapter } from './llm/ollama-adapter.js';
 export type { OllamaModel, OllamaModelInfo, OllamaHealthStatus } from './llm/ollama-adapter.js';
-export { DeepSeekAdapter, XAIAdapter, OpenRouterAdapter, PerplexityAdapter, GroqAdapter, MistralAdapter, GeminiAdapter } from './llm/openai-compatible-adapters.js';
+export { DeepSeekAdapter, XAIAdapter, OpenRouterAdapter, PerplexityAdapter, GroqAdapter, MistralAdapter, GeminiAdapter, HuggingFaceAdapter } from './llm/openai-compatible-adapters.js';
 
 // Streaming
 export { streamToSSE, collectStreamText, withHeartbeat } from './streaming/stream-writer.js';
@@ -35,6 +35,7 @@ export type { SkillDefinition, SkillSelector } from './skills/skill-manager.js';
 export { GraphEngine } from './graph/graph-engine.js';
 export { WorkflowEngine, validateWorkflow } from './workflow/workflow-engine.js';
 export type { ValidationError } from './workflow/workflow-engine.js';
+export { LangGraphWorkflowEngine } from './workflow/langgraph-workflow-engine.js';
 
 // Monitoring
 export { MonitoringService } from './monitoring/monitoring-service.js';

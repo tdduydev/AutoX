@@ -4,8 +4,8 @@ import type { ZaloWebhookEvent } from './zalo-api.js';
 
 export interface ZaloChannelConfig {
   oaId: string;
-  accessToken: string;
-  appId?: string;
+  appId: string;
+  accessToken?: string;
   secretKey?: string;
 }
 
@@ -22,34 +22,39 @@ export class ZaloChannel implements ChannelPlugin {
   readonly name = 'Zalo Channel';
   readonly version = '2.0.0';
 
-  private api!: ZaloApi;
+  private api?: ZaloApi;
   private config!: ZaloChannelConfig;
   private messageHandler?: (message: IncomingMessage) => Promise<void>;
   private running = false;
 
   async initialize(config: Record<string, unknown>): Promise<void> {
-    const accessToken = config.accessToken as string;
     const oaId = config.oaId as string;
+    const appId = config.appId as string;
+    const accessToken = config.accessToken as string | undefined;
 
-    if (!accessToken || !oaId) {
-      throw new Error('ZaloChannel: accessToken and oaId are required');
+    if (!oaId || !appId) {
+      throw new Error('ZaloChannel: oaId and appId are required');
     }
 
-    this.api = new ZaloApi(accessToken);
     this.config = {
       oaId,
-      accessToken,
-      appId: config.appId as string | undefined,
+      appId,
+      accessToken: accessToken || undefined,
       secretKey: config.secretKey as string | undefined,
     };
 
-    // Verify connection
-    try {
-      const info = await this.api.getOAInfo();
-      const data = info.data as Record<string, unknown> | undefined;
-      console.log(`   Zalo:       connected to OA "${data?.name || oaId}"`);
-    } catch {
-      console.log(`   Zalo:       initialized for OA ${oaId} (could not verify)`);
+    // Only create API client if accessToken is available
+    if (accessToken) {
+      this.api = new ZaloApi(accessToken);
+      try {
+        const info = await this.api.getOAInfo();
+        const data = info.data as Record<string, unknown> | undefined;
+        console.log(`   Zalo:       connected to OA "${data?.name || oaId}"`);
+      } catch {
+        console.log(`   Zalo:       initialized for OA ${oaId} (could not verify token)`);
+      }
+    } else {
+      console.log(`   Zalo:       webhook mode for OA ${oaId} (App: ${appId}) — no access token, receive-only`);
     }
   }
 
@@ -65,6 +70,10 @@ export class ZaloChannel implements ChannelPlugin {
   }
 
   async send(message: OutgoingMessage): Promise<void> {
+    if (!this.api) {
+      console.warn('Zalo: cannot send — no access token configured (webhook receive-only mode)');
+      return;
+    }
     const chunks = this.splitMessage(message.content, 2000);
     for (const chunk of chunks) {
       await this.api.sendTextMessage(message.channelId, chunk);
@@ -100,11 +109,13 @@ export class ZaloChannel implements ChannelPlugin {
       await this.messageHandler(incoming);
     } catch (err) {
       console.error('Zalo handler error:', err instanceof Error ? err.message : err);
-      await this.api.sendTextMessage(event.sender.id, '❌ Xin lỗi, có lỗi xảy ra khi xử lý tin nhắn.').catch(() => {});
+      if (this.api) {
+        await this.api.sendTextMessage(event.sender.id, '❌ Xin lỗi, có lỗi xảy ra khi xử lý tin nhắn.').catch(() => {});
+      }
     }
   }
 
-  getApi(): ZaloApi {
+  getApi(): ZaloApi | undefined {
     return this.api;
   }
 
