@@ -283,18 +283,27 @@ export class TelegramChannel implements ChannelPlugin {
       }
     }
 
-    // Fallback: Ollama whisper model
-    const ollamaUrl = (process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/v1\/?$/, '');
-    const base64 = buffer.toString('base64');
-    const res = await fetch(`${ollamaUrl}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'whisper', prompt: 'Transcribe this audio to text.', images: [base64], stream: false }),
-      signal: AbortSignal.timeout(60000),
-    });
-    if (!res.ok) throw new Error('Ollama whisper transcription failed — run: ollama pull whisper');
-    const data = await res.json() as { response: string };
-    return data.response.trim();
+    // Fallback: Groq Whisper API (free tier, fast)
+    const groqKey = process.env.GROQ_API_KEY;
+    if (groqKey) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('model', 'whisper-large-v3-turbo');
+      formData.append('response_format', 'json');
+      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${groqKey}` },
+        body: formData,
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const data = await res.json() as { text: string };
+        return data.text.trim();
+      }
+    }
+
+    // No transcription provider available — return placeholder so message still processes
+    throw new Error('No voice transcription provider available. Set OPENAI_API_KEY or GROQ_API_KEY in .env');
   }
 
   private splitMessage(text: string, maxLen: number): string[] {

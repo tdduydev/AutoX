@@ -331,10 +331,20 @@ export function createAgentsRoutes(ctx?: GatewayContext) {
             updatedAt: new Date(),
           },
         });
+        // Also start the channel runtime so it begins polling/listening immediately
+        if (ctx?.channelManager) {
+          const updated = await channels.findOne({ _id: id });
+          if (updated) {
+            await ctx.channelManager.stopChannel(id).catch(() => {}); // stop if already running (token change)
+            await ctx.channelManager.startChannel(updated);
+          }
+        }
       } else {
         await channels.updateOne({ _id: id }, {
           $set: { status: 'error', updatedAt: new Date() },
         });
+        // Stop any existing runtime (e.g. old token was revoked)
+        if (ctx?.channelManager) await ctx.channelManager.stopChannel(id).catch(() => {});
       }
 
       return c.json({ ok: testResult.ok, message: testResult.message, metadata: testResult.metadata });

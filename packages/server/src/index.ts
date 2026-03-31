@@ -1,4 +1,5 @@
 import { serve } from '@hono/node-server';
+import type { ChatOptions } from '@xclaw-ai/core';
 import {
     Agent,
     AnthropicAdapter,
@@ -62,6 +63,16 @@ const {
   // Set VISION_PROVIDER=gemini to use Gemini instead of Ollama
   VISION_PROVIDER = 'ollama',
   VISION_MODEL = '',
+  // Channel tokens — auto-seeded to MongoDB on first startup (idempotent, per default tenant)
+  TELEGRAM_BOT_TOKEN = '',
+  DISCORD_BOT_TOKEN = '',
+  SLACK_BOT_TOKEN = '',
+  SLACK_SIGNING_SECRET = '',
+  WHATSAPP_PHONE_NUMBER_ID = '',
+  WHATSAPP_ACCESS_TOKEN = '',
+  WHATSAPP_VERIFY_TOKEN = '',
+  FACEBOOK_PAGE_ACCESS_TOKEN = '',
+  FACEBOOK_VERIFY_TOKEN = '',
 } = process.env;
 
 // Auto-detect default model based on provider
@@ -131,6 +142,126 @@ async function main() {
     await seedInitialData();
   } catch (err) {
     console.warn('⚠️  Seed skipped (DB may not be ready):', (err as Error).message);
+  }
+
+  // Auto-seed channel connections from env vars → MongoDB (idempotent, default tenant only)
+  // This means: set TELEGRAM_BOT_TOKEN in .env once → persists in MongoDB across all restarts
+  // Admin UI can still override/add more channels per-tenant
+  try {
+    const channels = channelConnectionsCollection();
+    const now = new Date();
+
+    if (TELEGRAM_BOT_TOKEN) {
+      const existing = await channels.findOne({ channelType: 'telegram', tenantId: 'default' });
+      if (!existing) {
+        await channels.insertOne({
+          _id: 'env-telegram-default',
+          tenantId: 'default',
+          userId: 'system',
+          channelType: 'telegram',
+          name: 'Telegram Bot (env)',
+          config: { botToken: TELEGRAM_BOT_TOKEN },
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+        });
+        console.log('   Channels:  ✅ seeded Telegram from TELEGRAM_BOT_TOKEN env');
+      } else if (existing.config?.botToken !== TELEGRAM_BOT_TOKEN) {
+        // Token rotated in .env → update MongoDB automatically
+        await channels.updateOne(
+          { _id: existing._id },
+          { $set: { 'config.botToken': TELEGRAM_BOT_TOKEN, status: 'active', updatedAt: now } },
+        );
+        console.log('   Channels:  🔄 updated Telegram token from env (token rotated)');
+      }
+    }
+
+    if (DISCORD_BOT_TOKEN) {
+      const existing = await channels.findOne({ channelType: 'discord', tenantId: 'default' });
+      if (!existing) {
+        await channels.insertOne({
+          _id: 'env-discord-default',
+          tenantId: 'default',
+          userId: 'system',
+          channelType: 'discord',
+          name: 'Discord Bot (env)',
+          config: { botToken: DISCORD_BOT_TOKEN },
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+        });
+        console.log('   Channels:  ✅ seeded Discord from DISCORD_BOT_TOKEN env');
+      } else if (existing.config?.botToken !== DISCORD_BOT_TOKEN) {
+        await channels.updateOne(
+          { _id: existing._id },
+          { $set: { 'config.botToken': DISCORD_BOT_TOKEN, status: 'active', updatedAt: now } },
+        );
+        console.log('   Channels:  🔄 updated Discord token from env');
+      }
+    }
+
+    if (SLACK_BOT_TOKEN && SLACK_SIGNING_SECRET) {
+      const existing = await channels.findOne({ channelType: 'slack', tenantId: 'default' });
+      if (!existing) {
+        await channels.insertOne({
+          _id: 'env-slack-default',
+          tenantId: 'default',
+          userId: 'system',
+          channelType: 'slack',
+          name: 'Slack Bot (env)',
+          config: { botToken: SLACK_BOT_TOKEN, signingSecret: SLACK_SIGNING_SECRET },
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+        });
+        console.log('   Channels:  ✅ seeded Slack from SLACK_BOT_TOKEN env');
+      }
+    }
+
+    if (WHATSAPP_PHONE_NUMBER_ID && WHATSAPP_ACCESS_TOKEN) {
+      const existing = await channels.findOne({ channelType: 'whatsapp', tenantId: 'default' });
+      if (!existing) {
+        await channels.insertOne({
+          _id: 'env-whatsapp-default',
+          tenantId: 'default',
+          userId: 'system',
+          channelType: 'whatsapp',
+          name: 'WhatsApp (env)',
+          config: {
+            phoneNumberId: WHATSAPP_PHONE_NUMBER_ID,
+            accessToken: WHATSAPP_ACCESS_TOKEN,
+            verifyToken: WHATSAPP_VERIFY_TOKEN,
+          },
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+        });
+        console.log('   Channels:  ✅ seeded WhatsApp from env');
+      }
+    }
+
+    if (FACEBOOK_PAGE_ACCESS_TOKEN) {
+      const existing = await channels.findOne({ channelType: 'facebook', tenantId: 'default' });
+      if (!existing) {
+        await channels.insertOne({
+          _id: 'env-facebook-default',
+          tenantId: 'default',
+          userId: 'system',
+          channelType: 'facebook',
+          name: 'Facebook Page (env)',
+          config: {
+            pageAccessToken: FACEBOOK_PAGE_ACCESS_TOKEN,
+            verifyToken: FACEBOOK_VERIFY_TOKEN,
+          },
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+        });
+        console.log('   Channels:  ✅ seeded Facebook from env');
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️  Channel env-seed skipped:', (err as Error).message);
   }
 
   // Seed default agent config in MongoDB (idempotent)

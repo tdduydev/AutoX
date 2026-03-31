@@ -61,6 +61,9 @@ services:
       - CREDENTIAL_ENCRYPTION_KEY=${CREDENTIAL_ENCRYPTION_KEY:-xclaw-dev-credential-key-do-not-use-in-prod}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # Disable IPv6 in container — Node.js fetch (undici) hangs on ENETUNREACH IPv6 in Docker
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
     depends_on:
       postgres:
         condition: service_healthy
