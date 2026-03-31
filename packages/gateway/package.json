@@ -16,9 +16,9 @@
         "dev": "tsc -b --watch"
     },
     "dependencies": {
-        "@hono/node-server": "^1.14.0",
+        "@hono/node-server": "^1.19.12",
         "@hono/node-ws": "^1.1.0",
-        "@modelcontextprotocol/sdk": "^1.27.1",
+        "@modelcontextprotocol/sdk": "^1.29.0",
         "@xclaw-ai/core": "*",
         "@xclaw-ai/db": "*",
         "@xclaw-ai/doc-mcp": "*",
@@ -27,7 +27,7 @@
         "@xclaw-ai/ml": "*",
         "@xclaw-ai/sandbox": "*",
         "@xclaw-ai/shared": "*",
-        "hono": "^4.7.0",
-        "jose": "^6.0.0"
+        "hono": "^4.12.9",
+        "jose": "^6.2.2"
     }
 }
