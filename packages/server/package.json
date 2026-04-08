@@ -27,7 +27,7 @@
         "@xclaw-ai/channel-zalo": "*",
         "@xclaw-ai/channel-discord": "*",
         "@xclaw-ai/channel-msteams": "*",
-        "@hono/node-server": "^1.14.0",
+        "@hono/node-server": "^1.19.13",
         "dotenv": "^16.4.0"
     }
 }
